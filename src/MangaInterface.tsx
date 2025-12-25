@@ -1,21 +1,58 @@
 import * as React from "react";
 import { App } from "obsidian";
+import { ReaderPage } from "./components/ReaderPage";
 import { LibraryPage } from "./components/LibraryPage";
+import { ChapterListPage } from "./components/ChapterListPage";
 
+
+
+// MangaInterface является чисто диспетчером
+// он решает, какой компонент показать
 export const MangaInterface = ({ app }: { app: App }) => {
-    // Храним только то, какой тайтл сейчас выбран
+    // Храним информацию какие тайтл и глава сейчас выбраны
     const [selectedTitle, setSelectedTitle] = React.useState<string | null>(null);
+    const [selectedChapter, setSelectedChapter] = React.useState<string | null>(null);
+    
+    // Логика "Назад" общая для всех компонентов
+    const handleBack = () => {
+        if (selectedChapter) {
+            setSelectedChapter(null); // Если в главе — выходим к списку глав
+        } else {
+            setSelectedTitle(null);   // Если в списке глав — выходим в библиотеку
+        }
+    };
 
-    // Если ничего не выбрано — показываем страницу библиотеки
-    if (!selectedTitle) {
-        return <LibraryPage app={app} onSelectTitle={(path) => setSelectedTitle(path)} />;
+    // Диспетчер - что выбрали, туда и направит
+    // Если конкретная глава манги    
+    if (selectedChapter && selectedTitle) {
+    return (
+        <ReaderPage 
+            app={app} 
+            parentPath={selectedTitle} 
+            chapterName={selectedChapter} 
+            onBack={handleBack} 
+        />
+    );
+}
+
+    // Если тайтл??
+    if (selectedTitle) {
+        return (
+            <div style={{ padding: "20px" }}>
+                <ChapterListPage 
+                    app={app} 
+                    folderPath={selectedTitle} 
+                    onBack={handleBack} 
+                    onSelectChapter={(name) => setSelectedChapter(name)}
+                />
+            </div>
+        );
     }
 
-    // Если тайтл выбран — пока просто пишем заглушку (потом заменим на ChapterListPage)
+    // Тут как будто бы на страницу библиотеки??
     return (
         <div style={{ padding: "20px" }}>
-            <button onClick={() => setSelectedTitle(null)}>⬅ Назад</button>
-            <h2>Выбрана манга: {selectedTitle}</h2>
+            <LibraryPage app={app} onSelectTitle={(path) => setSelectedTitle(path)} />
         </div>
     );
 };

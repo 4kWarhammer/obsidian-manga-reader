@@ -4,13 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-      "dev": "node esbuild.config.mjs",
-      "build": "node esbuild.config.mjs production"
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",  
+  "license": "ISC",
   "dependencies": {
+    "jszip": "^3.10.1",
     "obsidian": "^1.11.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"

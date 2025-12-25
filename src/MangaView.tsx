@@ -1,23 +1,12 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFolder, TFile } from "obsidian";
 import * as React from "react";
 import * as ReactDOM from "react-dom/client";
+// Импортируем наш интерфейс-диспетчер для манги
+import { MangaInterface } from "./MangaInterface";
 
 export const VIEW_TYPE_MANGA = "manga-reader-view";
 
-// Простой компонент-заглушка
-const MangaInterface = () => {
-    return (
-        <div style={{ 
-            padding: '20px', 
-            textAlign: 'center', 
-            color: 'var(--text-accent)' 
-        }}>
-            <h2>📖 Читалка манги</h2>
-            <p>React успешно подключен!</p>
-        </div>
-    );
-};
-
+// Класс MangaView является тут "дверью" в Obsidian
 export class MangaView extends ItemView {
     root: ReactDOM.Root | null = null;
 
@@ -29,12 +18,15 @@ export class MangaView extends ItemView {
     getDisplayText() { return "Manga Reader"; }
 
     async onOpen() {
-        // Контейнер, куда мы «вставим» React
         const container = this.containerEl.children[1] as HTMLElement;
         this.root = ReactDOM.createRoot(container);
+        
+        // Передаем объект 'this.app' внутрь React, 
+        // чтобы мы могли обращаться к файлам Obsidian
         this.root.render(
+            // тут просто запускаем компонент, передавая ему app
             <React.StrictMode>
-                <MangaInterface />
+                <MangaInterface app={this.app} />
             </React.StrictMode>
         );
     }

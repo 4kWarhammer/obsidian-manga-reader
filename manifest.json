@@ -1,0 +1,8 @@
+{
+  "id": "obsidian-manga-reader",
+  "name": "Obsidian manga reader for local files",
+  "version": "1.0.0",
+  "author": "AlexLi",
+  "description": "Читался для Obsidian локальных библиотек манги",
+  "isDesktopOnly": false
+}

@@ -3,15 +3,21 @@ import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 // Импортируем наш интерфейс-диспетчер для манги
 import { MangaInterface } from "./MangaInterface";
+// Импортируем класс твоего плагина
+import MangaReaderPlugin from "./main"; 
 
 export const VIEW_TYPE_MANGA = "manga-reader-view";
 
 // Класс MangaView является тут "дверью" в Obsidian
+// чисто делает так, чтобы плагин нормально дружил в ним
 export class MangaView extends ItemView {
     root: ReactDOM.Root | null = null;
+    plugin: MangaReaderPlugin; // Создаем место для хранения ссылки на плагин
 
-    constructor(leaf: WorkspaceLeaf) {
+    // Обновляем конструктор: теперь он ждет (leaf, plugin)
+    constructor(leaf: WorkspaceLeaf, plugin: MangaReaderPlugin) {
         super(leaf);
+        this.plugin = plugin; // Сохраняем плагин в класс
     }
 
     getViewType() { return VIEW_TYPE_MANGA; }
@@ -26,7 +32,11 @@ export class MangaView extends ItemView {
         this.root.render(
             // тут просто запускаем компонент, передавая ему app
             <React.StrictMode>
-                <MangaInterface app={this.app} />
+                {/* Теперь мы можем передать данные плагина в React */}
+                <MangaInterface 
+                    app={this.app} 
+                    plugin={this.plugin} 
+                />
             </React.StrictMode>
         );
     }

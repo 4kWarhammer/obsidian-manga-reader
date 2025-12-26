@@ -1,12 +1,19 @@
 import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { MangaView, VIEW_TYPE_MANGA } from './MangaView';
+import { PluginData, DEFAULT_DATA } from './types';
 
 export default class MangaReaderPlugin extends Plugin {
+    data: PluginData;
+
     async onload() {
+        // Загружаем данные из файла data.json (если его нет, берем дефолты)
+        this.data = Object.assign({}, DEFAULT_DATA, await this.loadData());
+
+
         // 1. Регистрируем тип нашего окна (View)
         this.registerView(
             VIEW_TYPE_MANGA,
-            (leaf) => new MangaView(leaf)
+            (leaf) => new MangaView(leaf, this)
         );
 
         // 2. Добавляем иконку на левую панель
@@ -19,6 +26,11 @@ export default class MangaReaderPlugin extends Plugin {
 
     async onunload() {
         console.log('Плагин читалки манги выгружен');
+    }
+
+    // Метод для сохранения (будем вызывать его из React)
+    async savePluginData() {
+        await this.saveData(this.data);
     }
 
     // Логика открытия нашего окна

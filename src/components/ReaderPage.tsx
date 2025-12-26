@@ -1,18 +1,36 @@
 import * as React from "react";
 import { App, TFolder, TFile } from "obsidian";
 import JSZip from "jszip";
+import MangaReaderPlugin from "../main";
+import { ref } from "node:process";
 
 interface Props {
     app: App;
+    plugin: MangaReaderPlugin; // Добавили плагин
     parentPath: string;   // Путь к папке манги
     chapterName: string;  // Название папки главы
     onBack: () => void;
 }
 
-export const ReaderPage = ({ app, parentPath, chapterName, onBack }: Props) => {
+export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Props) => {
     const [images, setImages] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
 
+    // Ссылка на контейнер, чтобы искать картинки внутри него
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    // Функция сохранения страницы в "базу"
+    const saveProgress = async (pageIdx: number) => {
+        const path = parentPath;
+        if (plugin.data.library[path]) {
+            // Сохраняем номер страницы (индекс + 1, чтобы было по-человечески с 1)
+            plugin.data.library[path].lastPage = pageIdx + 1;
+            await plugin.savePluginData();
+            console.log(`Saved: Chapter ${chapterName}, Page ${pageIdx + 1}`);
+        }
+    };
+
+    // Блок инициализации изображений
     React.useEffect(() => {
         const loadImages = async () => {
             setIsLoading(true);
@@ -79,12 +97,43 @@ export const ReaderPage = ({ app, parentPath, chapterName, onBack }: Props) => {
         };
     }, [app, parentPath, chapterName]);
 
+    // Эффект для отслеживания скролла
+    React.useEffect(() => {
+        if (isLoading || images.length === 0) return;
+
+        // Создаем "наблюдателя"
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    // Если картинка видна более чем на 30%
+                    if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+                        const pageIdx = Number(entry.target.getAttribute("data-page-idx"));
+                        saveProgress(pageIdx);
+                    }
+                });
+            },
+            {
+                root: containerRef.current, // Следим внутри нашего контейнера
+                threshold: 0.3 // Порог срабатывания (30% видимости)
+            }
+        );
+
+        // Находим все картинки и вешаем на них наблюдение
+        const imgs = containerRef.current?.querySelectorAll("img");
+        imgs?.forEach((img) => observer.observe(img));
+
+        return () => observer.disconnect(); // Чистим за собой
+    }, [isLoading, images]);
+
     // заглушка при подгрузке страниц
     if (isLoading) return <div style={{ padding: "20px", color: "white" }}>Распаковка и загрузка глав...</div>;
 
     // Сам контейнер для отображения картинок
-    return (
-        <div style={{ height: "100%", overflowY: "auto", background: "#000" }}>
+    return (        
+        <div 
+            ref={containerRef}
+            style={{ height: "100%", overflowY: "auto", background: "#000", position: "relative" }}
+        >
             {/* Панель управления (Sticky Header)  */}
             <div style={{ 
                 position: "sticky", top: 0, padding: "10px", 
@@ -104,16 +153,17 @@ export const ReaderPage = ({ app, parentPath, chapterName, onBack }: Props) => {
                 gap: "2px"
             }}>
                 {images.length > 0 ? (
-                    images.map((url, index) => (
+                    images.map((url, idx) => (
                         <img 
-                            key={index} 
+                            key={idx} 
                             src={url} 
+                            data-page-idx={idx} // Добавляем индекс для слежки
                             style={{ 
                                 maxWidth: "100%", 
                                 height: "auto",
                                 display: "block"
                             }} 
-                            alt={`Страница ${index + 1}`}
+                            alt={`Страница ${idx + 1}`}
                         />
                     ))
                 ) : (

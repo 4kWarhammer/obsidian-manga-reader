@@ -4,6 +4,7 @@ import { ReaderPage } from "./components/ReaderPage";
 import { LibraryPage } from "./components/LibraryPage";
 import { ChapterListPage } from "./components/ChapterListPage";
 import MangaReaderPlugin from "./main"; // Импорт для типизации
+import { TitlePage } from "./components/TitlePage";
 
 // Обновляем описание того, что принимает интерфейс
 interface InterfaceProps {
@@ -61,34 +62,36 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
             plugin={plugin}
             parentPath={selectedTitle} 
             chapterName={selectedChapter} 
-            onBack={handleBack} 
-            // Сюда в будущем передадим функцию сохранения страницы
+            onBack={handleBack}             
         />
     );
 }
 
-    // Если тайтл со списком глав
+    // Если витрина (TitlePage) со списком глав
     if (selectedTitle) {
+        const chapterName = 'test_name'
         return (
             <div style={{ padding: "20px" }}>
-                <ChapterListPage 
-                    app={app} 
-                    folderPath={selectedTitle} 
-                    onBack={handleBack} 
-                    // onSelectChapter={(name) => setSelectedChapter(name)}
-                    onSelectChapter={(name) => updateLastChapter(selectedTitle, name)}
+                <TitlePage 
+                    app={app}
+                    plugin={plugin}
+                    path={selectedTitle}
+                    onBack={handleBack}
+                    onContinue={(chapterName) => setSelectedChapter(chapterName)}
+                    // А вот это под вопросом, походу уже не нужно
+                    onSelectChapter={(chapterName) => setSelectedChapter(chapterName)}
                 />
             </div>
         );
     }
 
-    // Тут как будто бы на страницу библиотеки
+    // Если библиотека(LibraryPage)
     return (
         <div style={{ padding: "20px" }}>
             <LibraryPage 
-            app={app} 
-            plugin={plugin} // Передаем плагин здесь, чтобы наш LibraryPage мог с ней работать
-            onSelectTitle={(path) => setSelectedTitle(path)} />
+                app={app} 
+                plugin={plugin} // Передаем плагин здесь, чтобы наш LibraryPage мог с ней работать
+                onSelectTitle={(path) => setSelectedTitle(path)} />
         </div>
     );
 };

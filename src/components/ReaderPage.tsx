@@ -2,7 +2,6 @@ import * as React from "react";
 import { App, TFolder, TFile } from "obsidian";
 import JSZip from "jszip";
 import MangaReaderPlugin from "../main";
-import { ref } from "node:process";
 
 interface Props {
     app: App;
@@ -15,14 +14,19 @@ interface Props {
 export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Props) => {
     const [images, setImages] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
+    const isAutoScrolling = React.useRef(true);
 
     // Ссылка на контейнер, чтобы искать картинки внутри него
     const containerRef = React.useRef<HTMLDivElement>(null);
 
     // Функция сохранения страницы в "базу"
     const saveProgress = async (pageIdx: number) => {
+        if (isAutoScrolling.current) return; // Блокируем сохранение во время прыжка
+
         const path = parentPath;
         if (plugin.data.library[path]) {
+            // Сохраняем главу
+            plugin.data.library[path].lastChapter = chapterName
             // Сохраняем номер страницы (индекс + 1, чтобы было по-человечески с 1)
             plugin.data.library[path].lastPage = pageIdx + 1;
             await plugin.savePluginData();
@@ -86,7 +90,6 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
             setImages(imageUrls);
             setIsLoading(false);
         };
-
         loadImages();
 
         // Очистка памяти: когда закрываем главу, удаляем временные Blob-ссылки
@@ -96,6 +99,39 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
             });
         };
     }, [app, parentPath, chapterName]);
+
+    // Автоскролл при загрузке главы
+    React.useEffect(() => {
+        if (!isLoading && images.length > 0) {
+            const performScroll = () => {
+                const savedPage = plugin.data.library[parentPath]?.lastPage || 1;
+                
+                if (savedPage > 1) {
+                    const targetImg = containerRef.current?.querySelector(
+                        `img[data-page-idx="${savedPage - 1}"]`
+                    ) as HTMLImageElement;
+
+                    if (targetImg) {
+                        targetImg.scrollIntoView({ block: 'start', behavior: "smooth" });
+                    }
+                }
+                
+                // Ждем завершения анимации скролла и разрешаем Observer сохранять данные
+                setTimeout(() => {
+                    isAutoScrolling.current = false
+                    console.log("Auto-scroll finished, observer enabled");
+                }, 1000); 
+            };
+
+            performScroll();
+        }
+        // При закрытии страницы (unmount) или смене главы сбрасываем флаг в true для следующего раза
+        return () => {
+            isAutoScrolling.current = true;
+        };
+
+    }, [isLoading, images]);
+
 
     // Эффект для отслеживания скролла
     React.useEffect(() => {

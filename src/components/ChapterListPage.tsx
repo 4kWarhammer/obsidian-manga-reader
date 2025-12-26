@@ -28,8 +28,8 @@ export const ChapterListPage = ({ app, folderPath, onBack, onSelectChapter }: Pr
 
     return (
         <div>
-            <button onClick={onBack} style={{ marginBottom: "10px" }}>⬅ Назад к библиотеке</button>
-            <h2>📖 {folderPath.split('/').pop()}</h2>
+            {/* <button onClick={onBack} style={{ marginBottom: "10px" }}>⬅ Назад к библиотеке</button> */}
+            {/* <h2>📖 {folderPath.split('/').pop()}</h2> */}
             
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {chapters.length > 0 ? (

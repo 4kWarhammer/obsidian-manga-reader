@@ -12,6 +12,7 @@ interface Props {
 export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     const [folders, setFolders] = React.useState<string[]>([]);
 
+    // Функция сканирования на все папки в хранилище
     const scanLibrary = () => {
         const onlyFolders = app.vault.getAllLoadedFiles()
             .filter((f): f is TFolder => f instanceof TFolder)
@@ -20,8 +21,36 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     };
 
     return (
-        <div>
-            <h2>📚 Библиотека</h2>
+        <div style={{padding: "20px"}}>
+            <h2>📚 Моя библиотека</h2>
+
+            {/* Секция: В процессе чтения */}
+            <div style={{marginBottom: "30px"}}>
+                <h4 style={{ color: "var(--text-muted)" }}>Продолжить чтение</h4>
+                {Object.keys(plugin.data.library).length > 0 ? (
+                    Object.keys(plugin.data.library).map(path => (
+                        <div key={path} onClick={() => onSelectTitle(path)} style={{ 
+                            padding: "10px", 
+                            background: "var(--background-secondary)",
+                            marginBottom: "5px",
+                            borderRadius: "4px",
+                            cursor: "pointer"
+                        }}>
+                            <b>{path.split('/').pop()}</b>
+                            <div style={{ fontSize: "0.8em" }}>
+                                🔖 {plugin.data.library[path].lastChapter}
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p style={{ fontSize: "0.8em" }}>Тут будет манга, которую вы начнете читать</p>
+                )}
+
+            </div>
+
+            <hr />
+
+            {/* СЕКЦИЯ: Все папки (сканирование) */}
             <button onClick={scanLibrary}>Сканировать Vault</button>
             <div style={{ marginTop: "20px" }}>
                 {folders.map(p => {

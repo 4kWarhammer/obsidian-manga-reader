@@ -24,23 +24,28 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
     const [selectedChapter, setSelectedChapter] = React.useState<string | null>(null);
     
     // Функция для сохранения прогресса выбора главы
-    const updateLastChapter = async (titlePath: string, chapterName: string) => {
-        // Проверяем, есть ли уже запись для этой манги, если нет - создаем пустой объект
+    const handleChapterChange = async (chapterName: string, resetPage: boolean = true) => {
+        const titlePath = selectedTitle;
+        if (!titlePath) return;
+
+        // 1. Создаем запись в библиотеке, если её нет
         if (!plugin.data.library[titlePath]) {
             plugin.data.library[titlePath] = {
                 lastChapter: "",
-                lastPage: 0
+                lastPage: 1
             };
         }
 
-        // Обновляем данные
+        // 2. Обновляем данные в объекте
         plugin.data.library[titlePath].lastChapter = chapterName;
-        
-        
-        // Сохраняем на диск (в data.json)
+        if (resetPage) {
+            plugin.data.library[titlePath].lastPage = 1;
+        }
+
+        // 3. Сначала сохраняем на диск
         await plugin.savePluginData();
-        
-        // Теперь обновляем состояние React, чтобы открылся ридер
+
+        // 4. И только потом меняем состояние, чтобы переключить экран
         setSelectedChapter(chapterName);
     };
 
@@ -54,20 +59,22 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
     };
 
     // Диспетчер - что выбрали, туда и направит
-    // Если конкретная глава манги    
+    // Ридер с выбранной главой
     if (selectedChapter && selectedTitle) {
-    return (
-        <ReaderPage 
-            app={app} 
-            plugin={plugin}
-            parentPath={selectedTitle} 
-            chapterName={selectedChapter} 
-            onBack={handleBack}             
-        />
-    );
-}
+        return (
+            <ReaderPage 
+                app={app} 
+                plugin={plugin}
+                parentPath={selectedTitle} 
+                chapterName={selectedChapter} 
+                onBack={handleBack} 
+                // Внутри ридера при переключении глав ВСЕГДА сбрасываем на стр. 1
+                onChapterChange={(name) => handleChapterChange(name, true)}
+            />
+        );
+    }
 
-    // Если витрина (TitlePage) со списком глав
+    // Витрина (TitlePage) со списком глав
     if (selectedTitle) {
         const chapterName = 'test_name'
         return (
@@ -77,9 +84,10 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
                     plugin={plugin}
                     path={selectedTitle}
                     onBack={handleBack}
-                    onContinue={(chapterName) => setSelectedChapter(chapterName)}
-                    // А вот это под вопросом, походу уже не нужно
-                    onSelectChapter={(chapterName) => setSelectedChapter(chapterName)}
+                    // Кнопка "Продолжить" — НЕ сбрасываем страницу
+                    onContinue={(name) => handleChapterChange(name, false)}
+                    // Клик по главе в списке — Сбрасываем на стр. 1
+                    onSelectChapter={(name) => handleChapterChange(name, true)}
                 />
             </div>
         );

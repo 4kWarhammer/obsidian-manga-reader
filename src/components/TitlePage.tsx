@@ -8,8 +8,9 @@ interface Props {
     plugin: MangaReaderPlugin;
     path: string;
     onBack: () => void;
-    onContinue: (chapter: string) => void; // Для кнопки "Продолжить"
-    onSelectChapter: (chapter: string) => void;
+    // Тут второй аргумент необязателен, поэтому ставим ?
+    onContinue: (chapter: string, resetPage?: boolean) => void; // Для кнопки "Продолжить"
+    onSelectChapter: (chapter: string, resetPage?: boolean) => void;
 }
 
 export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapter }: Props) => {
@@ -29,7 +30,7 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
                     {progress?.lastChapter ? (
                         <button 
                             style={{ background: "var(--interactive-accent)", color: "var(--text-on-accent)" }}
-                            onClick={() => onContinue(progress.lastChapter)}
+                            onClick={() => onContinue(progress.lastChapter, false)}
                         >
                             Продолжить: {progress.lastChapter} (стр. {progress.lastPage})
                         </button>
@@ -48,7 +49,7 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
                     app={app}
                     folderPath={path}
                     onBack={() => {}} // Передаем пустой? Потому что у TitlePage уже есть "Назад"
-                    onSelectChapter={onSelectChapter}
+                    onSelectChapter={(name) => onSelectChapter(name, true)}
                 />
             </div>            
         </div>

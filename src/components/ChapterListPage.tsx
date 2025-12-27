@@ -5,7 +5,7 @@ interface Props {
     app: App;
     folderPath: string;      // Путь к папке манги
     onBack: () => void;      // Функция возврата назад
-    onSelectChapter: (chapterName: string) => void; // Выбор главы для чтения
+    onSelectChapter: (chapterName: string, resetPage?: boolean) => void; // Выбор главы для чтения
 }
 
 export const ChapterListPage = ({ app, folderPath, onBack, onSelectChapter }: Props) => {
@@ -36,7 +36,7 @@ export const ChapterListPage = ({ app, folderPath, onBack, onSelectChapter }: Pr
                     chapters.map(name => (
                         <div 
                             key={name} 
-                            onClick={() => onSelectChapter(name)}
+                            onClick={() => onSelectChapter(name, true)}
                             style={{ 
                                 padding: "12px", 
                                 background: "var(--background-secondary)", 

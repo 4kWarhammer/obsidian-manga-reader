@@ -8,13 +8,16 @@ interface Props {
     plugin: MangaReaderPlugin; // Добавили плагин
     parentPath: string;   // Путь к папке манги
     chapterName: string;  // Название папки главы
+    onChapterChange: (chapterName: string, resetPage?: boolean) => void
     onBack: () => void;
 }
 
-export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Props) => {
+export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChange, onBack }: Props) => {
     const [images, setImages] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const isAutoScrolling = React.useRef(true);
+    const isAutoScrolling = React.useRef(true); // Состояние автоскролла
+    const [allChapters, setAllChapters] = React.useState<string[]>([]); // храним список всех глав
+
 
     // Ссылка на контейнер, чтобы искать картинки внутри него
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -34,14 +37,29 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
         }
     };
 
-    // Блок инициализации изображений
+    // Блок инициализации изображений, загрузка
     React.useEffect(() => {
         const loadImages = async () => {
             setIsLoading(true);
             const fullPath = `${parentPath}/${chapterName}`;
             const fileOrFolder = app.vault.getAbstractFileByPath(fullPath);
-
             let imageUrls: string[] = [];
+
+            // ПОЛУЧАЕМ СПИСОК ВСЕХ ГЛАВ В ПАПКЕ
+            const parentFolder = app.vault.getAbstractFileByPath(parentPath);
+            
+            if (parentFolder instanceof TFolder) {
+                const chapters = parentFolder.children
+                    .filter(f => {
+                        // Оставляем только папки ИЛИ файлы-архивы
+                        const isFolder = f instanceof TFolder;
+                        const isArchive = f instanceof TFile && ['zip', 'cbz'].includes(f.extension.toLowerCase());
+                        return isFolder || isArchive;
+                    })
+                    .map(f => f.name) // map выдает массив строк
+                    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                setAllChapters(chapters);
+            }
 
             // СЦЕНАРИЙ 1: ГЛАВА - ЭТО ПАПКА
             if (fileOrFolder instanceof TFolder) {                
@@ -102,6 +120,10 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
 
     // Автоскролл при загрузке главы
     React.useEffect(() => {
+        // Как только изменилось имя главы - блокируем сохранения
+        isAutoScrolling.current = true;
+        console.log("Switching chapter: scrolling locked");
+
         if (!isLoading && images.length > 0) {
             const performScroll = () => {
                 const savedPage = plugin.data.library[parentPath]?.lastPage || 1;
@@ -112,14 +134,20 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
                     ) as HTMLImageElement;
 
                     if (targetImg) {
-                        targetImg.scrollIntoView({ block: 'start', behavior: "smooth" });
+                        targetImg.scrollIntoView({ block: 'start', behavior: "instant" });
+                    }
+                } else {
+                    // НОВОЕ: Если страница 1, принудительно скроллим контейнер в самый верх
+                    if (containerRef.current) {
+                        containerRef.current.scrollTo({ top: 0, behavior: "instant" });
+                        console.log("Forced scroll to top for Page 1");
                     }
                 }
                 
-                // Ждем завершения анимации скролла и разрешаем Observer сохранять данные
+                // Ждем завершения анимации скролла и снимаем блокировку через секунду
                 setTimeout(() => {
                     isAutoScrolling.current = false
-                    console.log("Auto-scroll finished, observer enabled");
+                    console.log("Switching chapter: scrolling unlocked");
                 }, 1000); 
             };
 
@@ -130,8 +158,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
             isAutoScrolling.current = true;
         };
 
-    }, [isLoading, images]);
-
+    }, [isLoading, images, chapterName]);
 
     // Эффект для отслеживания скролла
     React.useEffect(() => {
@@ -206,6 +233,48 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onBack }: Pro
                     <p style={{ color: "white", padding: "20px" }}>В этой главе нет изображений</p>
                 )}
             </div>
+
+            {/* Навигация внизу страницы */}
+            {!isLoading && images.length > 0 && (
+                <div style={{ 
+                    padding: "40px 20px", 
+                    display: "flex", 
+                    flexDirection: "column", // Кнопки друг под другом или в ряд
+                    alignItems: "center",
+                    gap: "15px",
+                    background: "#111",
+                    marginTop: "20px"
+                }}>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                        {/* Кнопка "Назад" (Предыдущая глава) */}
+                        {allChapters.indexOf(chapterName) > 0 && (
+                            <button onClick={() => {
+                                const prevIdx = allChapters.indexOf(chapterName) - 1;
+                                onChapterChange(allChapters[prevIdx], true);
+                            }}>
+                                ⬅ Предыдущая глава
+                            </button>
+                        )}
+
+                        {/* Кнопка "Вперед" (Следующая глава) */}
+                        {allChapters.indexOf(chapterName) < allChapters.length - 1 && (
+                            <button 
+                                style={{ background: "var(--interactive-accent)", color: "white" }}
+                                onClick={() => {
+                                    const nextIdx = allChapters.indexOf(chapterName) + 1;
+                                    onChapterChange(allChapters[nextIdx], true);
+                                }}
+                            >
+                                Следующая глава ➡
+                            </button>
+                        )}
+                    </div>
+                    
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.8em" }}>
+                        Глава {allChapters.indexOf(chapterName) + 1} из {allChapters.length}
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

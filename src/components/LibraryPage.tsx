@@ -1,6 +1,7 @@
 import * as React from "react";
-import { TFolder, App } from "obsidian";
+import { TFolder, TFile, TAbstractFile, App } from "obsidian";
 import MangaReaderPlugin from "../main"; // Импорт для типа
+import { FolderSelectModal } from "../modal/FolderSelectModal";
 
 interface Props {
     app: App;
@@ -10,72 +11,72 @@ interface Props {
 
 // Страница библиотеки, тут происходит выбор пути до тайтла
 export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
-    const [folders, setFolders] = React.useState<string[]>([]);
+    // Храним текущую папку, в которой находимся
+    const [defaultPath, setDefaultPath] = React.useState (plugin.data.defaultLibraryPath)
+    const [items, setItems] = React.useState<TAbstractFile[]>([]);
+    // const defaultPath = plugin.data.defaultLibraryPath;
 
-    // Функция сканирования на все папки в хранилище
-    const scanLibrary = () => {
-        const onlyFolders = app.vault.getAllLoadedFiles()
-            .filter((f): f is TFolder => f instanceof TFolder)
-            .map(f => f.path);
-        setFolders(onlyFolders);
+    // Функция детектора манги - ВРОДЕ не нужна будет
+    const isMangaFolder = (folder: TFolder): boolean => {
+        return folder.children.some(f => 
+            f instanceof TFolder || (f instanceof TFile && ['zip', 'cbz'].includes(f.extension))
+        );
+    };
+
+    // Загружаем файлы из папки по умолчанию
+    React.useEffect(() => {
+        if (defaultPath) {
+            const folder = app.vault.getAbstractFileByPath(defaultPath);
+            if (folder instanceof TFolder) {
+                setItems(folder.children);
+            }
+        }
+    }, [defaultPath, app]);
+
+    // Открываем модальное окно для пути по умолчанию
+    const defaultFolderModal = () => {
+        new FolderSelectModal(app, async (path) => {
+            plugin.data.defaultLibraryPath = path;
+            await plugin.savePluginData();
+            // Чтобы React увидел изменения   plugin.data, нам нужно либо состояние, 
+            // либо просто перезагрузить этот компонент. Для простоты:            
+            setDefaultPath(path)
+        }).open();
     };
 
     return (
-        <div style={{padding: "20px"}}>
-            <h2>📚 Моя библиотека</h2>
+        <div style={{ padding: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h2>📚 Моя библиотека</h2>
+                <button onClick={defaultFolderModal}>⚙️ Настроить путь по умолчанию</button>
+            </div>
 
-            {/* Секция: В процессе чтения */}
-            <div style={{marginBottom: "30px"}}>
-                <h4 style={{ color: "var(--text-muted)" }}>Продолжить чтение</h4>
-                {Object.keys(plugin.data.library).length > 0 ? (
-                    Object.keys(plugin.data.library).map(path => (
-                        <div key={path} onClick={() => onSelectTitle(path)} style={{ 
-                            padding: "10px", 
-                            background: "var(--background-secondary)",
-                            marginBottom: "5px",
-                            borderRadius: "4px",
-                            cursor: "pointer"
-                        }}>
-                            <b>{path.split('/').pop()}</b>
-                            <div style={{ fontSize: "0.8em" }}>
-                                🔖 {plugin.data.library[path].lastChapter}
+            {defaultPath ? (
+                <div style={{ marginTop: "20px" }}>
+                    {/* <p style={{ fontSize: "0.8em", color: "var(--text-muted)" }}>Путь: {defaultPath}</p> */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {items.filter(i => i instanceof TFolder).map(item => (
+                            <div 
+                                key={item.path}
+                                onClick={() => onSelectTitle(item.path)}
+                                style={{ 
+                                    padding: "15px", 
+                                    background: "var(--background-secondary)", 
+                                    borderRadius: "8px",
+                                    cursor: "pointer",
+                                    border: "1px solid var(--background-modifier-border)"
+                                }}
+                            >
+                                📖 {item.name}
                             </div>
-                        </div>
-                    ))
-                ) : (
-                    <p style={{ fontSize: "0.8em" }}>Тут будет манга, которую вы начнете читать</p>
-                )}
-
-            </div>
-
-            <hr />
-
-            {/* СЕКЦИЯ: Все папки (сканирование) */}
-            <button onClick={scanLibrary}>Сканировать Vault</button>
-            <div style={{ marginTop: "20px" }}>
-                {folders.map(p => {
-                    // Проверяем, есть ли прогресс для этой папки
-                    const progress = plugin.data.library[p];
-                    
-                    return (
-                        <div key={p} onClick={() => onSelectTitle(p)} style={{ 
-                            cursor: "pointer", 
-                            padding: "10px", 
-                            borderBottom: "1px solid var(--background-modifier-border)",
-                            display: "flex",
-                            flexDirection: "column"
-                        }}>
-                            <div style={{ fontWeight: "bold" }}>📁 {p}</div>
-                            {/* Если есть сохраненная глава — показываем её под названием */}
-                            {progress && progress.lastChapter && (
-                                <div style={{ fontSize: "0.8em", color: "var(--text-muted)", marginTop: "4px" }}>
-                                    🔖 Последняя: {progress.lastChapter}
-                                </div>                                  
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div style={{ textAlign: "center", padding: "40px" }}>
+                    <p>Установите папку по умолчанию</p>                    
+                </div>
+            )}
         </div>
     );
 };

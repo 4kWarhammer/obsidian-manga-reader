@@ -8,7 +8,7 @@ import { TitlePage } from "./components/TitlePage";
 
 // Обновляем описание того, что принимает интерфейс
 interface InterfaceProps {
-    app: any;
+    app: App;
     plugin: MangaReaderPlugin;
 }
 

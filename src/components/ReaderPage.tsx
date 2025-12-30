@@ -3,6 +3,10 @@ import { App, TFolder, TFile } from "obsidian";
 import JSZip from "jszip";
 import MangaReaderPlugin from "../main";
 
+// Достаем Node.js модули
+const fs = (window as any).require ? (window as any).require('fs') : null;
+const pathModule = (window as any).require ? (window as any).require('path') : null;
+
 interface Props {
     app: App;
     plugin: MangaReaderPlugin; // Добавили плагин
@@ -12,15 +16,31 @@ interface Props {
     onBack: () => void;
 }
 
+// Блок инициализации изображений, загрузка
 export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChange, onBack }: Props) => {
     const [images, setImages] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
-    const isAutoScrolling = React.useRef(true); // Состояние автоскролла
-    const [allChapters, setAllChapters] = React.useState<string[]>([]); // храним список всех глав
+    const isAutoScrolling = React.useRef(true); 
+    const [allChapters, setAllChapters] = React.useState<string[]>([]);
+    const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
+    const isExternal = parentPath.includes(":\\") || parentPath.startsWith("/");
 
+    // REF ДЛЯ ПАМЯТИ: Храним текущие Blob-ссылки здесь, чтобы всегда иметь к ним доступ
+    // Это надежнее, чем брать их из стейта images в функции очистки.
+    const blobUrlsRef = React.useRef<string[]>([]);
 
-    // Ссылка на контейнер, чтобы искать картинки внутри него
     const containerRef = React.useRef<HTMLDivElement>(null);
+
+    const getMimeType = (extension: string) => {
+        const types: Record<string, string> = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'webp': 'image/webp',
+            'avif': 'image/avif'
+        };
+        return types[extension.toLowerCase()] || 'image/jpeg';
+    };
 
     // Функция сохранения страницы в "базу"
     const saveProgress = async (pageIdx: number) => {
@@ -37,86 +57,121 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         }
     };
 
-    // Блок инициализации изображений, загрузка
-    React.useEffect(() => {
-        const loadImages = async () => {
-            setIsLoading(true);
-            const fullPath = `${parentPath}/${chapterName}`;
-            const fileOrFolder = app.vault.getAbstractFileByPath(fullPath);
-            let imageUrls: string[] = [];
+    // --- ФУНКЦИЯ ОЧИСТКИ ПАМЯТИ ---
+    const revokeOldBlobs = () => {
+        blobUrlsRef.current.forEach(url => {
+            if (url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        });
+        blobUrlsRef.current = []; // Обнуляем список после очистки
+    };
 
-            // ПОЛУЧАЕМ СПИСОК ВСЕХ ГЛАВ В ПАПКЕ
-            const parentFolder = app.vault.getAbstractFileByPath(parentPath);
-            
-            if (parentFolder instanceof TFolder) {
-                const chapters = parentFolder.children
-                    .filter(f => {
-                        // Оставляем только папки ИЛИ файлы-архивы
-                        const isFolder = f instanceof TFolder;
-                        const isArchive = f instanceof TFile && ['zip', 'cbz'].includes(f.extension.toLowerCase());
-                        return isFolder || isArchive;
-                    })
-                    .map(f => f.name) // map выдает массив строк
-                    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-                setAllChapters(chapters);
+    // --- МОДУЛЬНЫЙ ЗАГРУЗЧИК (Подготовка к будущему скроллу) ---
+    // Вынесено отдельно, чтобы потом можно было вызывать для "подгрузки" следующей главы
+    const fetchChapterImages = async (path: string, name: string): Promise<string[]> => {
+        if (isArchive) {
+            // ЛОГИКА АРХИВА (Универсальная)
+            let binaryData: ArrayBuffer;
+            if (isExternal && fs && pathModule) {
+                const buffer = fs.readFileSync(pathModule.join(path, name));
+                binaryData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            } else {
+                const file = app.vault.getAbstractFileByPath(`${path}/${name}`);
+                if (file instanceof TFile) binaryData = await app.vault.readBinary(file);
+                else throw new Error("Архив не найден");
             }
 
-            // СЦЕНАРИЙ 1: ГЛАВА - ЭТО ПАПКА
-            if (fileOrFolder instanceof TFolder) {                
-                const imageFiles = fileOrFolder.children
-                    .filter((f): f is TFile => 
-                        f instanceof TFile && 
-                        ['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(f.extension.toLowerCase())
-                    )
-                    // 2. Сортируем их правильно (1.jpg, 2.jpg, 10.jpg)
+            const zip = await JSZip.loadAsync(binaryData);
+            const filePromises = Object.keys(zip.files)
+                .filter(n => /\.(jpg|jpeg|png|webp|avif)$/i.test(n))
+                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+                .map(async n => {
+                    const blob = await zip.file(n)!.async("blob");
+                    return URL.createObjectURL(blob);
+                });
+            return Promise.all(filePromises);
+
+        } else {
+            // ЛОГИКА ПАПКИ (Теперь всё через Blob)
+            if (isExternal && fs && pathModule) {
+                // Внешняя папка
+                const fullFolderPath = pathModule.join(path, name);
+                const files = fs.readdirSync(fullFolderPath);
+                return files
+                    .filter((f: string) => /\.(jpg|jpeg|png|webp|avif)$/i.test(f))
+                    .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }))
+                    .map((f: string) => {
+                        const data = fs.readFileSync(pathModule.join(fullFolderPath, f));
+                        const ext = f.split('.').pop()?.toLowerCase();
+                        const blob = new Blob([data], { type: getMimeType(ext) });
+                        return URL.createObjectURL(blob);
+                    });
+            } else {
+                // Vault папка (Тоже перевели на Blob для единообразия)
+                const folder = app.vault.getAbstractFileByPath(`${path}/${name}`);
+                if (!(folder instanceof TFolder)) return [];
+                
+                const files = folder.children
+                    .filter((f): f is TFile => f instanceof TFile && /\.(jpg|jpeg|png|webp|avif)$/i.test(f.name))
                     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-                // 3. Превращаем файлы в ссылки (URL)
-                imageUrls = imageFiles.map(file => app.vault.getResourcePath(file)); // метод не универсалень - только в рамках хранилища работает
-                
-                setImages(imageUrls);
-            }
-
-            // СЦЕНАРИЙ 2: ГЛАВА - ЭТО АРХИВ (ZIP/CBZ)
-            else if (fileOrFolder instanceof TFile && (fileOrFolder.extension === 'zip' || fileOrFolder.extension === 'cbz')) {
-                // Читаем файл архива как массив байтов
-                const arrayBuffer = await app.vault.readBinary(fileOrFolder);
-                const zip = await JSZip.loadAsync(arrayBuffer);
-                
-                const entries: {name: string, file: JSZip.JSZipObject}[] = [];
-                
-                // Проходим по всем файлам внутри архива
-                zip.forEach((relPath, file) => {
-                    const ext = relPath.split('.').pop()?.toLowerCase();
-                    if (ext && ['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(ext)) {
-                        entries.push({ name: relPath, file });
-                    }
+                const promises = files.map(async f => {
+                    const data = await app.vault.readBinary(f);
+                    const ext = f.extension.toLowerCase();
+                    const blob = new Blob([data], { type: getMimeType(ext) });
+                    return URL.createObjectURL(blob);
                 });
-
-                // Сортируем файлы внутри архива
-                entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-
-                // Превращаем каждый файл внутри архива во временную URL-ссылку (Blob)
-                imageUrls = await Promise.all(
-                    entries.map(async (entry) => {
-                        const content = await entry.file.async("blob");
-                        return URL.createObjectURL(content); // Создаем временный адрес в памяти
-                    })
-                );
+                return Promise.all(promises);
             }
+        }
+    };
 
-            setImages(imageUrls);
-            setIsLoading(false);
-        };
-        loadImages();
+    // Основной эффект загрузки
+    React.useEffect(() => {        
+        const initChapter = async () => {
+            setIsLoading(true);
+            
+            // 1. Сначала чистим память от предыдущей главы
+            revokeOldBlobs();
+            try {
+                // 2. Получаем список глав (оставляем твою логику)
+                if (isExternal && fs && pathModule) {
+                    const entries = fs.readdirSync(parentPath, { withFileTypes: true });
+                    const names = entries
+                        .filter((e: any) => e.isDirectory() || e.name.endsWith('.zip') || e.name.endsWith('.cbz'))
+                        .map((e: any) => e.name)
+                        .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
+                    setAllChapters(names);
+                } else {
+                    const folder = app.vault.getAbstractFileByPath(parentPath);
+                    if (folder instanceof TFolder) {
+                        const names = folder.children
+                            .filter(f => f instanceof TFolder || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))
+                            .map(f => f.name)
+                            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                        setAllChapters(names);
+                    }
+                }
+                // 3. Загружаем изображения через наш новый загрузчик
+                const newUrls = await fetchChapterImages(parentPath, chapterName);
+                
+                // Сохраняем ссылки в Ref для будущей очистки
+                blobUrlsRef.current = newUrls;
+                setImages(newUrls);
 
-        // Очистка памяти: когда закрываем главу, удаляем временные Blob-ссылки
-        return () => {
-            images.forEach(url => {
-                if (url.startsWith('blob:')) URL.revokeObjectURL(url);
-            });
+            } catch (error) {
+                console.error("Ошибка загрузки:", error);
+            } finally {
+                setIsLoading(false);
+            }
         };
-    }, [app, parentPath, chapterName]);
+
+        initChapter();
+
+        // Cleanup при уничтожении компонента
+        return () => revokeOldBlobs();
+    }, [parentPath, chapterName]); // Убрал app, он редко меняется и может вызвать лишние перезагрузки
 
     // Автоскролл при загрузке главы
     React.useEffect(() => {

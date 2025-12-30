@@ -1,6 +1,9 @@
 import * as React from "react";
 import { TFolder, App } from "obsidian";
 
+// Достаем Node.js модули
+const fs = (window as any).require ? (window as any).require('fs') : null;
+
 interface Props {
     app: App;
     folderPath: string;      // Путь к папке манги
@@ -13,16 +16,31 @@ export const ChapterListPage = ({ app, folderPath, onBack, onSelectChapter }: Pr
 
     // Эффект загрузки: выполняется один раз при открытии компонента
     React.useEffect(() => {
-        const folder = app.vault.getAbstractFileByPath(folderPath);
-        
-        if (folder instanceof TFolder) {
-            const chapterFiles = folder.children
-                .filter(f => f instanceof TFolder || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))
-                .map(f => f.name)
-                // Сортировка: Глава 1, Глава 2, Глава 10...
-                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-            
-            setChapters(chapterFiles);
+        // Опеределяем, внешний это путь или Vault
+        const isExternal = folderPath.includes(":\\") || folderPath.startsWith("/");
+        if (isExternal && fs) {
+            // ЛОГИКА ДЛЯ ВНЕШНЕЙ ПАПКИ
+            try {
+                const files = fs.readdirSync(folderPath, { withFileTypes: true });
+                const chapterNames = files
+                    .filter((f: any) => f.isDirectory() || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))
+                    .map((f: any) => f.name)
+                    .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
+                setChapters(chapterNames);
+            } catch (e) {
+                console.error("Ошибка чтения внешних глав", e);
+            }
+        } else {
+            // СТАНДАРТНАЯ ЛОГИКА VAULT
+            const folder = app.vault.getAbstractFileByPath(folderPath);
+            if (folder instanceof TFolder) {
+                const chapterFiles = folder.children
+                    .filter(f => f instanceof TFolder || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))
+                    .map(f => f.name)
+                    // Сортировка: Глава 1, Глава 2, Глава 10...
+                    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                setChapters(chapterFiles);
+            }
         }
     }, [app, folderPath]); // Если путь изменится, список обновится
 

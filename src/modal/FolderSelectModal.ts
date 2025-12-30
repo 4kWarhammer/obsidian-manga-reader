@@ -7,10 +7,13 @@ import { FolderBrowser } from "../components/FolderBrowser";
 export class FolderSelectModal extends Modal {
     root: Root | null = null;
     onSelect: (path: string) => void;
+    mode: "vault" | "external"
 
-    constructor(app: App, onSelect: (path: string) => void) {
+
+    constructor(app: App, onSelect: (path: string,) => void, mode: "vault" | "external") {
         super(app);
         this.onSelect = onSelect;
+        this.mode = mode
     }
 
     onOpen() {
@@ -20,6 +23,7 @@ export class FolderSelectModal extends Modal {
         this.root.render(
             React.createElement(FolderBrowser, {
                 app: this.app,
+                mode: this.mode,
                 onSelect: (path: string) => {
                     this.onSelect(path);
                     this.close();

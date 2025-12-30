@@ -15,7 +15,8 @@ interface Props {
 
 export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapter }: Props) => {
     const progress = plugin.data.library[path];
-    const titleName = path.split('/').pop();
+    // const titleName = path.split('/').pop();
+    const titleName = path.split(/[\\/]/).pop();
 
     return (
         <div style={{ padding: "20px" }}>

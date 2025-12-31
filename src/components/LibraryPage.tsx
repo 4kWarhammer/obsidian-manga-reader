@@ -2,6 +2,7 @@ import * as React from "react";
 import { TFolder, TFile, TAbstractFile, App } from "obsidian";
 import MangaReaderPlugin from "../main"; // Импорт для типа
 import { FolderSelectModal } from "../modal/FolderSelectModal";
+import { translations } from "src/i18n";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -22,7 +23,9 @@ interface LibraryItem {
 
 // Страница библиотеки, тут происходит выбор пути до тайтла
 export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
-    const isDesktop = (window as any).require !== undefined; // уже не нужно
+    const currentLang = plugin.data.settings.language;
+    const t = translations[currentLang || "en"];
+    // const isDesktop = (window as any).require !== undefined; // уже не нужно
     // Создаем стейт для массива внешних путей
     const [externalPaths, setExternalPaths] = React.useState<string[]>(plugin.data.externalSources || []);
     // Храним папку по умолчанию, которую слушает плагин
@@ -36,8 +39,17 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
         );
     };
 
+    // Функция для переключения языка
+    const toggleLanguage = async () => {
+        const newLang = currentLang === "ru" ? "en" : "ru";
+        plugin.data.settings.language = newLang;
+        await plugin.savePluginData(); 
+        // Если ты внедрил шаг №2, страница обновится сама!
+    };
+
+
     // Загружаем ссылки манги
-    React.useEffect(() => {
+    React.useEffect(() => {        
         const loadItems = async () => {
             let allItems: LibraryItem[] = [];
 
@@ -94,18 +106,18 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
 
     // Открываем модальное окно для пути по умолчанию
     const addDefaultFolderModal = () => {
-        new FolderSelectModal(app, async (path) => {
+        new FolderSelectModal(app, plugin ,async (path) => {
             plugin.data.defaultLibraryPath = path;
             await plugin.savePluginData();
-            // Чтобы React увидел изменения   plugin.data, нам нужно либо состояние, 
-            // либо просто перезагрузить этот компонент. Для простоты:            
+            // Чтобы React увидел изменения plugin.data, нам нужно либо состояние, 
+            // либо просто перезагрузить этот компонент. Для простоты:
             setDefaultPath(path)
         }, "vault").open();
     };
 
     // открываем модальное окно для внешних источников
     const addExternalFolderModal = () => {
-        new FolderSelectModal(app, async (path) => {
+        new FolderSelectModal(app, plugin, async (path) => {
             // Добавляем новый путь в массив, если его там еще нет
             if (!plugin.data.externalSources.includes(path)) {
                 const newSources = [...plugin.data.externalSources, path];
@@ -122,12 +134,18 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     return (
         <div style={{ padding: "10px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-                <h2>📚 Моя Библиотека</h2>
+                <h2>{t.libraryTitle}</h2>
 
+                {/* Кнопка быстрого переключения языка */}
+                <button onClick={toggleLanguage}>
+                    {currentLang === "ru" ? "EN" : "RU"}
+                </button>
+
+                {/* добавляем папки */}
                 <div style={{ display: "flex", gap: "10px" }}>
-                    <button onClick={addDefaultFolderModal}>Указать папку Vault</button>
+                    <button onClick={addDefaultFolderModal}>{t.addVaultFolder}</button>
                     {(window as any).require && (
-                        <button onClick={addExternalFolderModal}>+ Внешняя папка</button>
+                        <button onClick={addExternalFolderModal}>{t.addExternalFolder}</button>
                     )}
                 </div>
             </div>
@@ -179,13 +197,13 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                         {/* Метка внешнего источника (опционально, для отладки) */}
                         {item.isExternal && (
                             <div style={{ fontSize: "0.7em", color: "var(--text-muted)", textAlign: "center" }}>
-                                [Внешний]
+                                [{t.externalLabel}]
                             </div>
                         )}
                     </div>
                 )) : (
                     <p style={{ gridColumn: "1/-1", textAlign: "center", opacity: 0.5 }}>
-                        Библиотека пуста. Добавьте папки в настройках выше.
+                        {t.emptyLibrary}
                     </p>
                 )}
             </div>

@@ -14,6 +14,7 @@ export interface MangaProgress {
 export interface PluginData {
     settings: {
         viewMode: 'scroll' | 'single-page';
+        language: "ru" | "en"
     };
     library: { [path: string]: MangaProgress };
     defaultLibraryPath: string; // Путь внутри Vault по умолчанию
@@ -23,7 +24,8 @@ export interface PluginData {
 // 3. Дефолтные значения для инициализации плагина
 export const DEFAULT_DATA: PluginData = {
     settings: {
-        viewMode: 'scroll'
+        viewMode: 'scroll',
+        language: "ru"
     },
     library: {},
     defaultLibraryPath: "",

@@ -2,7 +2,6 @@ import * as React from "react";
 import { App } from "obsidian";
 import { ReaderPage } from "./components/ReaderPage";
 import { LibraryPage } from "./components/LibraryPage";
-import { ChapterListPage } from "./components/ChapterListPage";
 import MangaReaderPlugin from "./main"; // Импорт для типизации
 import { TitlePage } from "./components/TitlePage";
 
@@ -15,6 +14,9 @@ interface InterfaceProps {
 // MangaInterface является чисто диспетчером
 // он решает, какой компонент показать
 export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
+    // Создаем локальный стейт для настроек, чтобы React видел изменения
+    const [settings, setSettings] = React.useState(plugin.data.settings);
+
     // Теперь внутри этого компонента у нас есть доступ к:
     // plugin.data — наши настройки и прогресс
     // plugin.savePluginData() — функция сохранения
@@ -57,6 +59,19 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
             setSelectedTitle(null);   // Если в списке глав — выходим в библиотеку
         }
     };
+
+    // Слушаем изменение настроек
+    React.useEffect(() => {
+        const handleUpdate = () => {
+            // Принудительно обновляем стейт из данных плагина
+            setSettings({ ...plugin.data.settings });
+        };
+        // Слушаем наше кастомное событие из main.ts
+        // Используем приведение к any, чтобы разрешить кастомное имя события
+        (plugin.app.workspace as any).on("manga-reader:settings-update", handleUpdate);
+        
+        return () => (plugin.app.workspace as any).off("manga-reader:settings-update", handleUpdate);
+    }, [plugin]);
 
     // Диспетчер - что выбрали, туда и направит
     // Ридер с выбранной главой

@@ -2,6 +2,7 @@ import * as React from "react";
 import { App, TFolder, TFile } from "obsidian";
 import JSZip from "jszip";
 import MangaReaderPlugin from "../main";
+import { translations } from "src/i18n";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -18,6 +19,7 @@ interface Props {
 
 // Блок инициализации изображений, загрузка
 export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChange, onBack }: Props) => {
+    const t = translations[plugin.data.settings.language || "en"]
     const [images, setImages] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const isAutoScrolling = React.useRef(true); 
@@ -244,7 +246,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     }, [isLoading, images]);
 
     // заглушка при подгрузке страниц
-    if (isLoading) return <div style={{ padding: "20px", color: "white" }}>Распаковка и загрузка глав...</div>;
+    if (isLoading) return <div style={{ padding: "20px", color: "white" }}>{t.isloading}</div>;
 
     // Сам контейнер для отображения картинок
     return (        
@@ -258,7 +260,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 background: "rgba(0,0,0,0.8)", zIndex: 10,
                 display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
-                <button onClick={onBack}>⬅ Назад</button>
+                <button onClick={onBack}>{t.back}</button>
                 <span style={{ color: "white" }}>{chapterName}</span>
                 <div style={{ width: "50px" }}></div> {/* Для баланса */}
             </div>
@@ -285,7 +287,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                         />
                     ))
                 ) : (
-                    <p style={{ color: "white", padding: "20px" }}>В этой главе нет изображений</p>
+                    <p style={{ color: "white", padding: "20px" }}>{t.noImages}</p>
                 )}
             </div>
 
@@ -307,7 +309,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                                 const prevIdx = allChapters.indexOf(chapterName) - 1;
                                 onChapterChange(allChapters[prevIdx], true);
                             }}>
-                                ⬅ Предыдущая глава
+                                {t.prevChapter}
                             </button>
                         )}
 
@@ -320,13 +322,14 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                                     onChapterChange(allChapters[nextIdx], true);
                                 }}
                             >
-                                Следующая глава ➡
+                                {t.nextChapter}
                             </button>
                         )}
                     </div>
                     
                     <p style={{ color: "var(--text-muted)", fontSize: "0.8em" }}>
-                        Глава {allChapters.indexOf(chapterName) + 1} из {allChapters.length}
+                        {t.chapterCount(allChapters.indexOf(chapterName) + 1, allChapters.length)}
+                        {/* Глава {allChapters.indexOf(chapterName) + 1} из {allChapters.length} */}
                     </p>
                 </div>
             )}

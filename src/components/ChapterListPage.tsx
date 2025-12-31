@@ -1,17 +1,21 @@
 import * as React from "react";
-import { TFolder, App } from "obsidian";
+import { TFolder, App, Plugin } from "obsidian";
+import { translations } from "src/i18n";
+import MangaReaderPlugin from "src/main";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
 
 interface Props {
     app: App;
+    plugin: MangaReaderPlugin
     folderPath: string;      // Путь к папке манги
     onBack: () => void;      // Функция возврата назад
     onSelectChapter: (chapterName: string, resetPage?: boolean) => void; // Выбор главы для чтения
 }
 
-export const ChapterListPage = ({ app, folderPath, onBack, onSelectChapter }: Props) => {
+export const ChapterListPage = ({ app, plugin, folderPath, onBack, onSelectChapter }: Props) => {
+    const t = translations[plugin.data.settings.language || "en"]
     const [chapters, setChapters] = React.useState<string[]>([]);
 
     // Эффект загрузки: выполняется один раз при открытии компонента
@@ -67,7 +71,7 @@ export const ChapterListPage = ({ app, folderPath, onBack, onSelectChapter }: Pr
                         </div>
                     ))
                 ) : (
-                    <p>Главы не найдены</p>
+                    <p>{t.nochapters}</p>
                 )}
             </div>
         </div>

@@ -1,17 +1,19 @@
-// src/modals/FolderSelectModal.ts
 import { App, Modal } from "obsidian";
 import * as React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { FolderBrowser } from "../components/FolderBrowser";
+import MangaReaderPlugin from "src/main";
 
 export class FolderSelectModal extends Modal {
     root: Root | null = null;
-    onSelect: (path: string) => void;
+    plugin: MangaReaderPlugin
     mode: "vault" | "external"
+    onSelect: (path: string) => void;
 
 
-    constructor(app: App, onSelect: (path: string,) => void, mode: "vault" | "external") {
+    constructor(app: App, plugin: MangaReaderPlugin ,onSelect: (path: string,) => void, mode: "vault" | "external") {
         super(app);
+        this.plugin = plugin
         this.onSelect = onSelect;
         this.mode = mode
     }
@@ -24,6 +26,7 @@ export class FolderSelectModal extends Modal {
             React.createElement(FolderBrowser, {
                 app: this.app,
                 mode: this.mode,
+                plugin: this.plugin,
                 onSelect: (path: string) => {
                     this.onSelect(path);
                     this.close();

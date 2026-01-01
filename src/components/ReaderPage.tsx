@@ -17,13 +17,25 @@ interface Props {
     onBack: () => void;
 }
 
+interface LoadedChapter {
+    chapterName: string;
+    images: string[];
+}
+
 // Блок инициализации изображений, загрузка
 export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChange, onBack }: Props) => {
+    
     const t = translations[plugin.data.settings.language || "en"]
     const [images, setImages] = React.useState<string[]>([]);
+    const [currentPage, setCurrentPage] = React.useState(0);
     const [isLoading, setIsLoading] = React.useState(true);
     const isAutoScrolling = React.useRef(true); 
+    // Грузим главы, много глав
     const [allChapters, setAllChapters] = React.useState<string[]>([]);
+    const [loadedChapters, setLoadedChapters] = React.useState<LoadedChapter[]>([]);
+    const observerRef = React.useRef<IntersectionObserver | null>(null); // вытаскиваем IntersectionObserver чтобы использовать не только в useEffect
+    const isFetchingNext = React.useRef(false);
+    // Проверочки
     const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
     const isExternal = parentPath.includes(":\\") || parentPath.startsWith("/");
 
@@ -45,18 +57,50 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     };
 
     // Функция сохранения страницы в "базу"
-    const saveProgress = async (pageIdx: number) => {
+    const saveProgress = async (pageIdx: number, currentChapter: string) => {
         if (isAutoScrolling.current) return; // Блокируем сохранение во время прыжка
 
         const path = parentPath;
-        if (plugin.data.library[path]) {
+        const progress = plugin.data.library[path];
+        if (progress) {
+            if (progress.lastChapter === currentChapter && progress.lastPage === pageIdx + 1) {
+                return
+            }
             // Сохраняем главу
-            plugin.data.library[path].lastChapter = chapterName
+            progress.lastChapter = currentChapter
             // Сохраняем номер страницы (индекс + 1, чтобы было по-человечески с 1)
-            plugin.data.library[path].lastPage = pageIdx + 1;
+            progress.lastPage = pageIdx + 1;
+
             await plugin.savePluginData();
-            console.log(`Saved: Chapter ${chapterName}, Page ${pageIdx + 1}`);
+            console.log(`Saved: Chapter ${currentChapter}, Page ${pageIdx + 1}`);
         }
+    };
+
+    // Функция для перехода по страницам для single-page
+    const goToPage = (index: number, chapter: string) => {        
+        if (index >= images.length) {
+            // Если вышли за пределы — пытаемся включить следующую главу
+            const nextIdx = allChapters.indexOf(chapter) + 1;
+            if (nextIdx < allChapters.length) {
+                // Переходим на следующую главу, сбрасываем на 1 страницу
+                onChapterChange(allChapters[nextIdx], true);
+            }
+            return;
+        }
+        if (index < 0) {
+            // Если листаем назад с первой страницы — на предыдущую главу
+            const prevIdx = allChapters.indexOf(chapter) - 1;
+            if (prevIdx >= 0) {
+                // Переходим на предыдущую главу
+                // (Тут можно было бы заморочиться и открывать последнюю страницу той главы, 
+                // но для начала просто переход на главу — уже круто)
+                onChapterChange(allChapters[prevIdx], true);
+            }
+            return;
+        }
+
+        setCurrentPage(index);
+        saveProgress(index, chapter); // Вызываем твою функцию сохранения в data.json
     };
 
     // --- ФУНКЦИЯ ОЧИСТКИ ПАМЯТИ ---
@@ -129,6 +173,64 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         }
     };
 
+    // Загрузчик следующей главы для "бесконечного" скролла
+    const loadNextChapter = async () => {
+        // Сначала проверяем, не идет ли уже загрузка
+        if (isFetchingNext.current) return;
+
+        const lastLoaded = loadedChapters[loadedChapters.length - 1]?.chapterName;
+        const currentIndex = allChapters.indexOf(lastLoaded); // chapterName - текущая активная
+        const nextChapterName = allChapters[currentIndex + 1];
+
+        // Если глав больше нет
+        if (!nextChapterName) return;
+
+        // Блокируем вызов
+        isFetchingNext.current = true;
+
+        // Добавляем спиннер или индикацию, если нужно (опционально)
+        // setIsLoadingMore(true); 
+
+        try{
+            const newUrls = await fetchChapterImages(parentPath, nextChapterName);        
+            // Добавляем новые URL в наш список Blob для очистки
+            blobUrlsRef.current = [...blobUrlsRef.current, ...newUrls];
+            // Добавляем новую главу в список загруженных
+
+            // Пробую настроить выгрузку старых глав
+            if (loadedChapters.length >= 3) {
+                const chapterToRemove = loadedChapters[0];
+                
+                // 1. Чистим память браузера
+                chapterToRemove.images.forEach(url => URL.revokeObjectURL(url));
+                
+                // 2. Чистим наш Ref с блобами (чтобы garbage collector их забрал)
+                blobUrlsRef.current = blobUrlsRef.current.filter(url => !chapterToRemove.images.includes(url));
+                
+                // 3. Обновляем стейт - удаляем первую, добавляем новую
+                setLoadedChapters(prev => {
+                    const [, ...rest] = prev; // Удаляем первый элемент
+                    return [...rest, { chapterName: nextChapterName, images: newUrls }];
+                });
+            }
+
+            setLoadedChapters(prev => [...prev, { chapterName: nextChapterName, images: newUrls }]);
+            
+            // Важно: если твой JSX опирается на images.length, обнови и его
+            // setImages(prev => [...prev, ...newUrls]); // (Опционально, если нужно)
+            
+            // Даем React время отрендерить новые картинки, прежде чем вешать на них Observer
+            setTimeout(() => {
+                const newImgs = containerRef.current?.querySelectorAll(`[data-chapter-name="${nextChapterName}"]`);
+                newImgs?.forEach(img => observerRef.current?.observe(img));
+            }, 300);
+        } catch (e) {
+            console.error("ошибка подгрузки главы:", e);
+        } finally {
+            isFetchingNext.current = false
+        }
+    };
+
     // Основной эффект загрузки
     React.useEffect(() => {        
         const initChapter = async () => {
@@ -158,9 +260,22 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 // 3. Загружаем изображения через наш новый загрузчик
                 const newUrls = await fetchChapterImages(parentPath, chapterName);
                 
-                // Сохраняем ссылки в Ref для будущей очистки
+                // 4. Сохраняем ссылки в Ref для будущей очистки
                 blobUrlsRef.current = newUrls;
                 setImages(newUrls);
+
+                // Инициализируем ленту первой главой
+                setLoadedChapters([{ chapterName, images: newUrls }]);
+
+                // Читаем сохраненную страницу из плагина
+                // Нужно для постраничного режима
+                const savedData = plugin.data.library[parentPath];
+                if (savedData && savedData.lastChapter === chapterName) {
+                    const pageNum = savedData.lastPage || 0;
+                    setCurrentPage(pageNum - 1); // Устанавливаем для постраничного режима
+                } else {
+                    setCurrentPage(0);
+                }
 
             } catch (error) {
                 console.error("Ошибка загрузки:", error);
@@ -217,18 +332,37 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     }, [isLoading, images, chapterName]);
 
+    // Автоскролл при смене режима на "scroll"
+    React.useEffect(() => {
+        // Если пользователь переключился в режим скролла
+        if (plugin.data.settings.viewMode === 'scroll' && images.length > 0) {
+            // Даем React время отрисовать изображения в DOM (микро-задержка)
+            setTimeout(() => {
+                const targetImg = containerRef.current?.querySelector(`[data-page-idx="${currentPage}"]`);
+                if (targetImg) {
+                    targetImg.scrollIntoView({ behavior: 'instant', block: 'start' });
+                }
+            }, 50);
+        }
+    }, [plugin.data.settings.viewMode]); // Срабатывает при смене режима
+
     // Эффект для отслеживания скролла
     React.useEffect(() => {
-        if (isLoading || images.length === 0) return;
+        if (isLoading || loadedChapters.length === 0 || plugin.data.settings.viewMode !== "scroll") return;
 
         // Создаем "наблюдателя"
-        const observer = new IntersectionObserver(
+        observerRef.current = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
-                    // Если картинка видна более чем на 30%
+                    // Срабатывает только когда картинка реально в зоне видимости
                     if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
-                        const pageIdx = Number(entry.target.getAttribute("data-page-idx"));
-                        saveProgress(pageIdx);
+                        const idx = parseInt(entry.target.getAttribute('data-page-idx') || "0");
+                        // Достаем главу именно из той картинки, которую сейчас видим!
+                        const chapterFromImg = entry.target.getAttribute('data-chapter-name') || chapterName;
+
+                        setCurrentPage(idx);
+                        // Передаем оба параметра
+                        saveProgress(idx, chapterFromImg);
                     }
                 });
             },
@@ -237,19 +371,51 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 threshold: 0.3 // Порог срабатывания (30% видимости)
             }
         );
+        
 
         // Находим все картинки и вешаем на них наблюдение
-        const imgs = containerRef.current?.querySelectorAll("img");
-        imgs?.forEach((img) => observer.observe(img));
+        const imgs = containerRef.current?.querySelectorAll("img[data-page-idx]");
+        imgs?.forEach(img => observerRef.current?.observe(img));
 
-        return () => observer.disconnect(); // Чистим за собой
-    }, [isLoading, images]);
+        return () => {
+            observerRef.current?.disconnect()
+            observerRef.current = null
+        }; // Чистим за собой
+    }, [isLoading, loadedChapters, plugin.data.settings.viewMode]); // Пересоздаем при добавлении глав или смене режима
+
+    // Наблюдаем когда подгрузить следующую главу
+    React.useEffect(() => {
+        if (plugin.data.settings.viewMode !== "scroll" || isLoading) return;
+
+        const sensor = containerRef.current?.querySelector("#end-of-list-sensor");
+        if (!sensor) return;
+
+        const scrollObserver = new IntersectionObserver((entries) => {            
+            if (entries[0].isIntersecting && !isFetchingNext.current) {
+                // Проверяем, не последняя ли это глава
+                const lastLoaded = loadedChapters[loadedChapters.length - 1]?.chapterName;
+                const lastIndex = allChapters.indexOf(lastLoaded);
+                
+                if (lastIndex !== -1 && lastIndex < allChapters.length - 1) {
+                    console.log("Sensor visible")
+                    loadNextChapter();
+                }
+            }
+        }, { 
+            threshold: 0.1,
+            root: null
+        });
+
+        
+        scrollObserver.observe(sensor);
+        return () => scrollObserver.disconnect();
+    }, [loadedChapters, isLoading, plugin.data.settings.viewMode]);
 
     // заглушка при подгрузке страниц
     if (isLoading) return <div style={{ padding: "20px", color: "white" }}>{t.isloading}</div>;
 
     // Сам контейнер для отображения картинок
-    return (        
+    return (
         <div 
             ref={containerRef}
             style={{ height: "100%", overflowY: "auto", background: "#000", position: "relative" }}
@@ -260,34 +426,86 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 background: "rgba(0,0,0,0.8)", zIndex: 10,
                 display: "flex", justifyContent: "space-between", alignItems: "center"
             }}>
+                {/* кнопка назад */}
                 <button onClick={onBack}>{t.back}</button>
+                {/* кнопки смены режимов просмотра */}
+                <div style={{ display: "flex", gap: "5px" }}>
+                    <button 
+                        onClick={() => {
+                            plugin.data.settings.viewMode = 'scroll';
+                            plugin.savePluginData();
+                        }}
+                        style={{ background: plugin.data.settings.viewMode === 'scroll' ? 'var(--interactive-accent)' : '' }}
+                    >
+                        {t.scrollMode}
+                    </button>
+                    <button 
+                        onClick={() => {
+                            plugin.data.settings.viewMode = 'single-page';
+                            plugin.savePluginData();
+                        }}
+                        style={{ background: plugin.data.settings.viewMode === 'single-page' ? 'var(--interactive-accent)' : '' }}
+                    >
+                        {t.singlePageMode}
+                    </button>
+                </div>
+
                 <span style={{ color: "white" }}>{chapterName}</span>
                 <div style={{ width: "50px" }}></div> {/* Для баланса */}
             </div>
 
-            {/* Лента изображений */}
-            <div style={{ 
-                display: "flex", 
-                flexDirection: "column", 
-                alignItems: "center",
-                gap: "2px"
-            }}>
-                {images.length > 0 ? (
-                    images.map((url, idx) => (
-                        <img 
-                            key={idx} 
-                            src={url} 
-                            data-page-idx={idx} // Добавляем индекс для слежки
-                            style={{ 
-                                maxWidth: "100%", 
-                                height: "auto",
-                                display: "block"
-                            }} 
-                            alt={`Страница ${idx + 1}`}
-                        />
-                    ))
+            <div className="reader-content">
+                {plugin.data.settings.viewMode === "scroll" ? (
+                    // Лента изображений
+                    images.length > 0 ? (
+                        <>
+                            {loadedChapters.map((chapter) => (
+                                <div key={chapter.chapterName} data-chapter={chapter.chapterName}>
+                                    {chapter.images.map((url, imgIdx) => (
+                                        <img 
+                                            key={url} 
+                                            src={url} 
+                                            data-page-idx={imgIdx} 
+                                            data-chapter-name={chapter.chapterName} // Понадобится для сохранения
+                                            style={{ maxWidth: "100%", display: "block" }}
+                                        />
+                                    ))}
+                                </div>
+                            ))}
+
+                            {/* Сенсор бесконечного скролла */}
+                            <div 
+                                id="end-of-list-sensor" 
+                                style={{ height: "50px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            >
+                                {/* Показываем текст или лоадер, если есть что подгружать */}
+                                {allChapters.indexOf(loadedChapters[loadedChapters.length - 1]?.chapterName) < allChapters.length - 1 
+                                    ? "Загрузка следующей главы..." 
+                                    : "Конец списка"}
+                            </div>
+                        </>
+                    ) : (<p style={{ color: "white", padding: "20px" }}>{t.noImages}</p>)
                 ) : (
-                    <p style={{ color: "white", padding: "20px" }}>{t.noImages}</p>
+                    // Новый постраничный режим
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <img 
+                            src={images[currentPage]} 
+                            style={{ maxWidth: "100%", maxHeight: "80vh" }} 
+                            onClick={(e) => {
+                                // Клик по правой части — вперед, по левой — назад
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const isRightClick = e.clientX - rect.left > rect.width / 2;
+                                if (isRightClick) {
+                                    goToPage(currentPage + 1, chapterName)
+                                } else {
+                                    goToPage(currentPage - 1, chapterName)
+                                }
+                            }}
+                        />
+                        <div style={{ color: "white", marginTop: "10px" }}>
+                            {currentPage + 1} / {images.length}
+                        </div>
+                    </div>
                 )}
             </div>
 

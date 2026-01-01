@@ -27,6 +27,10 @@ export const translations = {
         prevChapter: "⬅ Предыдущая глава",
         chapterCount: (current: number, total: number) => `Глава ${current} из ${total}`,
         noImages: "В этой главе нет изображений",
+        scrollMode: "Лента",
+        singlePageMode: "Постранично",
+        nextPage: "След. страница",
+        prevPage: "Пред. страница",
         
 
     },
@@ -58,6 +62,10 @@ export const translations = {
         prevChapter: "⬅ Previous Chapter",
         chapterCount: (current: number, total: number) => `Chapter ${current} of ${total}`,
         noImages: "No images in this chapter",
+        scrollMode: "Feed",
+        singlePageMode: "Page-by-page",
+        nextPage: "Next page",
+        prevPage: "Prev. page",
         
     }
 };

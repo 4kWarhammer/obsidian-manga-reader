@@ -13,7 +13,7 @@ export interface MangaProgress {
 // 2. Описываем структуру всего data.json
 export interface PluginData {
     settings: {
-        viewMode: 'scroll' | 'single-page';
+        viewMode: 'scroll' | 'single';
         language: "ru" | "en"
     };
     library: { [path: string]: MangaProgress };

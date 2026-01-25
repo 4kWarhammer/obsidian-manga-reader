@@ -47,7 +47,6 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
         // Если ты внедрил шаг №2, страница обновится сама!
     };
 
-
     // Загружаем ссылки манги
     React.useEffect(() => {        
         const loadItems = async () => {
@@ -129,7 +128,6 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
             }
         }, "external").open();
     };
-
 
     return (
         <div style={{ padding: "10px" }}>

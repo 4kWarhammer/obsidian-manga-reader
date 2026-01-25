@@ -17,4 +17,10 @@ npm-debug.log*
 # Вспомогательный файл для сравнения кусков кода
 for_compare.tsx
 for_compare_2.tsx
+styless2.css
+
+# Файл сохранений
+data.json
+
+
 

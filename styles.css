@@ -1,6 +1,131 @@
-.reader-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+/* Основной контейнер, который занимает всё место */
+.manga-canvas-root {
+    position: relative;
     width: 100%;
+    height: 100%;
+    overflow: auto; /* Скролл разрешен здесь */
+    /* padding-top: 0 !important; */
 }
+
+/* Зона детектор */
+.header-wrapper {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    z-index: 250;
+    /* Раскомментируй, чтобы увидеть зону при отладке */
+    /* background: red;  */
+}
+
+/* Стили заголовка */
+.reader-header {
+    height: 50px;
+    background-color: var(--background-secondary-alt);
+    border-bottom: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+
+    /* Прячем визуально */
+    opacity: 0;
+    pointer-events: none; /* Пока скрыт — сквозь него можно кликать по манге */
+    transform: translateY(-50px); /* Слегка приподнят для эффекта выплывания */
+    transition: all 0.5s ease;
+}
+
+/* Показываем хедер, когда мы навели на обертку-триггер */
+.header-wrapper:hover .reader-header {
+    opacity: 1;
+    pointer-events: all; /* Теперь кнопки кликабельны */
+    transform: translateY(0);
+}
+
+/* Для мобилок (тап): добавим класс 'is-visible', который будем переключать по клику позже */
+.reader-header.is-visible {
+    transform: translateY(0);
+}
+
+/* Убираем отступ у первой картинки, чтобы она была сразу под хедером */
+.manga-reader-container {
+    margin-top: -60px; /* Компенсируем высоту триггера в покое */
+}
+
+/* Стили элементов внутри */
+.chapter-select {
+    background: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    max-width: 200px;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+.nav-btn:hover {
+    color: var(--text-accent);
+}
+
+/* Редактируем изображения */
+.manga-page-wrapper {
+    /* Центрируем содержимое */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    
+    /* Минимальная высота, чтобы блок существовал до загрузки картинки.
+       Можно примерно прикинуть пропорцию или оставить min-height: 50vh */
+    min-height: 60vh; 
+    margin-bottom: 10px; /* Отступ между страницами */
+}
+
+.manga-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+
+    /* второй вариант */
+    /* height: 90vh; */
+    /* width: auto; */
+
+    /* Чтобы картинка не растягивалась криво */
+    /* object-fit: contain; */
+    
+    /* Добавляем box-shadow для красоты, как страница бумаги */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.page-number-overlay {
+    /* Твой стиль для номера страницы, можно сделать полупрозрачным */
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+/* Зоны для переключения страниц - навигация */
+.click-zone {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 10;
+    cursor: pointer;
+    /* background: rgba(255,0,0,0.1); Для отладки раскомментируй */
+}
+.click-zone.left { left: 0; width: 30%; }
+.click-zone.right { right: 0; width: 30%; }

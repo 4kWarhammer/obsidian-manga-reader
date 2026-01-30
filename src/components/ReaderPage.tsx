@@ -27,6 +27,7 @@ interface LoadedChapter {
 export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChange, onBack }: Props) => {
     
     const t = translations[plugin.data.settings.language || "en"]
+    const isMobile = (app as any).isMobile;
     const [viewMode, setViewMode] = React.useState(plugin.data.settings.viewMode);
     const [images, setImages] = React.useState<string[]>([]);
     const [currentPage, setCurrentPage] = React.useState(0);
@@ -115,6 +116,19 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         setCurrentPage(index);
         saveProgress(index, chapter); // Вызываем твою функцию сохранения в data.json
     };
+
+    // Эффект для добавления класса к телу при монтировании/размонтировании
+    React.useEffect(() => {
+        // При монтировании (открытии читалки)
+        document.body.classList.add("is-manga-plugin-active");
+        // Скрываем статус-бар для мобилок сразу
+        if ((app as any).isMobile) {
+            (app as any).emulateMobileFullscreen?.();
+        }
+        return () => {
+            document.body.classList.remove("is-manga-plugin-active");
+        };
+    }, []);
 
     // Эффект для скролла наверх в постраничном режиме
     React.useEffect(() => {
@@ -440,20 +454,23 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const hasNext = allChapters.indexOf(loadedChapters[loadedChapters.length - 1]?.chapterName) < allChapters.length - 1;
 
     return (
-        <MangaCanvas
-            containerRef={containerRef}
-            isLoading={isLoading} 
-            viewMode={viewMode}
-            onToggleViewMode={toggleViewMode} 
-            loadedChapters={loadedChapters}
-            currentPage={currentPage}
-            chapterName={chapterName}
-            allChapters={allChapters}
-            onBack={onBack}
-            onChapterChange={onChapterChange}
-            images={images}
-            hasNextChapter={hasNext}
-            onPageClick={(idx, ch) => goToPage(idx, ch)}
-        />
-            );
+        <div className="manga-reader">
+            <MangaCanvas
+                containerRef={containerRef}
+                isLoading={isLoading}
+                isMobile={isMobile}
+                viewMode={viewMode}
+                onToggleViewMode={toggleViewMode} 
+                loadedChapters={loadedChapters}
+                currentPage={currentPage}
+                chapterName={chapterName}
+                allChapters={allChapters}
+                onBack={onBack}
+                onChapterChange={onChapterChange}
+                images={images}
+                hasNextChapter={hasNext}
+                onPageClick={(idx, ch) => goToPage(idx, ch)}
+            />
+        </div>
+    );
 };

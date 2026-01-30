@@ -22,15 +22,22 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
     const titleName = path.split(/[\\/]/).pop();
 
     return (
-        <div style={{ padding: "20px" }}>
-            <button onClick={onBack}>{t.back}</button>
+        <div className="title-showcase">
             
-            <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
-                <div style={{ width: "150px", height: "200px", background: "var(--background-secondary)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    🖼 Постер
-                </div>
-                <div>
-                    <h1>{titleName}</h1>
+            {/* [хедер страницы тайтла] */}
+            <div className="title-header">
+                <button onClick={onBack}>{t.back}</button>
+            </div>
+
+            <div className="top-showcase">
+                {/* Постер */}
+                <div className="poster"> 🖼 Постер </div>
+                <div className="title-info">
+                    {titleName}
+                </div>                
+
+                {/* кнопка продолжить */} 
+                <div className="start-button">
                     {progress?.lastChapter ? (
                         <button 
                             style={{ background: "var(--interactive-accent)", color: "var(--text-on-accent)" }}
@@ -48,7 +55,7 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
             <hr />
 
             {/* ВЫЗЫВАЕМ НАШ КОМПОНЕНТ ГЛАВ (ChapterListPage) */}
-            <div style={{marginTop: "20px"}}>
+            <div className="bottom-showcase">
                 <h3>{t.chapterList}</h3>
                 <ChapterListPage
                     app={app}
@@ -57,7 +64,7 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
                     onBack={() => {}} // Передаем пустой? Потому что у TitlePage уже есть "Назад"
                     onSelectChapter={(name) => onSelectChapter(name, true)}
                 />
-            </div>            
+            </div>
         </div>
     );
 };

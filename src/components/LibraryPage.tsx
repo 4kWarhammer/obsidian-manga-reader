@@ -130,8 +130,8 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     };
 
     return (
-        <div style={{ padding: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+        <div className = "library-main">
+            <div className = "library-title">
                 <h2>{t.libraryTitle}</h2>
 
                 {/* Кнопка быстрого переключения языка */}
@@ -139,7 +139,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                     {currentLang === "ru" ? "EN" : "RU"}
                 </button>
 
-                {/* добавляем папки */}
+                {/* Кнопка добавления источника */}
                 <div style={{ display: "flex", gap: "10px" }}>
                     <button onClick={addDefaultFolderModal}>{t.addVaultFolder}</button>
                     {(window as any).require && (
@@ -149,13 +149,10 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
             </div>
 
             {/* Тут отображаем список манги уже добавленной */}
-            <div style={{ 
-                display: "grid", 
-                gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", 
-                gap: "20px" 
-            }}>
+            <div className = "title-grid">
                 {items.length > 0 ? items.map(item => (
                     <div 
+                        className = "title"
                         key={item.path}
                         onClick={() => onSelectTitle(item.path)}
                         style={{ 

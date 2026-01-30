@@ -92,29 +92,26 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
     // Витрина (TitlePage) со списком глав
     if (selectedTitle) {
         const chapterName = 'test_name'
-        return (
-            <div style={{ padding: "20px" }}>
-                <TitlePage 
-                    app={app}
-                    plugin={plugin}
-                    path={selectedTitle}
-                    onBack={handleBack}
-                    // Кнопка "Продолжить" — НЕ сбрасываем страницу
-                    onContinue={(name) => handleChapterChange(name, false)}
-                    // Клик по главе в списке — Сбрасываем на стр. 1
-                    onSelectChapter={(name) => handleChapterChange(name, true)}
-                />
-            </div>
+        return (            
+            <TitlePage 
+                app={app}
+                plugin={plugin}
+                path={selectedTitle}
+                onBack={handleBack}
+                // Кнопка "Продолжить" — НЕ сбрасываем страницу
+                onContinue={(name) => handleChapterChange(name, false)}
+                // Клик по главе в списке — Сбрасываем на стр. 1
+                onSelectChapter={(name) => handleChapterChange(name, true)}
+            />
         );
     }
 
     // Если библиотека(LibraryPage)
-    return (
-        <div style={{ padding: "20px" }}>
-            <LibraryPage 
-                app={app} 
-                plugin={plugin} // Передаем плагин здесь, чтобы наш LibraryPage мог с ней работать
-                onSelectTitle={(path) => setSelectedTitle(path)} />
-        </div>
+    return (        
+        <LibraryPage 
+            app={app} 
+            plugin={plugin} // Передаем плагин здесь, чтобы наш LibraryPage мог с ней работать
+            onSelectTitle={(path) => setSelectedTitle(path)} />
+        
     );
 };

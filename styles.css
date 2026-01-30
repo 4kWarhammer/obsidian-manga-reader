@@ -1,60 +1,100 @@
-/* Основной контейнер, который занимает всё место */
-.manga-canvas-root {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: auto; /* Скролл разрешен здесь */
-    /* padding-top: 0 !important; */
+/* Обнуляем отступы безопасной зоны Obsidian в полноэкранном режиме */
+body.is-manga-plugin-active .is-mobile .workspace > .mod-root,
+body.is-manga-plugin-active .workspace-split.mod-root {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
 }
 
-/* Зона детектор */
-.header-wrapper {
-    position: sticky;
+/* убираем нижнюю панель Obsidian на мобилках */
+/* Только в моментах, когда активен ридер */
+body.is-reader-active .mobile-navbar.mod-raised {
+    display: none !important;
+}
+
+
+/* Основной компонент читалки */
+.manga-reader {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    height: 60px;
-    z-index: 250;
-    /* Раскомментируй, чтобы увидеть зону при отладке */
-    /* background: red;  */
-}
-
-/* Стили заголовка */
-.reader-header {
-    height: 50px;
-    background-color: var(--background-secondary-alt);
-    border-bottom: 1px solid var(--background-modifier-border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 15px;
-
-    /* Прячем визуально */
-    opacity: 0;
-    pointer-events: none; /* Пока скрыт — сквозь него можно кликать по манге */
-    transform: translateY(-50px); /* Слегка приподнят для эффекта выплывания */
-    transition: all 0.5s ease;
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    z-index: 9999; /* Выше всех элементов Obsidian */
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    /* Полотно для работы со всеми элементами - канвас */
+    & .manga-canvas-root {
+        height: 100%;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        margin-top: var(--safe-area-inset-top);
+        margin-bottom: var(--safe-area-inset-bottom);
+    }
+    /* Обертка для хедера */
+    & .header-wrapper {
+        position: sticky;
+        top: 0;
+        height: 0; /* Контент под ним "всплывает" наверх сам */
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        z-index: 1000;
+        /* Зона для ловли мыши - не понимаю как она работает */
+        &::before {
+            content: "";
+            background: transparent;
+            position: absolute;
+            top: 0;
+            width: 100%;
+            /* Высота зоны, где ловится мышь */
+            --detector-offset: 20px;
+            height: calc(var(--detector-offset) + var(--header-height) + var(--safe-area-inset-top));
+            }
+        /* Условие для мобилки (по тапу) */
+        /* Тап задается в JS, добавляется класс is-mobile-visible */
+        &.is-mobile-visible {
+            & .reader-header {
+                opacity: 1;
+                transform: translateY(0px);
+                pointer-events: all;
+            }
+        }
+        /* Сам хедер */
+        & .reader-header{
+            background-color: color-mix(in srgb, var(--background-primary-alt), transparent 15%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            height: 55px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;            
+        }
+    }
 }
 
 /* Показываем хедер, когда мы навели на обертку-триггер */
-.header-wrapper:hover .reader-header {
-    opacity: 1;
-    pointer-events: all; /* Теперь кнопки кликабельны */
-    transform: translateY(0);
-}
-
-/* Для мобилок (тап): добавим класс 'is-visible', который будем переключать по клику позже */
-.reader-header.is-visible {
-    transform: translateY(0);
-}
-
-/* Убираем отступ у первой картинки, чтобы она была сразу под хедером */
-.manga-reader-container {
-    margin-top: -60px; /* Компенсируем высоту триггера в покое */
+/* Логика для десктопа (по наведению) */
+@media (hover: hover) {
+    .header-wrapper:hover .reader-header {
+        opacity: 1;
+        transform: translateY(0px);
+        pointer-events: all;
+    }
 }
 
 /* Стили элементов внутри */
-.chapter-select {
+.manga-reader .chapter-select {
     background: var(--background-primary);
     color: var(--text-normal);
     border: 1px solid var(--background-modifier-border);
@@ -63,7 +103,7 @@
     max-width: 200px;
 }
 
-.nav-btn {
+.manga-reader .nav-btn {
     background: none;
     border: none;
     color: var(--text-muted);
@@ -71,38 +111,40 @@
     font-size: 1.1em;
 }
 
-.nav-btn:hover {
+.manga-reader .nav-btn:hover {
     color: var(--text-accent);
 }
 
-/* Редактируем изображения */
-.manga-page-wrapper {
-    /* Центрируем содержимое */
+
+/* Центрируем по высоте в single-mode */
+.manga-reader .manga-reader-container.single-mode {
     display: flex;
-    justify-content: center;
+    justify-content: center; /* Центр по горизонтали */
+    align-items: center;     /* Центр по вертикали */
+    min-height: 100%;
+    width: 100%;
+}
+
+/* Редактируем изображения */
+.manga-reader .manga-page-wrapper {
+    /* Центрируем содержимое */
+    width: 100%;
+    display: flex;
+    justify-content: center; /* Центрирует по горизонтали */
     align-items: center;
-    position: relative;
+    overflow: hidden; /* Чтобы ничего не вылазило за края */
     
     /* Минимальная высота, чтобы блок существовал до загрузки картинки.
        Можно примерно прикинуть пропорцию или оставить min-height: 50vh */
-    min-height: 60vh; 
-    margin-bottom: 10px; /* Отступ между страницами */
+    min-height: 30vh;
+    margin-bottom: 5px; /* Отступ между страницами */
 }
 
-.manga-img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-
-    /* второй вариант */
-    /* height: 90vh; */
-    /* width: auto; */
-
+.manga-reader .manga-img {
+    flex-grow: 1;
     /* Чтобы картинка не растягивалась криво */
-    /* object-fit: contain; */
-    
-    /* Добавляем box-shadow для красоты, как страница бумаги */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    object-fit: contain;
+
 }
 
 .page-number-overlay {
@@ -120,12 +162,74 @@
 
 /* Зоны для переключения страниц - навигация */
 .click-zone {
-    position: absolute;
+    position: fixed;
     top: 0;
     bottom: 0;
     z-index: 10;
-    cursor: pointer;
+    width: 25%;
+    z-index: 50;
+    /* cursor: pointer; */
     /* background: rgba(255,0,0,0.1); Для отладки раскомментируй */
 }
-.click-zone.left { left: 0; width: 30%; }
-.click-zone.right { right: 0; width: 30%; }
+.click-zone.left { left: 0;}
+.click-zone.right { right: 0;}
+
+
+/* Библиотека */
+.library-main {
+    & .library-title{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 5px;
+    }
+    & .title-grid{
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        /* display: flex;
+        flex-wrap: wrap;
+        gap: 10px; */
+        & .title{
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+    }
+}
+
+/* Витрина тайтла */
+.title-showcase {
+    & .title-header{
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    & .top-showcase{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        & .title-info{
+            color: var(--text-normal);
+            font-size: 1.2em;
+        }
+    }
+    & .poster{
+        height: 260px;
+        min-width: 160px;
+
+        width: auto;
+        background: var(--background-secondary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+}

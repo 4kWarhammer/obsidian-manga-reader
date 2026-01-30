@@ -17,12 +17,14 @@ export const ReaderHeader = ({
     onBack, 
     onChapterChange, 
     viewMode,
-    onToggleViewMode 
+    onToggleViewMode,
 }: ReaderHeaderProps) => {
-    return (        
+    return (
         <div className="reader-header">
             <div className="header-left">
-                <button className="nav-btn" onClick={onBack}>← Назад</button>
+                <button className="nav-btn" onClick={onBack} title="Назад">
+                    <span>🔙</span>
+                </button>
             </div>
             
             <div className="header-center">
@@ -38,11 +40,9 @@ export const ReaderHeader = ({
             </div>
 
             <div className="header-right">
-                <button className="nav-btn" onClick={onToggleViewMode}>
-                    {viewMode === "scroll" ? "📜 Скролл" : "📄 Страница"}
+                <button className="nav-btn" onClick={onToggleViewMode} title="Сменить режим">
+                    {viewMode === "scroll" ? "📜" : "📄"}
                 </button>
-                {/* Место для иконки настроек (шестеренки) */}
-                <button className="nav-btn">⚙</button>
             </div>
         </div>
     );

@@ -10,6 +10,28 @@ export interface MangaProgress {
     notes?: string;      // Личные комментарии
 }
 
+export interface ImageProvider {
+    // Основные методы - теперь с chapterName
+    getImageUrl: (chapter: string, index: number) => Promise<string>;
+    isLoading: (chapter: string, index: number) => boolean;
+
+    // Реактивный кэш URL
+    loadedUrls: Map<string, string>;
+    releasePage: (chapter: string, index: number) => void;
+
+    // Навигация
+    isInRange: (index: number) => boolean;
+    setVisible: (index: number) => void;
+    visibleIndex: number;  // ← Текущая видимая страница
+    getAllChapters: () => string[]
+    getTotalPages: () => number;
+    getTotalPagesForChapter: (chapter: string) => Promise<number>;
+
+    // Мульти-глава
+    transitionToChapter: (chapter: string, startIndex?: number) => void;
+    getCurrentChapter: () => string;
+}
+
 // 2. Описываем структуру всего data.json
 export interface PluginData {
     settings: {

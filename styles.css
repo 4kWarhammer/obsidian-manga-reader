@@ -1,3 +1,8 @@
+:root {
+    --manga-max-width: 100%; /* Значение по умолчанию */
+}
+
+
 /* Обнуляем отступы безопасной зоны Obsidian в полноэкранном режиме */
 body.is-manga-plugin-active .is-mobile .workspace > .mod-root,
 body.is-manga-plugin-active .workspace-split.mod-root {
@@ -136,7 +141,7 @@ body.is-reader-active .mobile-navbar.mod-raised {
     
     /* Минимальная высота, чтобы блок существовал до загрузки картинки.
        Можно примерно прикинуть пропорцию или оставить min-height: 50vh */
-    min-height: 30vh;
+    min-height: 80vh;
     margin-bottom: 5px; /* Отступ между страницами */
 }
 

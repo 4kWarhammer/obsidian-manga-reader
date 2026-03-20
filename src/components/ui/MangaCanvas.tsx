@@ -1,6 +1,8 @@
 import * as React from "react";
 import { MangaPage } from "./MangaPage";
 import { ReaderHeader } from "./ReaderHeader";
+import { ImageProvider } from "src/types";
+import { ChapterSegment } from "./ChapterSegment";
 
 interface MangaCanvasProps {
     containerRef: React.RefObject<HTMLDivElement>
@@ -8,15 +10,22 @@ interface MangaCanvasProps {
     viewMode: "scroll" | "single";
     isMobile?: boolean;
     onToggleViewMode: () => void;
-    loadedChapters: { chapterName: string; images: string[] }[];
     currentPage: number;
     chapterName: string; // текущая активная глава из пропсов
     allChapters: string[],
     onBack:() => void,
     onChapterChange:(chapterName: string, resetPage?: boolean) => void,
-    images: string[];    // изображения текущей главы (для single mode)
     onPageClick: (index: number, chName: string) => void;
     hasNextChapter: boolean;
+    imageProvider?: ImageProvider;
+    currentImageUrl?: string | null;
+    isImageLoading?: boolean;
+    chaptersToRender?: ChapterInfo[];
+}
+
+interface ChapterInfo {
+    chapterName: string;
+    totalPages: number;
 }
 
 // Это наш "диспетчер" для отображаемых элементов
@@ -26,17 +35,23 @@ export const MangaCanvas = ({
     viewMode,
     isMobile,
     onToggleViewMode,
-    loadedChapters, 
     currentPage, 
     chapterName, 
     allChapters, 
     onBack, 
     onChapterChange, 
-    images, 
     onPageClick, 
-    hasNextChapter 
+    hasNextChapter, 
+    imageProvider,
+    chaptersToRender
+
 }: MangaCanvasProps) => {
     const [showUI, setShowUI] = React.useState(false);
+    const totalPages = imageProvider?.getTotalPages() || 0;
+    imageProvider.getTotalPages()
+    // Пока только для single mode используются
+    // const currentImageUrl = imageProvider?.getImageUrl(currentPage);
+    // const isImageLoading = imageProvider?.isLoading(currentPage)
 
     // Обработчик клика/тапа по канвасу
     // Возможно проблема - в скролле нам не нужны клики с onPageClick
@@ -109,19 +124,16 @@ export const MangaCanvas = ({
                 className="manga-reader-container scroll-mode"
                 onClick={handleCanvasClick}
                 >
-                    {loadedChapters.map((chapter) => (
-                        <div key={chapter.chapterName} className="manga-chapter-section">
-                            {chapter.images.map((url, idx) => (
-                                <MangaPage 
-                                    key={url} 
-                                    url={url} 
-                                    index={idx} 
-                                    chapterName={chapter.chapterName}
-                                />
-                            ))}
-                        </div>
+                    {/* Тут у нас Fallback - если chaperToRender не передан, то рендерим одну главу */}
+                    {(chaptersToRender || [{ chapterName, totalPages }]).map(chapter => (
+                        <ChapterSegment
+                            key={chapter.chapterName}
+                            chapterName={chapter.chapterName}
+                            totalPages={chapter.totalPages}
+                            imageProvider={imageProvider!}
+                        />
                     ))}
-                    
+
                     <div id="end-of-list-sensor" className="manga-sensor">
                         {hasNextChapter ? "Загрузка следующей главы..." : "Конец истории"}
                     </div>
@@ -132,14 +144,12 @@ export const MangaCanvas = ({
                 className="manga-reader-container single-mode"
                 onClick={handleCanvasClick}
                 >
-                    {images.length > 0 && (
-                        <MangaPage 
-                            url={images[currentPage]} 
-                            index={currentPage} 
-                            chapterName={chapterName}
-                            onClick={onPageClick} 
-                        />
-                    )}
+                    <MangaPage 
+                        url={imageProvider?.loadedUrls?.get(`${chapterName}:${currentPage}`) || undefined}
+                        isLoading={imageProvider?.isLoading?.(chapterName, currentPage)}
+                        index={currentPage} 
+                        chapterName={chapterName}
+                    />
                 </div>
             )}
         </div>

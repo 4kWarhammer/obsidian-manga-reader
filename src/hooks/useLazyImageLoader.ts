@@ -6,10 +6,10 @@ import { ChapterCacheManager } from 'src/utils/ChapterCacheManager';
 interface Props {
     parentPath: string;
     chapterName: string;
-    totalPages: number;
+    // totalPages: number;
     bufferSize: number;
     app: App;
-    isArchive: boolean;
+    // isArchive: boolean;
     isExternal: boolean;
     initialPage?: number;
 }
@@ -20,10 +20,10 @@ export const useLazyImageLoader = ({
     // totalPages,
     bufferSize = 2,
     app,
-    isArchive,
+    // isArchive,
     isExternal,
     initialPage = 0
-}) => {
+}: Props) => {
     // === ИНИЦИАЛИЗАЦИЯ (один раз при монтировании) ===
     const managerRef = useRef(new ChapterCacheManager);
     const [currentChapter, setCurrentChapter] = useState('');

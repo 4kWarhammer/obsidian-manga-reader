@@ -65,7 +65,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         chapterName,
         bufferSize: 2,
         app,
-        isArchive,
+        // isArchive,
         isExternal,
         initialPage: savedPage,
     });

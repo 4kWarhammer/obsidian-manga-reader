@@ -202,7 +202,7 @@ export class ImageLoader {
 
     // Определяет MIME тип по расширению на конце файла
     private getMimeType(fileName: string): string {
-            const ext = fileName.split('.').pop()?.toLowerCase();
+            const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
             const types: Record<string, string> = {
                 'jpg': 'image/jpeg',

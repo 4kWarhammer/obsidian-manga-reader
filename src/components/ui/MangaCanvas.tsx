@@ -5,7 +5,7 @@ import { ImageProvider } from "src/types";
 import { ChapterSegment } from "./ChapterSegment";
 
 interface MangaCanvasProps {
-    containerRef: React.RefObject<HTMLDivElement>
+    containerRef: React.RefObject<HTMLDivElement | null>
     isLoading: boolean;
     viewMode: "scroll" | "single";
     isMobile?: boolean;
@@ -48,7 +48,6 @@ export const MangaCanvas = ({
 }: MangaCanvasProps) => {
     const [showUI, setShowUI] = React.useState(false);
     const totalPages = imageProvider?.getTotalPages() || 0;
-    imageProvider.getTotalPages()
     // Пока только для single mode используются
     // const currentImageUrl = imageProvider?.getImageUrl(currentPage);
     // const isImageLoading = imageProvider?.isLoading(currentPage)

@@ -64,10 +64,16 @@ export class ChapterCacheManager {
 
     // === ПОЛУЧЕНИЕ LOADER'а ===
     getLoader(chapterName: string): ImageLoader {
-        if (!this.loaders.has(chapterName)) {
+        if (!this.app) {
+            throw new Error("ChapterCacheManager: App is not initialized");
+        }
+        
+        let loader = this.loaders.get(chapterName);
+
+        if (!loader) {
             const cache = this.getCache(chapterName);
             const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
-            const loader = new ImageLoader(
+            loader = new ImageLoader(
                 this.parentPath,
                 chapterName,
                 cache,
@@ -80,7 +86,7 @@ export class ChapterCacheManager {
             console.log(`ChapterCacheManager: Created loader for "${chapterName}"`);            
         }
 
-        return this.loaders.get(chapterName)
+        return loader;
     }
 
     // === ЗАГРУЗКА СПИСКА ГЛАВ ===

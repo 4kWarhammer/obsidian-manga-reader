@@ -8,7 +8,7 @@ interface MangaPageProps {
     isLoading?: boolean;
 }
 
-export const MangaPage = ({ url, index, chapterName, onClick, isLoading }: MangaPageProps) => {
+export const MangaPage = React.memo(({ url, index, chapterName, onClick, isLoading }: MangaPageProps) => {
     // c onClick пока не решил по функционалу нужен ли он здесь
     // но он пока не мешает - оставлю
 
@@ -28,4 +28,4 @@ export const MangaPage = ({ url, index, chapterName, onClick, isLoading }: Manga
             <div className="page-number-overlay">{index + 1}</div>
         </div>
     );
-};
+});

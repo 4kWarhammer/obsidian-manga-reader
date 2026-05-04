@@ -10,6 +10,9 @@ const pathModule = (window as any).require ? (window as any).require('path') : n
 // но одного ли изображения?
 
 export class ImageLoader {
+    // Это просто список изображений, не содержит в себе ссылок или 
+    // какой-либо дополнительной информации.
+    // Нужен для позиционирования индексов и выявления totalpages
     private imageFilesList: string[] | null = null;
 
     constructor(

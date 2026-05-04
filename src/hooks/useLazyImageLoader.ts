@@ -26,7 +26,7 @@ export const useLazyImageLoader = ({
 }: Props) => {
     // === ИНИЦИАЛИЗАЦИЯ (один раз при монтировании) ===
     const managerRef = useRef(new ChapterCacheManager);
-    const [currentChapter, setCurrentChapter] = useState('');
+    const [currentChapter, setCurrentChapter] = useState(chapterName);
     const currentChapterRef = useRef('');  // ← Актуальное значение для эффектов
     const [visibleIndex, setVisibleIndex] = useState(initialPage);
 

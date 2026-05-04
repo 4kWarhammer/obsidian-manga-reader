@@ -13,7 +13,7 @@ interface ChapterSegmentProps {
  * Только получает данные и рендерит страницы.
  * Не содержит useEffect, не загружает данные самостоятельно.
  */
-export const ChapterSegment: React.FC<ChapterSegmentProps> = ({
+export const ChapterSegment: React.FC<ChapterSegmentProps> = React.memo(({
     chapterName,
     totalPages,
     imageProvider
@@ -48,4 +48,4 @@ export const ChapterSegment: React.FC<ChapterSegmentProps> = ({
             })}
         </div>
     );
-};
+});

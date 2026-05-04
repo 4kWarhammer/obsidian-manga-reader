@@ -1,6 +1,18 @@
+import React from 'react';
 import { Plugin, WorkspaceLeaf, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { MangaView, VIEW_TYPE_MANGA } from './MangaView';
 import { PluginData, DEFAULT_DATA } from './types';
+
+// Только для development
+if (process.env.NODE_ENV !== 'production') {
+    import('@welldone-software/why-did-you-render').then((module) => {
+        module.default(React, {
+            trackAllPureComponents: true,
+            logOnDifferentValues: true,
+            include: [/Manga/, /Chapter/, /Reader/],
+        });
+    });
+}
 
 export default class MangaReaderPlugin extends Plugin {
     data: PluginData;

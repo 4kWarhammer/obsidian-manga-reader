@@ -42,6 +42,7 @@ export const useProgressDebounce = (
 
     // === ФУНКЦИЯ: Запланировать обновление ===
     // Её будешь вызывать из IntersectionObserver
+    // Это тоже сохранение, но отложенное с таймером
     const scheduleUpdate = useCallback((pageIdx: number, chapterName: string) => {
         // 1. Запоминаем новые данные в памяти (не записываем на диск!)
         pendingRef.current = { pageIdx, chapterName };
@@ -72,5 +73,8 @@ export const useProgressDebounce = (
         };
     }, [flush]);
 
-    return { scheduleUpdate, flush };
+    return { 
+        scheduleUpdate, 
+        flush,
+    };
 };

@@ -29,7 +29,7 @@ interface ChapterInfo {
 }
 
 // Это наш "диспетчер" для отображаемых элементов
-export const MangaCanvas = ({ 
+export const MangaCanvas = React.memo(({ 
     containerRef,
     isLoading,
     viewMode,
@@ -153,4 +153,4 @@ export const MangaCanvas = ({
             )}
         </div>
     )
-};
+});

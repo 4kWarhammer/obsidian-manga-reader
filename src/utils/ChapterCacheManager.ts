@@ -1,6 +1,7 @@
 import { App, TFolder } from "obsidian";
 import { ImageCache } from "./ImageCache";
 import { ImageLoader } from "./ImageLoader";
+import { error } from "node:console";
 
 // Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -32,16 +33,22 @@ export class ChapterCacheManager {
     private parentPath: string = '';
     private isExternal: boolean = false;
     private app: App | null = null;
+    private initialized: boolean = false;
 
-    // Вот это новая концепция
-    initialize(
-        parentPath: string,
-        isExternal: boolean,
-        app: App
-    ): void {
+
+    // Вот это новая концепция, но это по сути метод для
+    // добавления в класс частных своих переменных.
+    initialize(parentPath: string, app: App): void {
         this.parentPath = parentPath;
-        this.isExternal = isExternal;
+        this.isExternal = parentPath.includes(":\\") || parentPath.startsWith("/");
         this.app = app;
+        this.initialized = true;
+    }
+
+    private checkInitialized(): void {
+        if (!this.initialized) {
+            throw new Error("ChapterCacheManager: Not initialized. Call initialize() first.")
+        }
     }
 
     // Вот тут не совсем понял пока
@@ -96,21 +103,22 @@ export class ChapterCacheManager {
      * async, возвращает список имен глав из папки/архива
      * @returns names
      */
-    async loadChaptersList(
-        parentPath: string, 
-        isExternal: boolean, 
-        app: App
-    ): Promise<string[]> {
+    async loadChaptersList(): Promise<string[]> {
+        if (!this.app) {
+            throw new Error("ChapterCacheManager: App is not initialized");
+        }        
+        this.checkInitialized();
+        
         let names: string[] = [];
         
-        if (isExternal && fs && pathModule) {
-            const entries = fs.readdirSync(parentPath, { withFileTypes: true });
+        if (this.isExternal && fs && pathModule) {
+            const entries = fs.readdirSync(this.parentPath, { withFileTypes: true });
             names = entries
                 .filter((e: any) => e.isDirectory() || e.name.endsWith('.zip') || e.name.endsWith('.cbz'))
                 .map((e: any) => e.name)
                 .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
         } else {
-            const folder = app.vault.getAbstractFileByPath(parentPath);
+            const folder = this.app.vault.getAbstractFileByPath(this.parentPath);
             if (folder instanceof TFolder) {
                 names = folder.children
                     .filter(f => f instanceof TFolder || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))

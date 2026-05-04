@@ -52,10 +52,10 @@ export const useLazyImageLoader = ({
     // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
     useEffect(() => {
         // 0. Инициализируем менеджер
-        managerRef.current.initialize(parentPath, isExternal, app);
+        managerRef.current.initialize(parentPath, app);
 
         // 1. Загружаем список глав
-        managerRef.current.loadChaptersList(parentPath, isExternal, app);
+        managerRef.current.loadChaptersList();
 
         // 2. Устанавливаем текущую главу с callback для предзагрузки соседних глав
         managerRef.current.setCurrentChapter(chapterName, handleImageLoaded);

@@ -78,6 +78,7 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
     if (selectedChapter && selectedTitle) {
         return (
             <ReaderPage 
+                key={selectedChapter}
                 app={app} 
                 plugin={plugin}
                 parentPath={selectedTitle} 

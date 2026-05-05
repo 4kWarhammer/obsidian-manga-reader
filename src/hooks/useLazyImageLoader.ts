@@ -6,29 +6,24 @@ import { ChapterCacheManager } from 'src/utils/ChapterCacheManager';
 interface Props {
     parentPath: string;
     chapterName: string;
-    // totalPages: number;
     bufferSize: number;
     app: App;
-    // isArchive: boolean;
-    isExternal: boolean;
     initialPage?: number;
 }
 
 export const useLazyImageLoader = ({
     parentPath,
     chapterName,
-    // totalPages,
     bufferSize = 2,
     app,
-    // isArchive,
-    isExternal,
     initialPage = 0
 }: Props) => {
     // === ИНИЦИАЛИЗАЦИЯ (один раз при монтировании) ===
     const managerRef = useRef(new ChapterCacheManager);
     const [currentChapter, setCurrentChapter] = useState(chapterName);
-    const currentChapterRef = useRef('');  // ← Актуальное значение для эффектов
+    const currentChapterRef = useRef(chapterName);  // ← Актуальное значение для эффектов
     const [visibleIndex, setVisibleIndex] = useState(initialPage);
+    const [isReady, setIsReady] = useState(false);
 
     // Ключ загрузки: "chapterName:pageIndex" - пока не понял
     const [loadingSet, setLoadingSet] = useState<Set<string>>(new Set());
@@ -46,7 +41,7 @@ export const useLazyImageLoader = ({
     const handleImageLoaded = useCallback((chapter: string, index: number, url: string) => {
         const key = `${chapter}:${index}`;
         setLoadedUrls(prev => new Map(prev).set(key, url));
-        console.log(`[Preload] Callback: Loaded ${key}`);
+        // console.log(`[Preload] Callback: Loaded ${key}`);
     }, []);  // ← Пустые зависимости, т.к. используем функциональное обновление state
 
     // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
@@ -65,11 +60,13 @@ export const useLazyImageLoader = ({
         currentChapterRef.current = chapterName;
 
         console.log("useLazyImageLoader: Initialized chapter", chapterName);
-    }, [parentPath, chapterName, isExternal, app, handleImageLoaded]);
+    }, [parentPath, chapterName, app, handleImageLoaded]);
 
     // === EFFECT 2: Настройка главы (срабатывает при смене currentChapter) ===
     useEffect(() => {
         if (!currentChapter) return;
+        setIsReady(false);
+        setRealTotalPages(0);
 
         const setupChapter = async () => {
             console.log(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
@@ -98,10 +95,13 @@ export const useLazyImageLoader = ({
                 }
             } catch (err) {
                 console.error("useLazyImageLoader: Failed to fetch totalPages,", err);
+            } finally {
+                setIsReady(true);
             }
         };
 
         setupChapter();
+
     }, [currentChapter]);
 
     // === ФУНКЦИИ ===
@@ -260,7 +260,7 @@ export const useLazyImageLoader = ({
         for (let i = end + 1; i < realTotalPages; i++) {
             releasePage(activeChapter, i);
         }
-    }, [visibleIndex, bufferSize, realTotalPages]);  // ← Добавили getImageUrl и releasePage
+    }, [visibleIndex, bufferSize, realTotalPages, currentChapter]);  // ← Добавили getImageUrl и releasePage
     
     // === CLEANUP ===
     useEffect(() => {
@@ -339,5 +339,6 @@ export const useLazyImageLoader = ({
         transitionToChapter,
         getCurrentChapter,
         getChaptersToRender,
+        isReady,
     };
 };

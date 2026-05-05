@@ -40,8 +40,8 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const [isLoading, setIsLoading] = React.useState(false);
 
     // Проверочки
-    const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
-    const isExternal = parentPath.includes(":\\") || parentPath.startsWith("/");
+    // const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
+    // const isExternal = parentPath.includes(":\\") || parentPath.startsWith("/");
 
     const toggleViewMode = async () => {
         const newMode = viewMode === "scroll" ? "single" : "scroll";
@@ -65,8 +65,6 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         chapterName,
         bufferSize: 2,
         app,
-        // isArchive,
-        isExternal,
         initialPage: savedPage,
     });
 
@@ -80,6 +78,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         transitionToChapter,
         getTotalPagesForChapter,
         getCurrentChapter,      // ← Для получения актуальной главы
+        isReady,
     } = lazyLoader;
 
     const allChapters = getAllChapters();
@@ -185,46 +184,51 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     }, [parentPath, chapterName]);
 
     // // Автоскролл до нужной страницы при загрузке или смене режима
-    // React.useEffect(() => {
-    //     // Как только изменилось имя главы - блокируем сохранения
-    //     isAutoScrolling.current = true;
-    //     console.log("Switching chapter: scrolling locked");
+    React.useEffect(() => {
+        // Как только изменилось имя главы - блокируем сохранения
+        isAutoScrolling.current = true;
+        console.log("Switching chapter: scrolling locked");
 
-    //     if (isLoading || totalPages === 0) {
-    //         isAutoScrolling.current = false;
-    //         return;
-    //     }
+        if (isLoading || totalPages === 0) {
+            isAutoScrolling.current = false;
+            return;
+        }
+        if (!isReady) return;
 
-    //     const performScroll = () => {
-    //         isAutoScrolling.current = true;
+        const performScroll = () => {
+            isAutoScrolling.current = true;
 
-    //         // Используем visibleIndex из хука
-    //         const pageToScroll = (viewMode === 'scroll') ? visibleIndex : 0;
+            // Получаем актуальное имя текущей главы
+            const currentChapter = getCurrentChapter();
 
-    //         setTimeout(() => {
-    //             const selector = `.manga-page-wrapper[data-page-idx="${pageToScroll}"]`;
-    //             const targetEl = containerRef.current?.querySelector(selector);
+            // Скроллим к visibleIndex в режиме scroll 
+            // (а будет ли работать в single??)
+            const pageToScroll = (viewMode === 'scroll') ? visibleIndex : 0;
+            const selector = `.manga-page-wrapper[data-chapter-name="${currentChapter}"][data-page-idx="${pageToScroll}"]`;
 
-    //             if (targetEl) {
-    //                 targetEl.scrollIntoView({ behavior: 'instant', block: 'start' });
-    //                 console.log("Scrolled to:", pageToScroll);
-    //             } else if (pageToScroll === 0 && containerRef.current) {
-    //                 containerRef.current.scrollTo({ top: 0, behavior: 'instant' });
-    //             }
+            setTimeout(() => {
+                const targetEl = containerRef.current?.querySelector(selector);
 
-    //             // Разблокируем сохранение через секунду
-    //             setTimeout(() => {
-    //                 isAutoScrolling.current = false;
-    //             }, 1000);
-    //         }, 100); // Небольшая задержка для отрисовки DOM
-    //     };
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'instant', block: 'start' });
+                    console.log("Scrolled to:", currentChapter, pageToScroll);
+                } else if (pageToScroll === 0 && containerRef.current) {
+                    containerRef.current.scrollTo({ top: 0, behavior: 'instant' });
+                }
 
-    //     performScroll();
-    //     return () => {
-    //         isAutoScrolling.current = true;
-    //     };
+                // Разблокируем сохранение через секунду
+                setTimeout(() => {
+                    isAutoScrolling.current = false;
+                }, 1000);
+            }, 100); // Небольшая задержка для отрисовки DOM
+        };
 
-    // }, [isLoading, viewMode, chapterName]); // Пока убрал totalPages - мешает
+        performScroll();
+        return () => {
+            isAutoScrolling.current = true;
+        };
+
+    }, [isLoading, isReady, viewMode, chapterName]); // Пока убрал totalPages - мешает
 
     React.useEffect(() => {
         lastVisibleRef.current = visibleIndex;

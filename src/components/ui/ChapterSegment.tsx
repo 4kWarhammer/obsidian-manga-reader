@@ -36,13 +36,16 @@ export const ChapterSegment: React.FC<ChapterSegmentProps> = React.memo(({
         >
             {Array.from({ length: totalPages }).map((_, idx) => {
                 const key = `${chapterName}:${idx}`;
+                const url = imageProvider.loadedUrls.get(key) || undefined;
+                const shouldLoad = imageProvider.isInRange(chapterName, idx);
+
                 return (
                     <MangaPage
                         key={key}
                         index={idx}
                         chapterName={chapterName}
-                        url={imageProvider.loadedUrls.get(key) || undefined}
-                        isLoading={imageProvider.isLoading(chapterName, idx)}
+                        url={url}
+                        isLoading={!url && shouldLoad}
                     />
                 );
             })}

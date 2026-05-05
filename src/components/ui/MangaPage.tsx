@@ -18,13 +18,14 @@ export const MangaPage = React.memo(({ url, index, chapterName, onClick, isLoadi
         data-chapter-name={chapterName} 
         data-page-idx={index}
         >
-            {isLoading ? (
+            {url ? (
+                <img src={url} className="manga-img" />
+            ) : isLoading ? (
                 <div className="manga-page-loading">
                     <div className="spinner"></div>
                 </div>
-            ) : (
-                url && <img src={url} className="manga-img" />
-            )}
+            ) : null}
+            
             <div className="page-number-overlay">{index + 1}</div>
         </div>
     );

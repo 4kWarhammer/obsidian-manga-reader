@@ -20,7 +20,7 @@ export interface ImageProvider {
     releasePage: (chapter: string, index: number) => void;
 
     // Навигация
-    isInRange: (index: number) => boolean;
+    isInRange: (chapter: string, index: number) => boolean;
     setVisible: (index: number) => void;
     visibleIndex: number;  // ← Текущая видимая страница
     getAllChapters: () => string[]

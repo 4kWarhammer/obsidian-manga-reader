@@ -26,7 +26,7 @@ export const useLazyImageLoader = ({
     const [isReady, setIsReady] = useState(false);
 
     // Ключ загрузки: "chapterName:pageIndex" - пока не понял
-    const [loadingSet, setLoadingSet] = useState<Set<string>>(new Set());
+    const loadingSetRef = useRef<Set<string>>(new Set());
     const [realTotalPages, setRealTotalPages] = useState(0);
 
     // Реактивный кэш URL для getImageUrl (для мгновенного доступа при повторных запросах)
@@ -40,9 +40,16 @@ export const useLazyImageLoader = ({
     // Мемоизируем, чтобы не пересоздавался при каждом рендере
     const handleImageLoaded = useCallback((chapter: string, index: number, url: string) => {
         const key = `${chapter}:${index}`;
-        setLoadedUrls(prev => new Map(prev).set(key, url));
+
+        setLoadedUrls(prev => {
+            if (prev.get(key) === url) return prev;
+
+            const next = new Map(prev);
+            next.set(key, url);
+            return next;
+        });
         // console.log(`[Preload] Callback: Loaded ${key}`);
-    }, []);  // ← Пустые зависимости, т.к. используем функциональное обновление state
+    }, []);
 
     // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
     useEffect(() => {
@@ -118,7 +125,14 @@ export const useLazyImageLoader = ({
         const cached = managerRef.current.getUrl(chapter, index);
         if (cached) {
             // Синхронизируем state с ImageCache
-            setLoadedUrls(prev => new Map(prev).set(key, cached));
+            setLoadedUrls(prev => {
+                if (prev.get(key) === cached) return prev;
+
+                const next = new Map(prev);
+                next.set(key, cached);
+                return next;
+            });
+
             return cached;
         }
 
@@ -132,40 +146,41 @@ export const useLazyImageLoader = ({
         promiseMapRef.current.set(key, promise);
 
         // 5. Обновляем состояние загрузки
-        setLoadingSet(prev => new Set([...prev, key]));
+        loadingSetRef.current.add(key);
 
         // 6. Ждём результата
         try {
             const result = await promise;
 
             // 7. Обновляем реактивный state → триггерит ре-рендер
-            setLoadedUrls(prev => new Map(prev).set(key, result));
+            setLoadedUrls(prev => {
+                if (prev.get(key) === result) return prev;
+
+                const next = new Map(prev);
+                next.set(key, result);
+                return next;
+            });
 
             return result;
         } finally {
             // 8. Очищаем временные данные
             promiseMapRef.current.delete(key);
-            setLoadingSet(prev => {
-                const next = new Set(prev);
-                next.delete(key);
-                return next;
-            });
+            loadingSetRef.current.delete(key);
         }
     }, [loadedUrls]);  // ← loadedUrls — единственная зависимость, которая влияет на логику
 
     /**
      * Проверяет, загружается ли страница в данный момент
      * 
-     * Это единственное место, где используется loadingSet, 
-     * который обновляется при начале и завершении загрузки страницы.
+     * Но сейчас эта функция не используется
      * 
      * Не вижу использования данной функции где то дальше
      * @returns boolean
      */
-    const isLoading = (chapter: string, index: number): boolean => {
+    const isLoading = useCallback((chapter: string, index: number): boolean => {
         const key = `${chapter}:${index}`;
-        return loadingSet.has(key);
-    };
+        return loadingSetRef.current.has(key);
+    }, []);
 
     // Выгрузить страницу из всех кэшей (память + React state)
     const releasePage = useCallback((chapter: string, index: number): void => {
@@ -176,6 +191,8 @@ export const useLazyImageLoader = ({
 
         // 2. Удаляем из реактивного state (триггерит ре-рендер)
         setLoadedUrls(prev => {
+            if (!prev.has(key)) return prev;
+            
             const next = new Map(prev);
             next.delete(key);
             return next;
@@ -185,21 +202,19 @@ export const useLazyImageLoader = ({
         promiseMapRef.current.delete(key);
 
         // 4. Удаляем из loadingSet
-        setLoadingSet(prev => {
-            const next = new Set(prev);
-            next.delete(key);
-            return next;
-        });
+        loadingSetRef.current.delete(key);
 
         // console.log(`useLazyImageLoader: Released page ${key}`);
     }, []);  // ← managerRef, promiseMapRef — стабильные ref, не нужны в зависимостях
 
-    const isInRange = (index: number): boolean => {
+    const isInRange = useCallback((chapter: string, index: number): boolean => {
+        if (chapter !== currentChapterRef.current) return false;
+
         const start = Math.max(0, visibleIndex - bufferSize);
         const end = Math.min(realTotalPages - 1, visibleIndex + bufferSize);
 
         return index >= start && index <= end;
-    }
+    }, [visibleIndex, bufferSize, realTotalPages]);
 
     const setVisible = useCallback((index: number): void => {
         setVisibleIndex(index);

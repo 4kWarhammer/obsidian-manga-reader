@@ -353,6 +353,7 @@ export const useLazyImageLoader = ({
         getTotalPagesForChapter,
         transitionToChapter,
         getCurrentChapter,
+        currentChapter,
         getChaptersToRender,
         isReady,
     };

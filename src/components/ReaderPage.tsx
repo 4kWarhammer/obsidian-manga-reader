@@ -20,6 +20,39 @@ interface Props {
     onBack: () => void;
 }
 
+function useMinimumVisible(active: boolean, minMs: number): boolean {
+    const [visible, setVisible] = React.useState(active);
+    const startedAtRef = React.useRef<number | null>(active ? Date.now() : null);
+
+    React.useEffect(() => {
+        if (active) {
+            if (startedAtRef.current === null) {
+                startedAtRef.current = Date.now();
+            }
+
+            setVisible(true);
+            return;
+        }
+
+        if (!visible) return;
+
+        const startedAt = startedAtRef.current;
+        const elapsed = startedAt ? Date.now() - startedAt : minMs;
+        const remaining = Math.max(0, minMs - elapsed);
+
+        const timer = window.setTimeout(() => {
+            setVisible(false);
+            startedAtRef.current = null;
+        }, remaining);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [active, minMs, visible]);
+
+    return visible;
+}
+
 // Блок инициализации изображений, загрузка
 export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChange, onBack }: Props) => {
 
@@ -38,6 +71,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     const [viewMode, setViewMode] = React.useState(plugin.data.settings.viewMode);
     const [isLoading, setIsLoading] = React.useState(false);
+    const [isPositioning, setIsPositioning] = React.useState(true);
 
     // Проверочки
     // const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
@@ -77,7 +111,8 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         getChaptersToRender,
         transitionToChapter,
         getTotalPagesForChapter,
-        getCurrentChapter,      // ← Для получения актуальной главы
+        getCurrentChapter,      // ← Для получения актуальной главы но с мемо
+        currentChapter,
         isReady,
     } = lazyLoader;
 
@@ -85,6 +120,9 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const chaptersToRender = getChaptersToRender();
     const totalPages = getTotalPages();
     console.log(`Chapter has ${totalPages} pages`);
+
+    const isReaderBusy = isLoading || !isReady || isPositioning;
+    const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
 
     // === ИСПРАВЛЕНИЕ: Мемоизируем callback, чтобы он не пересоздавался ===
     // Это гарантирует, что функция onSave остается одинаковой между рендерами
@@ -185,50 +223,54 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     // // Автоскролл до нужной страницы при загрузке или смене режима
     React.useEffect(() => {
-        // Как только изменилось имя главы - блокируем сохранения
+        // Пока готовимся/переключаемся — блокируем обсерверы другие и держим overlay.
         isAutoScrolling.current = true;
+        setIsPositioning(true);
+
         console.log("Switching chapter: scrolling locked");
 
-        if (isLoading || totalPages === 0) {
-            isAutoScrolling.current = false;
+        if (isLoading || !isReady) {
             return;
         }
-        if (!isReady) return;
 
-        const performScroll = () => {
-            isAutoScrolling.current = true;
+        const currentChapter = getCurrentChapter();
+        const pageToScroll = viewMode === "scroll" ? visibleIndex : 0;
+        const selector = `.manga-page-wrapper[data-chapter-name="${currentChapter}"][data-page-idx="${pageToScroll}"]`;
 
-            // Получаем актуальное имя текущей главы
-            const currentChapter = getCurrentChapter();
+        let unlockTimer: number | null = null;
 
-            // Скроллим к visibleIndex в режиме scroll 
-            // (а будет ли работать в single??)
-            const pageToScroll = (viewMode === 'scroll') ? visibleIndex : 0;
-            const selector = `.manga-page-wrapper[data-chapter-name="${currentChapter}"][data-page-idx="${pageToScroll}"]`;
+        const scrollTimer = window.setTimeout(() => {
+            const targetEl = containerRef.current?.querySelector(selector);
 
-            setTimeout(() => {
-                const targetEl = containerRef.current?.querySelector(selector);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: "instant", block: "start" });
+                console.log("Scrolled to:", currentChapter, pageToScroll);
+            } else if (pageToScroll === 0 && containerRef.current) {
+                containerRef.current.scrollTo({ top: 0, behavior: "instant" });
+            }
 
-                if (targetEl) {
-                    targetEl.scrollIntoView({ behavior: 'instant', block: 'start' });
-                    console.log("Scrolled to:", currentChapter, pageToScroll);
-                } else if (pageToScroll === 0 && containerRef.current) {
-                    containerRef.current.scrollTo({ top: 0, behavior: 'instant' });
-                }
+            // Даём браузеру применить scroll, и только потом убираем overlay-флаг.
+            window.requestAnimationFrame(() => {
+                setIsPositioning(false);
+            });
 
-                // Разблокируем сохранение через секунду
-                setTimeout(() => {
-                    isAutoScrolling.current = false;
-                }, 1000);
-            }, 100); // Небольшая задержка для отрисовки DOM
-        };
+            // Разблокируем сохранение через секунду.
+            unlockTimer = window.setTimeout(() => {
+                isAutoScrolling.current = false;
+            }, 1000);
+        }, 100);
 
-        performScroll();
         return () => {
-            isAutoScrolling.current = true;
-        };
+            window.clearTimeout(scrollTimer);
 
-    }, [isLoading, isReady, viewMode, chapterName]); // Пока убрал totalPages - мешает
+            if (unlockTimer !== null) {
+                window.clearTimeout(unlockTimer);
+            }
+
+            isAutoScrolling.current = true;
+            setIsPositioning(true);
+        };
+    }, [isLoading, isReady, viewMode, chapterName]);
 
     React.useEffect(() => {
         lastVisibleRef.current = visibleIndex;
@@ -350,10 +392,10 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
             observerRef.current?.disconnect();
             observerRef.current = null;
         };
-    }, [isLoading, totalPages, viewMode, chapterName, getCurrentChapter, scheduleUpdate]);
+    }, [isLoading, totalPages, viewMode, chapterName, currentChapter, scheduleUpdate]);
 
-    // заглушка при подгрузке страниц
-    if (isLoading) return <div style={{ padding: "20px", color: "white" }}>{t.isloading}</div>;
+    // заглушка при подгрузке страниц - уже не нужна, мешает MangaCanvas монтироваться
+    // if (isLoading) return <div style={{ padding: "20px", color: "white" }}>{t.isloading}</div>;
 
     // Сам контейнер для отображения картинок
 
@@ -364,12 +406,12 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         <div className="manga-reader">
             <MangaCanvas
                 containerRef={containerRef}
-                isLoading={isLoading}
+                isLoading={false}
                 isMobile={isMobile}
                 viewMode={viewMode}
                 onToggleViewMode={toggleViewMode}
-                currentPage={visibleIndex}  // ← Используем visibleIndex из хука
-                chapterName={chapterName}
+                currentPage={visibleIndex}
+                chapterName={currentChapter}
                 allChapters={allChapters}
                 onBack={onBack}
                 onChapterChange={onChapterChange}
@@ -378,6 +420,15 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 imageProvider={lazyLoader}
                 chaptersToRender={chaptersToRender}
             />
+
+            {showReaderLoader && (
+                <div className="manga-reader-global-loader">
+                    <div className="spinner"></div>
+                    <div className="manga-reader-global-loader-text">
+                        {t.isloading}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

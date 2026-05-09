@@ -86,14 +86,14 @@ export const MangaCanvas = React.memo(({
     }, []);
 
     // Диспетчер состояний: если грузимся - рисуем только лоадер
-    if (isLoading) {
-        return (
-            <div className="manga-reader-loading">
-                <div className="spinner"></div>
-                <p>Загрузка контента...</p>
-            </div>
-        );
-    }
+    // if (isLoading) {
+    //     return (
+    //         <div className="manga-reader-loading">
+    //             <div className="spinner"></div>
+    //             <p>Загрузка контента...</p>
+    //         </div>
+    //     );
+    // }
 
     return (
         <div 

@@ -252,27 +252,33 @@ export const useLazyImageLoader = ({
         const activeChapter = currentChapterRef.current;
 
         // Диапазон для загрузки
-        const start = Math.max(0, visibleIndex - bufferSize);
-        const end = Math.min(realTotalPages - 1, visibleIndex + bufferSize);
+        const loadStart = Math.max(0, visibleIndex - bufferSize);
+        const loadEnd = Math.min(realTotalPages - 1, visibleIndex + bufferSize);
 
-        console.log(`[BUFFER] visibleIndex changed to ${visibleIndex}, loading range [${start}-${end}]`);
-        console.log(`[BUFFER] Releasing pages 0-${start-1} and ${end+1}-${realTotalPages-1}`);
+        // Диапазон для удержания - hysteresis
+        const keepBufferSize = bufferSize * 3;
+        const keepStart = Math.max(0, visibleIndex - keepBufferSize);
+        const keepEnd = Math.min(realTotalPages - 1, visibleIndex + keepBufferSize);
 
-        // Загружаем страницы в этом диапазоне
+        console.log(`[BUFFER] visibleIndex changed to ${visibleIndex}, loading range [${loadStart}-${loadEnd}], keeping range [${keepStart}-${keepEnd}]`);
+
+        // console.log(`[BUFFER] Releasing pages 0-${loadStart-1} and ${loadEnd+1}-${realTotalPages-1}`);
+
+        // Загружаем страницы только в коротком диапазоне - bufferSize
         const promises = [];
-        for (let i = start; i <= end; i++) {
+        for (let i = loadStart; i <= loadEnd; i++) {
             promises.push(getImageUrl(activeChapter, i));
         }
 
         // Запускаем загрузку всех страниц параллельно
         Promise.all(promises).catch(err => console.error("Image loading error:", err));
 
-        // Выгружаем страницы которые не входят в текущий актуальный диапазон
-        for (let i = 0; i < start; i++) {
+        // Выгружаем страницы которые вышли за больший диапазон keepBufferSize
+        for (let i = 0; i < keepStart; i++) {
             releasePage(activeChapter, i);
         }
 
-        for (let i = end + 1; i < realTotalPages; i++) {
+        for (let i = keepEnd + 1; i < realTotalPages; i++) {
             releasePage(activeChapter, i);
         }
     }, [visibleIndex, bufferSize, realTotalPages, currentChapter]);  // ← Добавили getImageUrl и releasePage

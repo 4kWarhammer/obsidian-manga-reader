@@ -88,6 +88,10 @@ body.is-reader-active .mobile-navbar.mod-raised {
     }
 }
 
+.manga-reader.is-reader-loading .manga-canvas-root {
+    visibility: hidden;
+}
+
 /* Показываем хедер, когда мы навели на обертку-триггер */
 /* Логика для десктопа (по наведению) */
 @media (hover: hover) {

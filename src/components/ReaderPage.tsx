@@ -50,7 +50,7 @@ function useMinimumVisible(active: boolean, minMs: number): boolean {
         };
     }, [active, minMs, visible]);
 
-    return visible;
+    return active || visible;
 }
 
 // Блок инициализации изображений, загрузка
@@ -79,7 +79,12 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     const toggleViewMode = async () => {
         const newMode = viewMode === "scroll" ? "single" : "scroll";
-        
+
+        // Надежнее перед сменой режима заблокировать и указать что сейчас будет смена режима
+        // Так scroll DOM не успеет появиться на мгновение
+        isAutoScrolling.current = true;
+        setIsPositioning(true);
+
         // Обновляем визуальное состояние
         setViewMode(newMode);
         
@@ -237,6 +242,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         const pageToScroll = viewMode === "scroll" ? visibleIndex : 0;
         const selector = `.manga-page-wrapper[data-chapter-name="${currentChapter}"][data-page-idx="${pageToScroll}"]`;
 
+        let animationFrame: number | null = null;
         let unlockTimer: number | null = null;
 
         const scrollTimer = window.setTimeout(() => {
@@ -250,7 +256,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
             }
 
             // Даём браузеру применить scroll, и только потом убираем overlay-флаг.
-            window.requestAnimationFrame(() => {
+            animationFrame = window.requestAnimationFrame(() => {
                 setIsPositioning(false);
             });
 
@@ -261,14 +267,20 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         }, 100);
 
         return () => {
-            window.clearTimeout(scrollTimer);
+            if (scrollTimer !== null){
+                window.clearTimeout(scrollTimer);
+            }
+
+            if (animationFrame !== null) {
+                window.cancelAnimationFrame(animationFrame);
+            }
 
             if (unlockTimer !== null) {
                 window.clearTimeout(unlockTimer);
             }
 
             isAutoScrolling.current = true;
-            setIsPositioning(true);
+            // setIsPositioning(true);
         };
     }, [isLoading, isReady, viewMode, chapterName]);
 
@@ -403,7 +415,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const hasNext = currentChapterIndex < allChapters.length - 1;
 
     return (
-        <div className="manga-reader">
+        <div className={`manga-reader ${showReaderLoader ? "is-reader-loading" : ""}`}>
             <MangaCanvas
                 containerRef={containerRef}
                 isLoading={false}

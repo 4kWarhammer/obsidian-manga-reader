@@ -11,6 +11,12 @@ interface Props {
     initialPage?: number;
 }
 
+interface RetainedRange {
+    chapter: string;
+    start: number;
+    end: number;
+}
+
 export const useLazyImageLoader = ({
     parentPath,
     chapterName,
@@ -25,31 +31,55 @@ export const useLazyImageLoader = ({
     const [visibleIndex, setVisibleIndex] = useState(initialPage);
     const [isReady, setIsReady] = useState(false);
 
-    // Ключ загрузки: "chapterName:pageIndex" - пока не понял
     const loadingSetRef = useRef<Set<string>>(new Set());
     const [realTotalPages, setRealTotalPages] = useState(0);
 
     // Реактивный кэш URL для getImageUrl (для мгновенного доступа при повторных запросах)
     // Синхронизирован с ImageCache
     const [loadedUrls, setLoadedUrls] = useState<Map<string, string>>(new Map());
+    const loadedUrlsRef = useRef<Map<string, string>>(new Map());
 
     // Кэш Promise'ов: ключ "chapterName:pageIndex" -> Promise<string>
+    // нужен для отслеживания состояния загрузки каждого изображения
     const promiseMapRef = useRef(new Map<string, Promise<string>>());
+    const retainedRangeRef = useRef<RetainedRange | null>(null);
 
-    // === CALLBACK: Обновление loadedUrls при предзагрузке ===
-    // Мемоизируем, чтобы не пересоздавался при каждом рендере
-    const handleImageLoaded = useCallback((chapter: string, index: number, url: string) => {
-        const key = `${chapter}:${index}`;
-
+    // Функция helper, установка loadedUrls все равно сопряжена с установкой loadedUrlsRef
+    // Так что сразу однйо функцией будем вместе обновлять
+    const setLoadedUrl = useCallback((key: string, url: string) => {
         setLoadedUrls(prev => {
             if (prev.get(key) === url) return prev;
 
             const next = new Map(prev);
             next.set(key, url);
+            // 
+            loadedUrlsRef.current = next;
+
             return next;
         });
-        // console.log(`[Preload] Callback: Loaded ${key}`);
     }, []);
+
+    // Функция для удаления из loadedUrls и loadedUrlsRef
+    const deleteLoadedUrl = useCallback((key: string) => {
+        setLoadedUrls(prev => {
+            if (!prev.has(key)) return prev;
+
+            const next = new Map(prev);
+            next.delete(key);
+            loadedUrlsRef.current = next;
+
+            return next;
+        });
+    }, []);
+
+    // === CALLBACK: Обновление loadedUrls при предзагрузке ===
+    // Мемоизируем, чтобы не пересоздавался при каждом рендере
+    const handleImageLoaded = useCallback((chapter: string, index: number, url: string) => {
+        const key = `${chapter}:${index}`;
+        setLoadedUrl(key, url);
+
+        // console.log(`[Preload] Callback: Loaded ${key}`);
+    }, [setLoadedUrl]);
 
     // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
     useEffect(() => {
@@ -116,7 +146,7 @@ export const useLazyImageLoader = ({
         const key = `${chapter}:${index}`;
 
         // 1. Проверяем реактивный state (для мгновенного доступа)
-        const fromState = loadedUrls.get(key);
+        const fromState = loadedUrlsRef.current.get(key);
         if (fromState) {
             return fromState;
         }
@@ -125,14 +155,7 @@ export const useLazyImageLoader = ({
         const cached = managerRef.current.getUrl(chapter, index);
         if (cached) {
             // Синхронизируем state с ImageCache
-            setLoadedUrls(prev => {
-                if (prev.get(key) === cached) return prev;
-
-                const next = new Map(prev);
-                next.set(key, cached);
-                return next;
-            });
-
+            setLoadedUrl(key, cached);
             return cached;
         }
 
@@ -153,21 +176,14 @@ export const useLazyImageLoader = ({
             const result = await promise;
 
             // 7. Обновляем реактивный state → триггерит ре-рендер
-            setLoadedUrls(prev => {
-                if (prev.get(key) === result) return prev;
-
-                const next = new Map(prev);
-                next.set(key, result);
-                return next;
-            });
-
+            setLoadedUrl(key, result);
             return result;
         } finally {
             // 8. Очищаем временные данные
             promiseMapRef.current.delete(key);
             loadingSetRef.current.delete(key);
         }
-    }, [loadedUrls]);  // ← loadedUrls — единственная зависимость, которая влияет на логику
+    }, [setLoadedUrl]);
 
     /**
      * Проверяет, загружается ли страница в данный момент
@@ -186,26 +202,31 @@ export const useLazyImageLoader = ({
     const releasePage = useCallback((chapter: string, index: number): void => {
         const key = `${chapter}:${index}`;
 
-        // 1. Выгружаем из ImageCache (освобождаем blob URL)
-        managerRef.current.release(chapter, index);
+        const hasLoadedUrl = loadedUrlsRef.current.has(key);
+        const hasPromise = promiseMapRef.current.has(key);
+        const isLoading = loadingSetRef.current.has(key);
 
-        // 2. Удаляем из реактивного state (триггерит ре-рендер)
-        setLoadedUrls(prev => {
-            if (!prev.has(key)) return prev;
-            
-            const next = new Map(prev);
-            next.delete(key);
-            return next;
-        });
+        // Быстрый выход
+        if (!hasLoadedUrl && !hasPromise && !isLoading) {
+            return;
+        }
 
-        // 3. Удаляем из promiseMapRef
+        // 1. Сначала пробуем выгружать из loadedUrls - у него приоритет
+        // по сравнению с ImageCache, потому что на нем завязано DOM дерево
+        if (hasLoadedUrl) {
+            deleteLoadedUrl(key);
+        }
+
+        // 2.Пеперь чистим все временные Ref
         promiseMapRef.current.delete(key);
-
-        // 4. Удаляем из loadingSet
         loadingSetRef.current.delete(key);
 
-        // console.log(`useLazyImageLoader: Released page ${key}`);
-    }, []);  // ← managerRef, promiseMapRef — стабильные ref, не нужны в зависимостях
+        // 3. И только теперь выгружаем из Cache
+        managerRef.current.release(chapter, index);
+
+        console.log(`useLazyImageLoader: Released page ${key}`);
+
+    }, [deleteLoadedUrl]);  // ← managerRef, promiseMapRef — стабильные ref, не нужны в зависимостях
 
     const isInRange = useCallback((chapter: string, index: number): boolean => {
         if (chapter !== currentChapterRef.current) return false;
@@ -215,6 +236,44 @@ export const useLazyImageLoader = ({
 
         return index >= start && index <= end;
     }, [visibleIndex, bufferSize, realTotalPages]);
+
+    // Тут интересная логика применена.
+    // Если наш центр будет находится блихко к границам главы, 
+    // то логика будет пытаться сохранить retained range
+    const getRetainedRange = useCallback((
+        center: number,
+        totalPages: number,
+        retainHalfSize: number
+    ): { start: number; end: number } => {
+        const windowSize = retainHalfSize * 2 + 1;
+
+        let start = center - retainHalfSize;
+        let end = center + retainHalfSize;
+
+        if (start < 0) {
+            start = 0;
+            end = Math.min(totalPages - 1, windowSize - 1);
+        }
+
+        if (end > totalPages - 1) {
+            end = totalPages - 1;
+            start = Math.max(0, end - windowSize + 1);
+        }
+
+        return { start, end };
+    }, []);
+
+    const isLoadRangeInsideRetainedRange = useCallback((
+        retainedRange: RetainedRange | null,
+        chapter: string,
+        loadStart: number,
+        loadEnd: number
+    ): boolean => {
+        return !!retainedRange &&
+            retainedRange.chapter === chapter &&
+            loadStart >= retainedRange.start &&
+            loadEnd <= retainedRange.end;
+    }, []);
 
     const setVisible = useCallback((index: number): void => {
         setVisibleIndex(index);
@@ -255,14 +314,56 @@ export const useLazyImageLoader = ({
         const loadStart = Math.max(0, visibleIndex - bufferSize);
         const loadEnd = Math.min(realTotalPages - 1, visibleIndex + bufferSize);
 
-        // Диапазон для удержания - hysteresis
-        const keepBufferSize = bufferSize * 3;
-        const keepStart = Math.max(0, visibleIndex - keepBufferSize);
-        const keepEnd = Math.min(realTotalPages - 1, visibleIndex + keepBufferSize);
+        // Диапазон для retained range, он больше диапазона загрузки
+        const retainHalfSize = bufferSize * 2;
+        const previousRetainedRange = retainedRangeRef.current;
 
-        console.log(`[BUFFER] visibleIndex changed to ${visibleIndex}, loading range [${loadStart}-${loadEnd}], keeping range [${keepStart}-${keepEnd}]`);
+        // Тут проверка на попадание в диапазон
+        const loadRangeFits = isLoadRangeInsideRetainedRange(
+            previousRetainedRange,
+            activeChapter,
+            loadStart,
+            loadEnd
+        
+        );
 
-        // console.log(`[BUFFER] Releasing pages 0-${loadStart-1} and ${loadEnd+1}-${realTotalPages-1}`);
+        // Если в диапазон не попали, то:
+        if (!loadRangeFits) {
+            // 1. Определяем новый диапазон, исходя из текущей страницы
+            const nextRange = getRetainedRange(
+                visibleIndex,
+                realTotalPages,
+                retainHalfSize
+            );
+
+            // 2. Проверяем что к текущей главе есть previousRetainedRange
+            if (previousRetainedRange && previousRetainedRange.chapter === activeChapter) {
+                // 3. Запускаем цикл по старому диапазону
+                for (let i = previousRetainedRange.start; i <= previousRetainedRange.end; i++) {
+                    // 4. И если есть несовпадение с новым диапазоном - выгружаем
+                    if (i < nextRange.start || i > nextRange.end) {
+                        releasePage(activeChapter, i);
+                    }
+                }
+            // А это на тот случай, когда вдруг диапазон есть, но не для текущей главы
+            } else if (previousRetainedRange) {
+                // В этом случае выгружаем весь диапазон
+                for (let i = previousRetainedRange.start; i <= previousRetainedRange.end; i++) {
+                    releasePage(previousRetainedRange.chapter, i);
+                }
+            }
+
+            // 5. Обновляем retained range
+            retainedRangeRef.current = {
+                chapter: activeChapter,
+                start: nextRange.start,
+                end: nextRange.end,
+            };
+
+            console.log(`[BUFFER] retained range moved to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
+        } else {
+            console.log(`[BUFFER] retained range unchanged [${previousRetainedRange!.start}-${previousRetainedRange!.end}], load range [${loadStart}-${loadEnd}]`);
+        }
 
         // Загружаем страницы только в коротком диапазоне - bufferSize
         const promises = [];
@@ -273,15 +374,16 @@ export const useLazyImageLoader = ({
         // Запускаем загрузку всех страниц параллельно
         Promise.all(promises).catch(err => console.error("Image loading error:", err));
 
-        // Выгружаем страницы которые вышли за больший диапазон keepBufferSize
-        for (let i = 0; i < keepStart; i++) {
-            releasePage(activeChapter, i);
-        }
-
-        for (let i = keepEnd + 1; i < realTotalPages; i++) {
-            releasePage(activeChapter, i);
-        }
-    }, [visibleIndex, bufferSize, realTotalPages, currentChapter]);  // ← Добавили getImageUrl и releasePage
+    }, [
+        visibleIndex, 
+        bufferSize, 
+        realTotalPages, 
+        currentChapter, 
+        getImageUrl, 
+        releasePage,
+        getRetainedRange,
+        isLoadRangeInsideRetainedRange
+    ]);
     
     // === CLEANUP ===
     useEffect(() => {

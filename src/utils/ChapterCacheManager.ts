@@ -1,25 +1,10 @@
 import { App, TFolder } from "obsidian";
 import { ImageCache } from "./ImageCache";
 import { ImageLoader } from "./ImageLoader";
-import { error } from "node:console";
 
 // Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
 const pathModule = (window as any).require ? (window as any).require('path') : null;
-
-// interface LoaderParams {
-//     parentPath: string;
-//     chapterName: string;
-//     isArchive: boolean;
-//     isExternal: boolean;
-//     app: App;
-// }
-
-// Лимиты кэша для разных глав
-const CACHE_LIMITS = {
-    current: 10,
-    adjacent: 4,
-};
 
 export class ChapterCacheManager {
     // Это хранилища для кэшей
@@ -53,17 +38,13 @@ export class ChapterCacheManager {
 
     // Вот тут не совсем понял пока
     private currentChapter: string | null = null;
-    private chapterTypes = new Map<string, 'current' | 'adjacent'>();
 
     // ===ПОЛУЧЕНИЕ КЭША===
     //Создает кэш при первом обращении
     getCache(chapterName: string): ImageCache {
-        if (!this.caches.has(chapterName)) {
-            const type = this.chapterTypes.get(chapterName) || 'adjacent';
-            const limit = type === 'current' ? CACHE_LIMITS.current : CACHE_LIMITS.adjacent;
-
-            this.caches.set(chapterName, new ImageCache(limit));
-            console.log(`ChapterCacheManager: Created cache for "${chapterName}" with limit ${limit}`);
+        if (!this.caches.has(chapterName)) {            
+            this.caches.set(chapterName, new ImageCache());
+            console.log(`ChapterCacheManager: Created cache for "${chapterName}"`);
         }
 
         return this.caches.get(chapterName)!;
@@ -218,33 +199,13 @@ export class ChapterCacheManager {
         // условие если ничего не поменялось, быстрый выход
         if (this.currentChapter === chapterName) return;
 
-        // Текущая глава должна стать adjacent
-        if (this.currentChapter) {
-            this.setChapterType(this.currentChapter, 'adjacent');
-        }
-
         // Устанавливаем новую главу текущей
         this.currentChapter = chapterName;
-        this.setChapterType(chapterName, 'current');
 
         console.log(`ChapterCacheManager: Current chapter set to "${chapterName}"`);
         
         // Вызываем предзагрузку с callback для обновления loadedUrls
         this.preloadAdjacentChapters(onImageLoaded);
-    }
-
-    // Функция-помощник для setCurrentChapter, меняет тип главы
-    private setChapterType(chapterName: string, type: 'current' | 'adjacent'): void {
-        const oldType = this.chapterTypes.get(chapterName);
-        this.chapterTypes.set(chapterName, type);
-
-        // Если тип изменился и кэш уже существует - пересоздаём
-        if (oldType !== type && this.caches.has(chapterName)) {
-            this.caches.get(chapterName)!.clear();
-            this.caches.delete(chapterName);
-            // Не очищаем totalPagesCache - это значение не зависит от типа главы
-            console.log(`ChapterCacheManager: Recreated cache for "${chapterName}" as ${type}`);
-        }
     }
 
     // === ОЧИСТКА СТАРЫХ ГЛАВ ===
@@ -254,7 +215,6 @@ export class ChapterCacheManager {
                 cache.clear();
                 this.caches.delete(chapterName);
                 this.loaders.delete(chapterName);
-                this.chapterTypes.delete(chapterName);
                 this.totalPagesCache.delete(chapterName);  // ← Очищаем кэш totalPages
                 console.log(`ChapterCacheManager: Pruned chapter "${chapterName}"`);
             }
@@ -345,7 +305,6 @@ export class ChapterCacheManager {
         }
         this.caches.clear();
         this.loaders.clear();
-        this.chapterTypes.clear();
         this.totalPagesCache.clear();  // ← Очищаем кэш totalPages
         this.currentChapter = null;
         console.log('ChapterCacheManager: Cleared all caches');

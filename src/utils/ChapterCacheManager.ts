@@ -6,6 +6,9 @@ import { ImageLoader } from "./ImageLoader";
 const fs = (window as any).require ? (window as any).require('fs') : null;
 const pathModule = (window as any).require ? (window as any).require('path') : null;
 
+type ChapterEdge = 'start' | 'end';
+const EDGE_PRELOAD_COUNT = 2;
+
 export class ChapterCacheManager {
     // Это хранилища для кэшей
     private caches = new Map<string, ImageCache>();
@@ -150,27 +153,33 @@ export class ChapterCacheManager {
 
         // Предзагружаем предыдущую главу
         if (adjacent.prev) {
-            await this.preloadChapterEdges(adjacent.prev, onImageLoaded);
+            await this.preloadChapterEdges(adjacent.prev,'end', onImageLoaded);
         }
 
         // Предзагружаем следующую главу
         if (adjacent.next) {
-            await this.preloadChapterEdges(adjacent.next, onImageLoaded);
+            await this.preloadChapterEdges(adjacent.next,'start', onImageLoaded);
         }
     }
 
     private async preloadChapterEdges(
         chapter: string,
+        edge: ChapterEdge,
         onImageLoaded?: (chapter: string, index: number, url: string) => void
     ): Promise<void> {
         const loader = this.getLoader(chapter);
         const total = await this.getTotalPages(chapter);
 
-        // Загружаем первые 2 и последние 2 страницы
-        const edgeIndices = [0, 1, total - 2, total - 1].filter(i => i >= 0 && i < total);
+        // Определяем индексы страниц, которые нужно загрузить
+        const edgeIndices = edge === 'start'
+            ? Array.from({ length: EDGE_PRELOAD_COUNT }, (_, i) => i)
+            : Array.from({ length: EDGE_PRELOAD_COUNT }, (_, i) => total - EDGE_PRELOAD_COUNT + i);
+
+
+        const validEdgeIndices = edgeIndices.filter(i => i >= 0 && i < total);
 
         await Promise.all(
-            edgeIndices.map(async idx => {
+            validEdgeIndices.map(async idx => {
                 const url = await loader.load(idx);
                 // Вызываем callback после загрузки каждой страницы
                 if (onImageLoaded) {
@@ -179,7 +188,7 @@ export class ChapterCacheManager {
             })
         );
 
-        console.log(`[Preload] Edges for "${chapter}": [${edgeIndices.join(', ')}]`);
+        console.log(`[Preload] Edges for "${chapter}": [${validEdgeIndices.join(', ')}]`);
     }
 
 

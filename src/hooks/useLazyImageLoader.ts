@@ -17,6 +17,8 @@ interface RetainedRange {
     end: number;
 }
 
+const EDGE_PRELOAD_COUNT = 2;
+
 export const useLazyImageLoader = ({
     parentPath,
     chapterName,
@@ -72,119 +74,7 @@ export const useLazyImageLoader = ({
         });
     }, []);
 
-    // === CALLBACK: Обновление loadedUrls при предзагрузке ===
-    // Мемоизируем, чтобы не пересоздавался при каждом рендере
-    const handleImageLoaded = useCallback((chapter: string, index: number, url: string) => {
-        const key = `${chapter}:${index}`;
-        setLoadedUrl(key, url);
-
-        // console.log(`[Preload] Callback: Loaded ${key}`);
-    }, [setLoadedUrl]);
-
-    // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
-    useEffect(() => {
-        // 0. Инициализируем менеджер
-        managerRef.current.initialize(parentPath, app);
-
-        // 1. Загружаем список глав
-        managerRef.current.loadChaptersList();
-
-        // 2. Устанавливаем текущую главу с callback для предзагрузки соседних глав
-        managerRef.current.setCurrentChapter(chapterName, handleImageLoaded);
-
-        // 3. Инициализируем currentChapter state и ref
-        setCurrentChapter(chapterName);
-        currentChapterRef.current = chapterName;
-
-        console.log("useLazyImageLoader: Initialized chapter", chapterName);
-    }, [parentPath, chapterName, app, handleImageLoaded]);
-
-    // === EFFECT 2: Настройка главы (срабатывает при смене currentChapter) ===
-    useEffect(() => {
-        if (!currentChapter) return;
-        setIsReady(false);
-        setRealTotalPages(0);
-
-        const setupChapter = async () => {
-            console.log(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
-
-            // 1. Создаем loader для текущей главы
-            managerRef.current.getLoader(currentChapter);
-
-            // 2. Создаем loaders для соседних глав (предзагрузка!)
-            const adjacent = managerRef.current.getAdjacentChapters(currentChapter);
-            if (adjacent.prev) managerRef.current.getLoader(adjacent.prev);
-            if (adjacent.next) managerRef.current.getLoader(adjacent.next);
-
-            // 3. Fetch totalPages для текущей и соседних глав
-            try {
-                const total = await managerRef.current.getTotalPages(currentChapter);
-                setRealTotalPages(total);
-                console.log(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
-
-                if (adjacent.prev) {
-                    await managerRef.current.getTotalPages(adjacent.prev);
-                    console.log(`useLazyImageLoader: Cached totalPages for "${adjacent.prev}"`);
-                }
-                if (adjacent.next) {
-                    await managerRef.current.getTotalPages(adjacent.next);
-                    console.log(`useLazyImageLoader: Cached totalPages for "${adjacent.next}"`);
-                }
-            } catch (err) {
-                console.error("useLazyImageLoader: Failed to fetch totalPages,", err);
-            } finally {
-                setIsReady(true);
-            }
-        };
-
-        setupChapter();
-
-    }, [currentChapter]);
-
     // === ФУНКЦИИ ===
-    const getImageUrl = useCallback(async (chapter: string, index: number): Promise<string> => {
-        const key = `${chapter}:${index}`;
-
-        // 1. Проверяем реактивный state (для мгновенного доступа)
-        const fromState = loadedUrlsRef.current.get(key);
-        if (fromState) {
-            return fromState;
-        }
-
-        // 2. Проверяем ImageCache (персистентный кэш)
-        const cached = managerRef.current.getUrl(chapter, index);
-        if (cached) {
-            // Синхронизируем state с ImageCache
-            setLoadedUrl(key, cached);
-            return cached;
-        }
-
-        // 3. Проверяем promiseMapRef (идёт ли загрузка)
-        if (promiseMapRef.current.has(key)) {
-            return promiseMapRef.current.get(key)!;
-        }
-
-        // 4. Создаём новый Promise загрузки
-        const promise = managerRef.current.loadPage(chapter, index);
-        promiseMapRef.current.set(key, promise);
-
-        // 5. Обновляем состояние загрузки
-        loadingSetRef.current.add(key);
-
-        // 6. Ждём результата
-        try {
-            const result = await promise;
-
-            // 7. Обновляем реактивный state → триггерит ре-рендер
-            setLoadedUrl(key, result);
-            return result;
-        } finally {
-            // 8. Очищаем временные данные
-            promiseMapRef.current.delete(key);
-            loadingSetRef.current.delete(key);
-        }
-    }, [setLoadedUrl]);
-
     /**
      * Проверяет, загружается ли страница в данный момент
      * 
@@ -275,32 +165,258 @@ export const useLazyImageLoader = ({
             loadEnd <= retainedRange.end;
     }, []);
 
+    // loadedUrlsRef хранит key как: `${chapter}:${index}`
+    // Нужно иногда распарсивать
+    const parseImageKey = useCallback((key: string): { chapter: string; index: number } | null => {
+        // Используем lastIndexOf, потому что в названии главы может встретиться ":" 
+        // и тогда все поломается, а мы берем последний ":"
+        const separatorIndex = key.lastIndexOf(":");
+
+        if (separatorIndex === -1) {
+            return null;
+        }
+
+        const chapter = key.slice(0, separatorIndex);
+        const index = Number(key.slice(separatorIndex + 1));
+
+        if (!chapter || Number.isNaN(index)) {
+            return null;
+        }
+
+        return { chapter, index };
+    }, []);
+
+    // Этот хук будет отвечать на вопрос что должно быть в loadedUrls
+    // Это наша политика удержания изображений
+    const shouldKeepPage = useCallback((
+        chapter: string,
+        index: number,
+        retainedRange: RetainedRange | null = retainedRangeRef.current
+    ): boolean => {
+        const activeChapter = currentChapterRef.current;
+        const adjacent = managerRef.current.getAdjacentChapters(activeChapter);
+
+        // 1. Current chapter: держим retained range
+        if (
+            retainedRange &&
+            chapter === retainedRange.chapter &&
+            index >= retainedRange.start &&
+            index <= retainedRange.end
+        ) {
+            return true;
+        }
+
+        // 2. Previous chapter: держим последние EDGE_PRELOAD_COUNT страниц
+        if (adjacent.prev && chapter === adjacent.prev) {
+            const total = managerRef.current.getTotalPagesSync(chapter);
+
+            if (total <= 0) {
+                return false;
+            }
+
+            const start = Math.max(0, total - EDGE_PRELOAD_COUNT);
+            return index >= start && index < total;
+        }
+
+        // 3. Next chapter: держим первые EDGE_PRELOAD_COUNT страниц
+        if (adjacent.next && chapter === adjacent.next) {
+            return index >= 0 && index < EDGE_PRELOAD_COUNT;
+        }
+
+        // 4. Всё остальное выгружаем
+        return false;
+    }, []);
+
+    // Функция удаления изображений из loadedUrls согласно политики удержания
+    const pruneLoadedUrlsToPolicy = useCallback((retainedRange: RetainedRange | null): void => {
+        // Важный момент, идем именно по Array от loadedUrlsRef, если напрямую - 
+        // то мы будем менять Map во время итерации в JS это работает, но
+        // для надежности лучше делать более явно
+        for (const key of Array.from(loadedUrlsRef.current.keys())) {
+            const parsed = parseImageKey(key);
+
+            if (!parsed) {
+                continue;
+            }
+
+            if (!shouldKeepPage(parsed.chapter, parsed.index, retainedRange)) {
+                releasePage(parsed.chapter, parsed.index);
+            }
+        }
+    }, [parseImageKey, shouldKeepPage, releasePage]);
+
+    const getImageUrl = useCallback(async (chapter: string, index: number): Promise<string> => {
+        const key = `${chapter}:${index}`;
+
+        // 1. Проверяем реактивный state (для мгновенного доступа)
+        const fromState = loadedUrlsRef.current.get(key);
+        if (fromState) {
+            return fromState;
+        }
+
+        // 2. Проверяем ImageCache (персистентный кэш)
+        const cached = managerRef.current.getUrl(chapter, index);
+        if (cached) {
+            if (!shouldKeepPage(chapter, index, retainedRangeRef.current)) {
+                managerRef.current.release(chapter, index);
+                return cached;
+            }
+
+            setLoadedUrl(key, cached);
+            return cached;
+        }
+
+        // 3. Проверяем promiseMapRef (идёт ли загрузка)
+        if (promiseMapRef.current.has(key)) {
+            return promiseMapRef.current.get(key)!;
+        }
+
+        // 4. Создаём новый Promise загрузки
+        const promise = managerRef.current.loadPage(chapter, index);
+        promiseMapRef.current.set(key, promise);
+
+        // 5. Обновляем состояние загрузки
+        loadingSetRef.current.add(key);
+
+        // 6. Ждём результата
+        try {
+            const result = await promise;
+            
+            // проверяем на соответствие политики удержания
+            if (!shouldKeepPage(chapter, index, retainedRangeRef.current)) {
+                managerRef.current.release(chapter, index);
+                return result;
+            }
+
+            // 7. Обновляем реактивный state → триггерит ре-рендер
+            setLoadedUrl(key, result);
+            return result;
+        } finally {
+            // 8. Очищаем временные данные
+            promiseMapRef.current.delete(key);
+            loadingSetRef.current.delete(key);
+        }
+    }, [setLoadedUrl, shouldKeepPage]);
+
+    // === CALLBACK: Обновление loadedUrls при предзагрузке ===
+    // Мемоизируем, чтобы не пересоздавался при каждом рендере
+    const handleImageLoaded = useCallback((chapter: string, index: number, url: string) => {
+        const key = `${chapter}:${index}`;
+
+        if (shouldKeepPage(chapter, index, retainedRangeRef.current)) {
+            setLoadedUrl(key, url);
+        } else {
+            managerRef.current.release(chapter, index);
+        }
+
+        // console.log(`[Preload] Callback: Loaded ${key}`);
+    }, [setLoadedUrl, shouldKeepPage]);
+
     const setVisible = useCallback((index: number): void => {
         setVisibleIndex(index);
     }, []);
 
     const transitionToChapter = (newChapter: string, startIndex: number = 0) => {
-        // 1. Уведомляем менеджер о смене главы (с callback для предзагрузки)
-        managerRef.current.setCurrentChapter(newChapter, handleImageLoaded);
-
-        // 2. Обновляем state → это триггерит EFFECT 2
-        setCurrentChapter(newChapter);
-        
-        // 3. Обновляем ref → для эффекта буфера
+        // 1. Сначала обновляем ref, потому что shouldKeepPage использует currentChapterRef
         currentChapterRef.current = newChapter;
 
-        // 4. Обновляем totalPages из кэша (мгновенно, для буфера)
+        // 2. Если totalPages уже известен, сразу обновляем retained range
         const newTotal = managerRef.current.getTotalPagesSync(newChapter);
+
         if (newTotal > 0) {
+            const retainHalfSize = bufferSize * 2;
+            const nextRange = getRetainedRange(startIndex, newTotal, retainHalfSize);
+
+            const nextRetainedRange: RetainedRange = {
+                chapter: newChapter,
+                start: nextRange.start,
+                end: nextRange.end,
+            };
+
+            retainedRangeRef.current = nextRetainedRange;
+
+            // Важно: чистим по новой политике ДО запуска preload соседей
+            pruneLoadedUrlsToPolicy(nextRetainedRange);
+
             setRealTotalPages(newTotal);
+
             console.log(`useLazyImageLoader: Updated totalPages to ${newTotal} for "${newChapter}"`);
+            console.log(`[BUFFER] retained range pre-set to [${nextRange.start}-${nextRange.end}] for "${newChapter}"`);
+        } else {
+            // Если total ещё неизвестен, retained range пока нельзя вычислить
+            retainedRangeRef.current = null;
         }
 
-        // 5. Сбрасываем страницу
+        // 3. Теперь можно уведомить manager — preload будет проверяться уже по новой политике
+        managerRef.current.setCurrentChapter(newChapter, handleImageLoaded);
+
+        // 4. Обновляем React state
+        setCurrentChapter(newChapter);
         setVisibleIndex(startIndex);
 
         console.log(`useLazyImageLoader: Soft transition to chapter "${newChapter}" at index ${startIndex}`);
     };
+
+    // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
+    useEffect(() => {
+        // 0. Инициализируем менеджер
+        managerRef.current.initialize(parentPath, app);
+
+        // 1. Загружаем список глав
+        managerRef.current.loadChaptersList();
+
+        // 2. Устанавливаем текущую главу с callback для предзагрузки соседних глав
+        managerRef.current.setCurrentChapter(chapterName, handleImageLoaded);
+
+        // 3. Инициализируем currentChapter state и ref
+        setCurrentChapter(chapterName);
+        currentChapterRef.current = chapterName;
+
+        console.log("useLazyImageLoader: Initialized chapter", chapterName);
+    }, [parentPath, chapterName, app, handleImageLoaded]);
+
+    // === EFFECT 2: Настройка главы (срабатывает при смене currentChapter) ===
+    useEffect(() => {
+        if (!currentChapter) return;
+        setIsReady(false);
+        setRealTotalPages(0);
+
+        const setupChapter = async () => {
+            console.log(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
+
+            // 1. Создаем loader для текущей главы
+            managerRef.current.getLoader(currentChapter);
+
+            // 2. Создаем loaders для соседних глав (предзагрузка!)
+            const adjacent = managerRef.current.getAdjacentChapters(currentChapter);
+            if (adjacent.prev) managerRef.current.getLoader(adjacent.prev);
+            if (adjacent.next) managerRef.current.getLoader(adjacent.next);
+
+            // 3. Fetch totalPages для текущей и соседних глав
+            try {
+                const total = await managerRef.current.getTotalPages(currentChapter);
+                setRealTotalPages(total);
+                console.log(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
+
+                if (adjacent.prev) {
+                    await managerRef.current.getTotalPages(adjacent.prev);
+                    console.log(`useLazyImageLoader: Cached totalPages for "${adjacent.prev}"`);
+                }
+                if (adjacent.next) {
+                    await managerRef.current.getTotalPages(adjacent.next);
+                    console.log(`useLazyImageLoader: Cached totalPages for "${adjacent.next}"`);
+                }
+            } catch (err) {
+                console.error("useLazyImageLoader: Failed to fetch totalPages,", err);
+            } finally {
+                setIsReady(true);
+            }
+        };
+
+        setupChapter();
+
+    }, [currentChapter]);
+
 
     // === EFFECT 3: Буфер загрузки. Загружать когда видимая страница меняется ===
     useEffect(() => {
@@ -336,29 +452,17 @@ export const useLazyImageLoader = ({
                 retainHalfSize
             );
 
-            // 2. Проверяем что к текущей главе есть previousRetainedRange
-            if (previousRetainedRange && previousRetainedRange.chapter === activeChapter) {
-                // 3. Запускаем цикл по старому диапазону
-                for (let i = previousRetainedRange.start; i <= previousRetainedRange.end; i++) {
-                    // 4. И если есть несовпадение с новым диапазоном - выгружаем
-                    if (i < nextRange.start || i > nextRange.end) {
-                        releasePage(activeChapter, i);
-                    }
-                }
-            // А это на тот случай, когда вдруг диапазон есть, но не для текущей главы
-            } else if (previousRetainedRange) {
-                // В этом случае выгружаем весь диапазон
-                for (let i = previousRetainedRange.start; i <= previousRetainedRange.end; i++) {
-                    releasePage(previousRetainedRange.chapter, i);
-                }
-            }
-
-            // 5. Обновляем retained range
-            retainedRangeRef.current = {
+            // 2. Обновляем retained range
+            const toUpdateRetainedRange: RetainedRange = {
                 chapter: activeChapter,
                 start: nextRange.start,
                 end: nextRange.end,
             };
+
+            retainedRangeRef.current = toUpdateRetainedRange;
+
+            // 3. Чистим loadedUrls согласно политике удержания
+            pruneLoadedUrlsToPolicy(toUpdateRetainedRange);
 
             console.log(`[BUFFER] retained range moved to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
         } else {
@@ -382,7 +486,8 @@ export const useLazyImageLoader = ({
         getImageUrl, 
         releasePage,
         getRetainedRange,
-        isLoadRangeInsideRetainedRange
+        isLoadRangeInsideRetainedRange,
+        pruneLoadedUrlsToPolicy
     ]);
     
     // === CLEANUP ===

@@ -14,6 +14,9 @@ export class ImageLoader {
     // какой-либо дополнительной информации.
     // Нужен для позиционирования индексов и выявления totalpages
     private imageFilesList: string[] | null = null;
+    // Для случаев с архивами, кладем сюда Binary Data, чтобы быстро из памяти грузить
+    // и не дергать диск постоянными запросами по одному файлу
+    private zipPromise: Promise<JSZip> | null = null;
 
     constructor(
         private parentPath: string,    // "/vault/Manga" или "C:\Manga"
@@ -24,6 +27,48 @@ export class ImageLoader {
         private app: App,              // Obsidian App для работы с vault
     ) { }
     
+    // Чисто для случаев с архивами, грузим в наш промис объект для пользования
+    private async getZip(): Promise<JSZip> {
+        if (!this.zipPromise) {
+            this.zipPromise = this.loadZip();
+        }
+
+        return this.zipPromise;
+    }
+
+    // Метод загрузки Binary Data из архива
+    private async loadZip(): Promise<JSZip> {
+        const archivePath = this.isExternal 
+            ? pathModule.join(this.parentPath, this.chapterName)
+            : `${this.parentPath}/${this.chapterName}`;
+
+        let binaryData: ArrayBuffer;
+
+        if (this.isExternal) {
+            const buffer = fs.readFileSync(archivePath);
+            binaryData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+        } else {
+            const file = this.app.vault.getAbstractFileByPath(archivePath);
+            if (!file) {
+                throw new Error(`File not found: ${archivePath}`);
+            }
+
+            binaryData = await this.app.vault.readBinary(file as TFile);
+        }
+
+        return JSZip.loadAsync(binaryData);
+    }
+
+    // Очищаем zipPromise по запросу
+    clearArchiveCache(): void {
+        this.zipPromise = null;
+    }
+
+    clear(): void {
+        this.clearArchiveCache();
+    }
+
+
     /**
      * Метод ImageLoader
      * Загружает 1 изображение по индексу и возвращает Blob URL для отображения.
@@ -66,26 +111,9 @@ export class ImageLoader {
     // ПОМОЩНИК: Загружает конкретный файл в память (ArrayBuffer или Blob)
     private async loadFile(fileName: string): Promise<ArrayBuffer> {
         
-        if (this.isArchive) {
-            const archivePath = this.isExternal 
-                ? pathModule.join(this.parentPath, this.chapterName)
-                : `${this.parentPath}/${this.chapterName}`;
-
-            let binaryData: ArrayBuffer;
-
-            if (this.isExternal) {
-                const buffer = fs.readFileSync(archivePath);
-                binaryData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-            } else {
-                const file = this.app.vault.getAbstractFileByPath(archivePath);
-                if (!file) {
-                    throw new Error(`File not found: ${archivePath}`);
-                }
-                binaryData = await this.app.vault.readBinary(file as TFile);
-            }
-            
+        if (this.isArchive) {            
             // Открываем архив с помощью JSZip
-            const zip = await JSZip.loadAsync(binaryData);
+            const zip = await this.getZip();
             
             // Выбираем нужный файл внутри архива
             const fileInZip = zip.file(fileName);

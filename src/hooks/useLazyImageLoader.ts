@@ -188,6 +188,21 @@ export const useLazyImageLoader = ({
 
     // Этот хук будет отвечать на вопрос что должно быть в loadedUrls
     // Это наша политика удержания изображений
+    const getChaptersToKeep = useCallback((chapter: string): string[] => {
+        const adjacent = managerRef.current.getAdjacentChapters(chapter);
+
+        return [
+            adjacent.prev,
+            chapter,
+            adjacent.next,
+        ].filter((value): value is string => Boolean(value));
+    }, []);
+
+    const pruneManagerToPolicy = useCallback((chapter: string): void => {
+        const keepChapters = getChaptersToKeep(chapter);
+        managerRef.current.pruneOldChapters(keepChapters);
+    }, [getChaptersToKeep]);
+
     const shouldKeepPage = useCallback((
         chapter: string,
         index: number,
@@ -337,6 +352,7 @@ export const useLazyImageLoader = ({
 
             // Важно: чистим по новой политике ДО запуска preload соседей
             pruneLoadedUrlsToPolicy(nextRetainedRange);
+            pruneManagerToPolicy(newChapter);
 
             setRealTotalPages(newTotal);
 
@@ -464,7 +480,10 @@ export const useLazyImageLoader = ({
             // 3. Чистим loadedUrls согласно политике удержания
             pruneLoadedUrlsToPolicy(toUpdateRetainedRange);
 
-            console.log(`[BUFFER] retained range moved to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
+            // 4. Чистим менеджер от глав вне prev/current/next
+            pruneManagerToPolicy(activeChapter);
+
+            console.log(`[BUFFER] retained range changed to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
         } else {
             console.log(`[BUFFER] retained range unchanged [${previousRetainedRange!.start}-${previousRetainedRange!.end}], load range [${loadStart}-${loadEnd}]`);
         }
@@ -487,7 +506,8 @@ export const useLazyImageLoader = ({
         releasePage,
         getRetainedRange,
         isLoadRangeInsideRetainedRange,
-        pruneLoadedUrlsToPolicy
+        pruneLoadedUrlsToPolicy,
+        pruneManagerToPolicy
     ]);
     
     // === CLEANUP ===

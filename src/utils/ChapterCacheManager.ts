@@ -178,15 +178,21 @@ export class ChapterCacheManager {
 
         const validEdgeIndices = edgeIndices.filter(i => i >= 0 && i < total);
 
-        await Promise.all(
-            validEdgeIndices.map(async idx => {
-                const url = await loader.load(idx);
-                // Вызываем callback после загрузки каждой страницы
-                if (onImageLoaded) {
-                    onImageLoaded(chapter, idx, url);
-                }
-            })
-        );
+        try {
+            await Promise.all(
+                validEdgeIndices.map(async idx => {
+                    const url = await loader.load(idx);
+                    // Вызываем callback после загрузки каждой страницы
+                    if (onImageLoaded) {
+                        onImageLoaded(chapter, idx, url);
+                    }
+                })
+            );
+        } finally {
+            // Добавил очистку zipPromise после загрузки всех необходимых изображений
+            // Потому что он больше не понадобиться до тех пор пока глава не станет текущей
+            loader.clearArchiveCache();
+        }
 
         console.log(`[Preload] Edges for "${chapter}": [${validEdgeIndices.join(', ')}]`);
     }
@@ -223,8 +229,11 @@ export class ChapterCacheManager {
             if (!keepChapters.includes(chapterName)) {
                 cache.clear();
                 this.caches.delete(chapterName);
+                this.loaders.get(chapterName)?.clear();
                 this.loaders.delete(chapterName);
-                this.totalPagesCache.delete(chapterName);  // ← Очищаем кэш totalPages
+                // Не буду удалять - значений там не много, но это будет
+                // полезно для быстрой навигации и не придется каждый раз перезагружать totalPagesCache 
+                // this.totalPagesCache.delete(chapterName);
                 console.log(`ChapterCacheManager: Pruned chapter "${chapterName}"`);
             }
         }
@@ -313,7 +322,12 @@ export class ChapterCacheManager {
             cache.clear();
         }
         this.caches.clear();
+
+        for (const loader of this.loaders.values()) {
+            loader.clear();
+        }
         this.loaders.clear();
+        
         this.totalPagesCache.clear();  // ← Очищаем кэш totalPages
         this.currentChapter = null;
         console.log('ChapterCacheManager: Cleared all caches');

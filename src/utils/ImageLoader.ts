@@ -1,5 +1,5 @@
 import { App, TFolder, TFile } from "obsidian";
-import JSZip, { file } from "jszip";
+import JSZip from "jszip";
 import { ImageCache } from "./ImageCache";
 
 // Достаем Node.js модули
@@ -45,8 +45,8 @@ export class ImageLoader {
         let binaryData: ArrayBuffer;
 
         if (this.isExternal) {
-            const buffer = fs.readFileSync(archivePath);
-            binaryData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            const buffer = await fs.promises.readFile(archivePath);
+            binaryData = this.bufferToArrayBuffer(buffer);
         } else {
             const file = this.app.vault.getAbstractFileByPath(archivePath);
             if (!file) {
@@ -68,6 +68,12 @@ export class ImageLoader {
         this.clearArchiveCache();
     }
 
+    private bufferToArrayBuffer(buffer: any): ArrayBuffer {
+        return buffer.buffer.slice(
+            buffer.byteOffset,
+            buffer.byteOffset + buffer.byteLength
+        );
+    }
 
     /**
      * Метод ImageLoader
@@ -134,12 +140,10 @@ export class ImageLoader {
                 : `${this.parentPath}/${this.chapterName}/${fileName}`;
 
             if (this.isExternal) {
-                const buffer = fs.readFileSync(filePath);
-                // fs.readFileSync = синхронное чтение файла
-                // Результат: Node.js Buffer (похож на ArrayBuffer)
-                
+                const buffer = await fs.promises.readFile(filePath);
+
                 // Преобразуем в ArrayBuffer
-                return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+                return this.bufferToArrayBuffer(buffer);
                 // .buffer = доступ к ArrayBuffer внутри Buffer
                 // .slice() = берем кусок ArrayBuffer (весь файл)
             } else {
@@ -170,28 +174,11 @@ export class ImageLoader {
             : `${this.parentPath}/${this.chapterName}`;
 
         if (this.isArchive) {
-            // подготовим binary data для JSZip
-            let binaryData: ArrayBuffer;
-
-            if (this.isExternal) {
-                // Читаем файл с диск
-                const buffer = fs.readFileSync(fullPath);
-                binaryData = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-            } else {
-                // Читаем файл из vault
-                const file = this.app.vault.getAbstractFileByPath(fullPath);
-                if (!file) {
-                    throw new Error(`File not found: ${fullPath}`);
-                }
-                binaryData = await this.app.vault.readBinary(file as TFile);
-            }
-
-            // Распаковываем архив
-            const zip = await JSZip.loadAsync(binaryData);
+            const zip = await this.getZip();
             files = Object.keys(zip.files);
         } else {
             if (this.isExternal) {
-                files = fs.readdirSync(fullPath);
+                files = await fs.promises.readdir(fullPath);
             } else {
                 const folder = this.app.vault.getAbstractFileByPath(fullPath);
 

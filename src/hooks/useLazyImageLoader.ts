@@ -18,6 +18,8 @@ interface RetainedRange {
 }
 
 const EDGE_PRELOAD_COUNT = 2;
+const BATCHING_INTERVAL = 32;
+
 
 export const useLazyImageLoader = ({
     parentPath,
@@ -41,28 +43,19 @@ export const useLazyImageLoader = ({
     const [loadedUrls, setLoadedUrls] = useState<Map<string, string>>(new Map());
     const loadedUrlsRef = useRef<Map<string, string>>(new Map());
 
+    // Делаем батчинг в loadedUrls
+    const pendingLoadedUrlsRef = useRef<Map<string, string>>(new Map());
+    const flushTimerRef = useRef<number | null>(null);
+
     // Кэш Promise'ов: ключ "chapterName:pageIndex" -> Promise<string>
     // нужен для отслеживания состояния загрузки каждого изображения
     const promiseMapRef = useRef(new Map<string, Promise<string>>());
     const retainedRangeRef = useRef<RetainedRange | null>(null);
 
-    // Функция helper, установка loadedUrls все равно сопряжена с установкой loadedUrlsRef
-    // Так что сразу однйо функцией будем вместе обновлять
-    const setLoadedUrl = useCallback((key: string, url: string) => {
-        setLoadedUrls(prev => {
-            if (prev.get(key) === url) return prev;
-
-            const next = new Map(prev);
-            next.set(key, url);
-            // 
-            loadedUrlsRef.current = next;
-
-            return next;
-        });
-    }, []);
-
     // Функция для удаления из loadedUrls и loadedUrlsRef
     const deleteLoadedUrl = useCallback((key: string) => {
+        pendingLoadedUrlsRef.current.delete(key);
+
         setLoadedUrls(prev => {
             if (!prev.has(key)) return prev;
 
@@ -95,9 +88,10 @@ export const useLazyImageLoader = ({
         const hasLoadedUrl = loadedUrlsRef.current.has(key);
         const hasPromise = promiseMapRef.current.has(key);
         const isLoading = loadingSetRef.current.has(key);
+        const hasPendingUrl = pendingLoadedUrlsRef.current.has(key);
 
         // Быстрый выход
-        if (!hasLoadedUrl && !hasPromise && !isLoading) {
+        if (!hasLoadedUrl && !hasPromise && !isLoading && !hasPendingUrl) {
             return;
         }
 
@@ -110,6 +104,7 @@ export const useLazyImageLoader = ({
         // 2.Пеперь чистим все временные Ref
         promiseMapRef.current.delete(key);
         loadingSetRef.current.delete(key);
+        pendingLoadedUrlsRef.current.delete(key);
 
         // 3. И только теперь выгружаем из Cache
         managerRef.current.release(chapter, index);
@@ -244,13 +239,12 @@ export const useLazyImageLoader = ({
 
     // Функция удаления изображений из loadedUrls согласно политики удержания
     const pruneLoadedUrlsToPolicy = useCallback((retainedRange: RetainedRange | null): void => {
-        // Важный момент, идем именно по Array от loadedUrlsRef, если напрямую - 
-        // то мы будем менять Map во время итерации в JS это работает, но
-        // для надежности лучше делать более явно
+        // 1. Сначала чистим уже отображаемые / render-approved URL
         for (const key of Array.from(loadedUrlsRef.current.keys())) {
             const parsed = parseImageKey(key);
 
             if (!parsed) {
+                deleteLoadedUrl(key);
                 continue;
             }
 
@@ -258,7 +252,68 @@ export const useLazyImageLoader = ({
                 releasePage(parsed.chapter, parsed.index);
             }
         }
-    }, [parseImageKey, shouldKeepPage, releasePage]);
+
+        // 2. Потом чистим pending batch, чтобы stale URL не добавились позже
+        for (const key of Array.from(pendingLoadedUrlsRef.current.keys())) {
+            const parsed = parseImageKey(key);
+
+            if (!parsed) {
+                pendingLoadedUrlsRef.current.delete(key);
+                continue;
+            }
+
+            if (!shouldKeepPage(parsed.chapter, parsed.index, retainedRange)) {
+                releasePage(parsed.chapter, parsed.index);
+            }
+        }
+    }, [parseImageKey, shouldKeepPage, releasePage, deleteLoadedUrl]);
+
+    // Делаем батчинг для loadedUrls, чтобы уменьшить количество ререндеров
+    const flushLoadedUrls = useCallback(() => {
+        flushTimerRef.current = null;
+
+        const pending = pendingLoadedUrlsRef.current;
+        if (pending.size === 0) return;
+
+        pendingLoadedUrlsRef.current = new Map();
+
+        setLoadedUrls(prev => {
+            let changed = false;
+            const next = new Map(prev);
+
+            for (const [key, url] of pending) {
+                const parsed = parseImageKey(key);
+
+                if (!parsed) continue;
+
+                if (!shouldKeepPage(parsed.chapter, parsed.index, retainedRangeRef.current)) {
+                    managerRef.current.release(parsed.chapter, parsed.index);
+                    continue;
+                }
+
+                if (next.get(key) !== url) {
+                    next.set(key, url);
+                    changed = true;
+                }
+            }
+
+            if (!changed) return prev;
+
+            // Не забываем также обновить и Ref
+            loadedUrlsRef.current = next;
+            return next;
+        });
+    }, [shouldKeepPage]);
+
+    // Очередь
+    const queueLoadedUrl = useCallback((key: string, url: string) => {
+        pendingLoadedUrlsRef.current.set(key, url);
+
+        if (flushTimerRef.current === null) {
+            flushTimerRef.current = window.setTimeout(flushLoadedUrls, BATCHING_INTERVAL);
+        }
+    }, [flushLoadedUrls]);
+
 
     const getImageUrl = useCallback(async (chapter: string, index: number): Promise<string> => {
         const key = `${chapter}:${index}`;
@@ -274,16 +329,25 @@ export const useLazyImageLoader = ({
         if (cached) {
             if (!shouldKeepPage(chapter, index, retainedRangeRef.current)) {
                 managerRef.current.release(chapter, index);
-                return cached;
+                return "";
             }
 
-            setLoadedUrl(key, cached);
+            queueLoadedUrl(key, cached);
             return cached;
         }
 
         // 3. Проверяем promiseMapRef (идёт ли загрузка)
-        if (promiseMapRef.current.has(key)) {
-            return promiseMapRef.current.get(key)!;
+        const existingPromise = promiseMapRef.current.get(key);
+        if (existingPromise) {
+            const result = await existingPromise;
+
+            if (!shouldKeepPage(chapter, index, retainedRangeRef.current)) {
+                managerRef.current.release(chapter, index);
+                return "";
+            }
+
+            queueLoadedUrl(key, result);
+            return result;
         }
 
         // 4. Создаём новый Promise загрузки
@@ -300,18 +364,18 @@ export const useLazyImageLoader = ({
             // проверяем на соответствие политики удержания
             if (!shouldKeepPage(chapter, index, retainedRangeRef.current)) {
                 managerRef.current.release(chapter, index);
-                return result;
+                return "";
             }
 
             // 7. Обновляем реактивный state → триггерит ре-рендер
-            setLoadedUrl(key, result);
+            queueLoadedUrl(key, result);
             return result;
         } finally {
             // 8. Очищаем временные данные
             promiseMapRef.current.delete(key);
             loadingSetRef.current.delete(key);
         }
-    }, [setLoadedUrl, shouldKeepPage]);
+    }, [queueLoadedUrl, shouldKeepPage]);
 
     // === CALLBACK: Обновление loadedUrls при предзагрузке ===
     // Мемоизируем, чтобы не пересоздавался при каждом рендере
@@ -319,14 +383,15 @@ export const useLazyImageLoader = ({
         const key = `${chapter}:${index}`;
 
         if (shouldKeepPage(chapter, index, retainedRangeRef.current)) {
-            setLoadedUrl(key, url);
+            queueLoadedUrl(key, url);
         } else {
             managerRef.current.release(chapter, index);
         }
 
         // console.log(`[Preload] Callback: Loaded ${key}`);
-    }, [setLoadedUrl, shouldKeepPage]);
+    }, [queueLoadedUrl, shouldKeepPage]);
 
+    // Просто устанавливаем индекс текущий
     const setVisible = useCallback((index: number): void => {
         setVisibleIndex(index);
     }, []);
@@ -503,7 +568,6 @@ export const useLazyImageLoader = ({
         realTotalPages, 
         currentChapter, 
         getImageUrl, 
-        releasePage,
         getRetainedRange,
         isLoadRangeInsideRetainedRange,
         pruneLoadedUrlsToPolicy,
@@ -513,6 +577,13 @@ export const useLazyImageLoader = ({
     // === CLEANUP ===
     useEffect(() => {
         return () => { 
+            if (flushTimerRef.current !== null) {
+                window.clearTimeout(flushTimerRef.current);
+                flushTimerRef.current = null;
+            }
+
+            pendingLoadedUrlsRef.current.clear();
+
             managerRef.current.clear(); // Выгружаем все Blob Url's
             promiseMapRef.current.clear(); // Чистим кэш с Promise's
          };

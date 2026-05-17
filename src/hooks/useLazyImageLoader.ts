@@ -33,7 +33,11 @@ export const useLazyImageLoader = ({
     const [currentChapter, setCurrentChapter] = useState(chapterName);
     const currentChapterRef = useRef(chapterName);  // ← Актуальное значение для эффектов
     const [visibleIndex, setVisibleIndex] = useState(initialPage);
+    // это глобальный флаг, используется для показа заглушки на читалку
     const [isReady, setIsReady] = useState(false);
+    // Частный флаг для обсервера в ReaderPage, чтобы последний не мог стартануть раньше
+    // чем закончится настройка главы и будут выситаны totalPage для соседей
+    const [isObserverReady, setIsObserverReady] = useState(false);
 
     const loadingSetRef = useRef<Set<string>>(new Set());
     const [realTotalPages, setRealTotalPages] = useState(0);
@@ -428,10 +432,7 @@ export const useLazyImageLoader = ({
             retainedRangeRef.current = null;
         }
 
-        // 3. Теперь можно уведомить manager — preload будет проверяться уже по новой политике
-        managerRef.current.setCurrentChapter(newChapter, handleImageLoaded);
-
-        // 4. Обновляем React state
+        // 3. Обновляем React state
         setCurrentChapter(newChapter);
         setVisibleIndex(startIndex);
 
@@ -446,21 +447,30 @@ export const useLazyImageLoader = ({
         // 1. Загружаем список глав
         managerRef.current.loadChaptersList();
 
-        // 2. Устанавливаем текущую главу с callback для предзагрузки соседних глав
-        managerRef.current.setCurrentChapter(chapterName, handleImageLoaded);
-
         // 3. Инициализируем currentChapter state и ref
-        setCurrentChapter(chapterName);
         currentChapterRef.current = chapterName;
+        setCurrentChapter(chapterName);
+        setVisibleIndex(initialPage);
 
         console.log("useLazyImageLoader: Initialized chapter", chapterName);
-    }, [parentPath, chapterName, app, handleImageLoaded]);
+    }, [parentPath, app]);
 
     // === EFFECT 2: Настройка главы (срабатывает при смене currentChapter) ===
     useEffect(() => {
         if (!currentChapter) return;
-        setIsReady(false);
-        setRealTotalPages(0);
+
+        let canceled = false;
+
+        setIsObserverReady(false);
+
+        const knownTotal = managerRef.current.getTotalPagesSync(currentChapter);
+        if (knownTotal > 0) {
+            setRealTotalPages(knownTotal);
+            setIsReady(true);
+        } else {
+            setRealTotalPages(0);
+            setIsReady(false);
+        }
 
         const setupChapter = async () => {
             console.log(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
@@ -475,28 +485,49 @@ export const useLazyImageLoader = ({
 
             // 3. Fetch totalPages для текущей и соседних глав
             try {
-                const total = await managerRef.current.getTotalPages(currentChapter);
-                setRealTotalPages(total);
-                console.log(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
+                const currentTotalPromise = managerRef.current.getTotalPages(currentChapter);
 
-                if (adjacent.prev) {
-                    await managerRef.current.getTotalPages(adjacent.prev);
-                    console.log(`useLazyImageLoader: Cached totalPages for "${adjacent.prev}"`);
-                }
-                if (adjacent.next) {
-                    await managerRef.current.getTotalPages(adjacent.next);
-                    console.log(`useLazyImageLoader: Cached totalPages for "${adjacent.next}"`);
-                }
+                const prevTotalPromise = adjacent.prev
+                    ? managerRef.current.getTotalPages(adjacent.prev)
+                    : Promise.resolve(null);
+
+                const nextTotalPromise = adjacent.next
+                    ? managerRef.current.getTotalPages(adjacent.next)
+                    : Promise.resolve(null);
+
+                const [total] = await Promise.all([
+                    currentTotalPromise,
+                    prevTotalPromise,
+                    nextTotalPromise,
+                ]);
+
+                if (canceled) return;
+
+                setRealTotalPages(total);
+
+                managerRef.current.setCurrentChapter(currentChapter, handleImageLoaded);
+
+                setIsObserverReady(true);
+                // setIsReady(true);
+
+                console.log(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
             } catch (err) {
-                console.error("useLazyImageLoader: Failed to fetch totalPages,", err);
+                if (!canceled) {
+                    console.error("useLazyImageLoader: Failed to fetch totalPages,", err);
+                }
             } finally {
-                setIsReady(true);
+                if (!canceled) {
+                    setIsReady(true);
+                }
             }
         };
 
         setupChapter();
 
-    }, [currentChapter]);
+        return () => {
+            canceled = true;
+        };
+    }, [currentChapter, handleImageLoaded]);
 
 
     // === EFFECT 3: Буфер загрузки. Загружать когда видимая страница меняется ===
@@ -660,5 +691,6 @@ export const useLazyImageLoader = ({
         currentChapter,
         getChaptersToRender,
         isReady,
+        isObserverReady,
     };
 };

@@ -295,7 +295,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     // Эффект для отслеживания скролла
     React.useEffect(() => {
-        if (isLoading || totalPages === 0 || viewMode !== "scroll") return;
+        if (isLoading || !isReady || totalPages === 0 || viewMode !== "scroll") return;
 
         // Debounce таймер для предотвращения слишком частых обновлений visibleIndex
         let visibleDebounceTimer: NodeJS.Timeout | null = null;
@@ -404,14 +404,14 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
             observerRef.current?.disconnect();
             observerRef.current = null;
         };
-    }, [isLoading, totalPages, viewMode, chapterName, currentChapter, scheduleUpdate]);
+    }, [isLoading, isReady, totalPages, viewMode, chapterName, currentChapter, scheduleUpdate]);
 
     // заглушка при подгрузке страниц - уже не нужна, мешает MangaCanvas монтироваться
     // if (isLoading) return <div style={{ padding: "20px", color: "white" }}>{t.isloading}</div>;
 
     // Сам контейнер для отображения картинок
 
-    const currentChapterIndex = allChapters.indexOf(chapterName);
+    const currentChapterIndex = allChapters.indexOf(currentChapter);
     const hasNext = currentChapterIndex < allChapters.length - 1;
 
     return (

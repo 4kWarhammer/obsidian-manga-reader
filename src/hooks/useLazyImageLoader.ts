@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { App } from 'obsidian';
 import { ChapterCacheManager } from 'src/utils/ChapterCacheManager';
+import { logger } from 'src/utils/logger';
 
 
 interface Props {
@@ -113,7 +114,7 @@ export const useLazyImageLoader = ({
         // 3. И только теперь выгружаем из Cache
         managerRef.current.release(chapter, index);
 
-        console.log(`useLazyImageLoader: Released page ${key}`);
+        logger.lazyLoader(`useLazyImageLoader: Released page ${key}`);
 
     }, [deleteLoadedUrl]);  // ← managerRef, promiseMapRef — стабильные ref, не нужны в зависимостях
 
@@ -392,7 +393,7 @@ export const useLazyImageLoader = ({
             managerRef.current.release(chapter, index);
         }
 
-        // console.log(`[Preload] Callback: Loaded ${key}`);
+        logger.imageLoader(`[Preload] Callback: Loaded ${key}`);
     }, [queueLoadedUrl, shouldKeepPage]);
 
     // Просто устанавливаем индекс текущий
@@ -425,8 +426,8 @@ export const useLazyImageLoader = ({
 
             setRealTotalPages(newTotal);
 
-            console.log(`useLazyImageLoader: Updated totalPages to ${newTotal} for "${newChapter}"`);
-            console.log(`[BUFFER] retained range pre-set to [${nextRange.start}-${nextRange.end}] for "${newChapter}"`);
+            logger.imageLoader(`useLazyImageLoader: Updated totalPages to ${newTotal} for "${newChapter}"`);
+            logger.imageLoader(`[BUFFER] retained range pre-set to [${nextRange.start}-${nextRange.end}] for "${newChapter}"`);
         } else {
             // Если total ещё неизвестен, retained range пока нельзя вычислить
             retainedRangeRef.current = null;
@@ -436,7 +437,7 @@ export const useLazyImageLoader = ({
         setCurrentChapter(newChapter);
         setVisibleIndex(startIndex);
 
-        console.log(`useLazyImageLoader: Soft transition to chapter "${newChapter}" at index ${startIndex}`);
+        logger.imageLoader(`useLazyImageLoader: Soft transition to chapter "${newChapter}" at index ${startIndex}`);
     };
 
     // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
@@ -452,7 +453,7 @@ export const useLazyImageLoader = ({
         setCurrentChapter(chapterName);
         setVisibleIndex(initialPage);
 
-        console.log("useLazyImageLoader: Initialized chapter", chapterName);
+        logger.imageLoader("useLazyImageLoader: Initialized chapter", chapterName);
     }, [parentPath, app]);
 
     // === EFFECT 2: Настройка главы (срабатывает при смене currentChapter) ===
@@ -473,7 +474,7 @@ export const useLazyImageLoader = ({
         }
 
         const setupChapter = async () => {
-            console.log(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
+            logger.imageLoader(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
 
             // 1. Создаем loader для текущей главы
             managerRef.current.getLoader(currentChapter);
@@ -510,10 +511,10 @@ export const useLazyImageLoader = ({
                 setIsObserverReady(true);
                 // setIsReady(true);
 
-                console.log(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
+                logger.imageLoader(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
             } catch (err) {
                 if (!canceled) {
-                    console.error("useLazyImageLoader: Failed to fetch totalPages,", err);
+                    logger.error("useLazyImageLoader: Failed to fetch totalPages,", err);
                 }
             } finally {
                 if (!canceled) {
@@ -579,9 +580,9 @@ export const useLazyImageLoader = ({
             // 4. Чистим менеджер от глав вне prev/current/next
             pruneManagerToPolicy(activeChapter);
 
-            console.log(`[BUFFER] retained range changed to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
+            logger.imageLoader(`[BUFFER] retained range changed to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
         } else {
-            console.log(`[BUFFER] retained range unchanged [${previousRetainedRange!.start}-${previousRetainedRange!.end}], load range [${loadStart}-${loadEnd}]`);
+            logger.imageLoader(`[BUFFER] retained range unchanged [${previousRetainedRange!.start}-${previousRetainedRange!.end}], load range [${loadStart}-${loadEnd}]`);
         }
 
         // Загружаем страницы только в коротком диапазоне - bufferSize
@@ -591,7 +592,7 @@ export const useLazyImageLoader = ({
         }
 
         // Запускаем загрузку всех страниц параллельно
-        Promise.all(promises).catch(err => console.error("Image loading error:", err));
+        Promise.all(promises).catch(err => logger.error("Image loading error:", err));
 
     }, [
         visibleIndex, 

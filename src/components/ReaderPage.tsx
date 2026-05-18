@@ -6,6 +6,7 @@ import { translations } from "src/i18n";
 import { MangaCanvas } from "./ui/MangaCanvas";
 import { useProgressDebounce } from "src/hooks/useProgressDebounce";
 import { useLazyImageLoader } from "src/hooks/useLazyImageLoader";
+import { logger } from "src/utils/logger";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -125,7 +126,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const allChapters = getAllChapters();
     const chaptersToRender = getChaptersToRender();
     const totalPages = getTotalPages();
-    console.log(`Chapter has ${totalPages} pages`);
+    logger.ReaderPage(`Chapter has ${totalPages} pages`);
 
     const isReaderBusy = isLoading || !isReady || isPositioning;
     const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
@@ -144,7 +145,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 progress.lastChapter = chapterName;
                 progress.lastPage = pageIdx + 1;
                 await plugin.savePluginData();
-                console.log(`[Debounce] Saved: Chapter ${chapterName}, Page ${pageIdx + 1}`);
+                logger.ReaderPage(`[Debounce] Saved: Chapter ${chapterName}, Page ${pageIdx + 1}`);
             }
         },
         // ЗАВИСИМОСТИ: пересчитываем callback только если изменится один из этих параметров
@@ -233,7 +234,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         isAutoScrolling.current = true;
         setIsPositioning(true);
 
-        console.log("Switching chapter: scrolling locked");
+        logger.ReaderPage("Switching chapter: scrolling locked");
 
         if (isLoading || !isReady) {
             return;
@@ -251,7 +252,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
             if (targetEl) {
                 targetEl.scrollIntoView({ behavior: "instant", block: "start" });
-                console.log("Scrolled to:", currentChapter, pageToScroll);
+                logger.ReaderPage("Scrolled to:", currentChapter, pageToScroll);
             } else if (pageToScroll === 0 && containerRef.current) {
                 containerRef.current.scrollTo({ top: 0, behavior: "instant" });
             }
@@ -345,7 +346,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                                 if (actualChapter === candidateChapter) return;
                                 if (pendingTransitionKeyRef.current !== transitionKey) return;
 
-                                console.log(`[Observer] Switching chapter: ${candidateChapter} at index ${idx}`);
+                                logger.observer(`[Observer] Switching chapter: ${candidateChapter} at index ${idx}`);
                                 transitionToChapter(candidateChapter, idx);
                                 scheduleUpdate(idx, candidateChapter);
                                 lastChapterRef.current = candidateChapter;

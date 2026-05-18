@@ -1,6 +1,8 @@
 // === ЧАСТЬ 1: Типы и интерфейсы ===
 // Описываем какой должен быть кэшированный элемент
 
+import { logger } from "./logger";
+
 interface CacheEntry {
     blobUrl: string;
 }
@@ -40,6 +42,7 @@ export class ImageCache {
         for (const index of Array.from(this.cache.keys())) {
             this.release(index);
         }
-        console.log('ImageCache: Cleared all images from cache');
+        // console.log('ImageCache: Cleared all images from cache');
+        logger.cache('ImageCache: Cleared all images from cache');
     }
 }

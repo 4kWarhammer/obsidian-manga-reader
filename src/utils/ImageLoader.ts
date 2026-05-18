@@ -1,6 +1,7 @@
 import { App, TFolder, TFile } from "obsidian";
 import JSZip from "jszip";
 import { ImageCache } from "./ImageCache";
+import { logger } from "./logger";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -161,11 +162,14 @@ export class ImageLoader {
     private async getImageFilesList(): Promise<string[]> {
         // Если список уже загружен → вернуть его
         if (this.imageFilesList !== null) {
-            console.log("ImageLoader: Using cached file list");
+            // console.log("ImageLoader: Using cached file list");
+            logger.imageLoader("ImageLoader: Using cached file list");
             return this.imageFilesList;
         }
 
-        console.log("ImageLoader: Loading file list from disk");
+        // console.log("ImageLoader: Loading file list from disk");
+        logger.imageLoader("ImageLoader: Loading file list from disk");
+
         let files: string[] = [];
 
         // Логика пути для внешних и внутренних путей

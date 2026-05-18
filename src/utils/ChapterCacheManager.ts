@@ -1,6 +1,7 @@
 import { App, TFolder } from "obsidian";
 import { ImageCache } from "./ImageCache";
 import { ImageLoader } from "./ImageLoader";
+import { logger } from "./logger";
 
 // Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -47,7 +48,8 @@ export class ChapterCacheManager {
     getCache(chapterName: string): ImageCache {
         if (!this.caches.has(chapterName)) {            
             this.caches.set(chapterName, new ImageCache());
-            console.log(`ChapterCacheManager: Created cache for "${chapterName}"`);
+            // console.log(`ChapterCacheManager: Created cache for "${chapterName}"`);
+            logger.ChapterCacheManager(`ChapterCacheManager: Created cache for "${chapterName}"`);
         }
 
         return this.caches.get(chapterName)!;
@@ -74,7 +76,8 @@ export class ChapterCacheManager {
             );
 
             this.loaders.set(chapterName, loader);
-            console.log(`ChapterCacheManager: Created loader for "${chapterName}"`);            
+            // console.log(`ChapterCacheManager: Created loader for "${chapterName}"`);
+            logger.ChapterCacheManager(`ChapterCacheManager: Created loader for "${chapterName}"`)
         }
 
         return loader;
@@ -113,7 +116,9 @@ export class ChapterCacheManager {
         
         // Сохраняем список глав во внутреннюю память
         this.allChapters = names;
-        console.log(`ChapterCacheManager: Loaded ${names.length} chapters`);
+        // console.log(`ChapterCacheManager: Loaded ${names.length} chapters`);
+        logger.ChapterCacheManager(`ChapterCacheManager: Loaded ${names.length} chapters`);
+        
         return names;
     }
 
@@ -194,7 +199,8 @@ export class ChapterCacheManager {
             loader.clearArchiveCache();
         }
 
-        console.log(`[Preload] Edges for "${chapter}": [${validEdgeIndices.join(', ')}]`);
+        // console.log(`[Preload] Edges for "${chapter}": [${validEdgeIndices.join(', ')}]`);
+        logger.ChapterCacheManager(`[Preload] Edges for "${chapter}": [${validEdgeIndices.join(', ')}]`)
     }
 
 
@@ -217,7 +223,8 @@ export class ChapterCacheManager {
         // Устанавливаем новую главу текущей
         this.currentChapter = chapterName;
 
-        console.log(`ChapterCacheManager: Current chapter set to "${chapterName}"`);
+        // console.log(`ChapterCacheManager: Current chapter set to "${chapterName}"`);
+        logger.ChapterCacheManager(`ChapterCacheManager: Current chapter set to "${chapterName}"`);
         
         // Вызываем предзагрузку с callback для обновления loadedUrls
         this.preloadAdjacentChapters(onImageLoaded);
@@ -234,7 +241,8 @@ export class ChapterCacheManager {
                 // Не буду удалять - значений там не много, но это будет
                 // полезно для быстрой навигации и не придется каждый раз перезагружать totalPagesCache 
                 // this.totalPagesCache.delete(chapterName);
-                console.log(`ChapterCacheManager: Pruned chapter "${chapterName}"`);
+                // console.log(`ChapterCacheManager: Pruned chapter "${chapterName}"`);
+                logger.ChapterCacheManager(`ChapterCacheManager: Pruned chapter "${chapterName}"`);
             }
         }
     }
@@ -285,7 +293,8 @@ export class ChapterCacheManager {
         
         // Кэшируем результат
         this.totalPagesCache.set(chapterName, total);
-        console.log(`ChapterCacheManager: Cached totalPages=${total} for "${chapterName}"`);
+        // console.log(`ChapterCacheManager: Cached totalPages=${total} for "${chapterName}"`);
+        logger.ChapterCacheManager(`ChapterCacheManager: Cached totalPages=${total} for "${chapterName}"`);
         
         return total;
     }
@@ -330,7 +339,8 @@ export class ChapterCacheManager {
         
         this.totalPagesCache.clear();  // ← Очищаем кэш totalPages
         this.currentChapter = null;
-        console.log('ChapterCacheManager: Cleared all caches');
+        // console.log('ChapterCacheManager: Cleared all caches');
+        logger.ChapterCacheManager('ChapterCacheManager: Cleared all caches');
     }
 
         // === ИНФОРМАЦИЯ ===

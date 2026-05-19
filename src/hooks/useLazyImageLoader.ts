@@ -393,7 +393,7 @@ export const useLazyImageLoader = ({
             managerRef.current.release(chapter, index);
         }
 
-        logger.imageLoader(`[Preload] Callback: Loaded ${key}`);
+        logger.lazyLoader(`[Preload] Callback: Loaded ${key}`);
     }, [queueLoadedUrl, shouldKeepPage]);
 
     // Просто устанавливаем индекс текущий
@@ -402,6 +402,7 @@ export const useLazyImageLoader = ({
     }, []);
 
     const transitionToChapter = (newChapter: string, startIndex: number = 0) => {
+        const startedAt = performance.now();
         // 1. Сначала обновляем ref, потому что shouldKeepPage использует currentChapterRef
         currentChapterRef.current = newChapter;
 
@@ -426,8 +427,8 @@ export const useLazyImageLoader = ({
 
             setRealTotalPages(newTotal);
 
-            logger.imageLoader(`useLazyImageLoader: Updated totalPages to ${newTotal} for "${newChapter}"`);
-            logger.imageLoader(`[BUFFER] retained range pre-set to [${nextRange.start}-${nextRange.end}] for "${newChapter}"`);
+            logger.lazyLoader(`useLazyImageLoader: Updated totalPages to ${newTotal} for "${newChapter}"`);
+            logger.observer(`[BUFFER] retained range pre-set to [${nextRange.start}-${nextRange.end}] for "${newChapter}"`);
         } else {
             // Если total ещё неизвестен, retained range пока нельзя вычислить
             retainedRangeRef.current = null;
@@ -437,7 +438,8 @@ export const useLazyImageLoader = ({
         setCurrentChapter(newChapter);
         setVisibleIndex(startIndex);
 
-        logger.imageLoader(`useLazyImageLoader: Soft transition to chapter "${newChapter}" at index ${startIndex}`);
+        logger.lazyLoader(`useLazyImageLoader: Soft transition to chapter "${newChapter}" at index ${startIndex}`);
+        logger.perf(`transitionToChapter sync took ${performance.now() - startedAt}ms`);
     };
 
     // === EFFECT 1: Инициализация (срабатывает 1 раз при монтировании) ===
@@ -453,12 +455,13 @@ export const useLazyImageLoader = ({
         setCurrentChapter(chapterName);
         setVisibleIndex(initialPage);
 
-        logger.imageLoader("useLazyImageLoader: Initialized chapter", chapterName);
+        logger.lazyLoader("useLazyImageLoader: Initialized chapter", chapterName);
     }, [parentPath, app]);
 
     // === EFFECT 2: Настройка главы (срабатывает при смене currentChapter) ===
     useEffect(() => {
         if (!currentChapter) return;
+        const startedAt = performance.now();
 
         let canceled = false;
 
@@ -474,7 +477,7 @@ export const useLazyImageLoader = ({
         }
 
         const setupChapter = async () => {
-            logger.imageLoader(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
+            logger.lazyLoader(`useLazyImageLoader: Setting up chapter "${currentChapter}"`);
 
             // 1. Создаем loader для текущей главы
             managerRef.current.getLoader(currentChapter);
@@ -511,7 +514,8 @@ export const useLazyImageLoader = ({
                 setIsObserverReady(true);
                 // setIsReady(true);
 
-                logger.imageLoader(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
+                logger.lazyLoader(`useLazyImageLoader: Total pages for "${currentChapter}": ${total}`);
+                logger.perf(`setupChapter totals took ${performance.now() - startedAt}ms for ${currentChapter}`);
             } catch (err) {
                 if (!canceled) {
                     logger.error("useLazyImageLoader: Failed to fetch totalPages,", err);
@@ -580,9 +584,9 @@ export const useLazyImageLoader = ({
             // 4. Чистим менеджер от глав вне prev/current/next
             pruneManagerToPolicy(activeChapter);
 
-            logger.imageLoader(`[BUFFER] retained range changed to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
+            logger.lazyLoader(`[BUFFER] retained range changed to [${nextRange.start}-${nextRange.end}] for "${activeChapter}"`);
         } else {
-            logger.imageLoader(`[BUFFER] retained range unchanged [${previousRetainedRange!.start}-${previousRetainedRange!.end}], load range [${loadStart}-${loadEnd}]`);
+            logger.lazyLoader(`[BUFFER] retained range unchanged [${previousRetainedRange!.start}-${previousRetainedRange!.end}], load range [${loadStart}-${loadEnd}]`);
         }
 
         // Загружаем страницы только в коротком диапазоне - bufferSize

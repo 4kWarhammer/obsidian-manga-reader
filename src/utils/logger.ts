@@ -8,7 +8,7 @@ const LOG_FLAGS = {
     chapterCacheManager: false,
     lazyLoader: false,
     observer: false,
-    performance: false,
+    performance: true,
 };
 
 export const logger = {

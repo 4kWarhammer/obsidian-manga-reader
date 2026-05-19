@@ -19,6 +19,10 @@ export class ChapterCacheManager {
     // Кэш totalPages: chapterName → number
     private totalPagesCache = new Map<string, number>();
 
+    // Кэш in-flight запросов totalPages: chapterName → Promise<number>
+    // Нужен, чтобы параллельные getTotalPages одной главы не запускали повторную работу.
+    private totalPagesPromiseCache = new Map<string, Promise<number>>();
+
     private parentPath: string = '';
     private isExternal: boolean = false;
     private app: App | null = null;
@@ -279,24 +283,36 @@ export class ChapterCacheManager {
      * @returns loader.getTotalPages()
      */
     async getTotalPages(chapterName: string): Promise<number> {
-        // Проверяем кэш
+        // 1. Если значение уже посчитано — возвращаем готовый результат.
         if (this.totalPagesCache.has(chapterName)) {
             return this.totalPagesCache.get(chapterName)!;
         }
         
+        // 2. Если расчёт уже идёт — возвращаем тот же Promise.
+        const existingPromise = this.totalPagesPromiseCache.get(chapterName);
+        if (existingPromise) {
+            return existingPromise;
+        }
+
+        // 3. Начинаем считать
         const loader = this.loaders.get(chapterName);
         if (!loader) {
             throw new Error(`ChapterCacheManager: No loader for chapter "${chapterName}"`);
         }
-        
-        const total = await loader.getTotalPages();
-        
-        // Кэшируем результат
-        this.totalPagesCache.set(chapterName, total);
-        // console.log(`ChapterCacheManager: Cached totalPages=${total} for "${chapterName}"`);
-        logger.ChapterCacheManager(`ChapterCacheManager: Cached totalPages=${total} for "${chapterName}"`);
-        
-        return total;
+
+        const promise = loader.getTotalPages()
+            .then(total => {
+                this.totalPagesCache.set(chapterName, total);
+                logger.ChapterCacheManager(`ChapterCacheManager: Cached totalPages=${total} for "${chapterName}"`);
+                return total;
+            })
+            .finally(() => {
+                this.totalPagesPromiseCache.delete(chapterName);
+            });
+
+        this.totalPagesPromiseCache.set(chapterName, promise);
+
+        return promise;
     }
 
     /**
@@ -338,6 +354,8 @@ export class ChapterCacheManager {
         this.loaders.clear();
         
         this.totalPagesCache.clear();  // ← Очищаем кэш totalPages
+        this.totalPagesPromiseCache.clear();  // ← Очищаем кэш totalPagesPromise
+
         this.currentChapter = null;
         // console.log('ChapterCacheManager: Cleared all caches');
         logger.ChapterCacheManager('ChapterCacheManager: Cleared all caches');

@@ -91,7 +91,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         
         // Сохраняем в настройки плагина
         plugin.data.settings.viewMode = newMode;
-        await plugin.savePluginData();
+        await plugin.saveSettings();
     };
     
     const savedData = plugin.data.library[parentPath];
@@ -144,8 +144,8 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 }
                 progress.lastChapter = chapterName;
                 progress.lastPage = pageIdx + 1;
-                await plugin.savePluginData();
-                logger.ReaderPage(`[Debounce] Saved: Chapter ${chapterName}, Page ${pageIdx + 1}`);
+                await plugin.saveProgress();
+                logger.observer(`[Debounce] Saved: Chapter ${chapterName}, Page ${pageIdx + 1}`);
             }
         },
         // ЗАВИСИМОСТИ: пересчитываем callback только если изменится один из этих параметров

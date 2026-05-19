@@ -15,7 +15,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export default class MangaReaderPlugin extends Plugin {
-    data: PluginData;
+    data: PluginData = DEFAULT_DATA;
 
     async onload() {
         // 1. Загружаем данные из файла data.json (если его нет, берем дефолты)
@@ -42,12 +42,19 @@ export default class MangaReaderPlugin extends Plugin {
         console.log('Плагин читалки манги выгружен');
     }
 
-    // Метод для сохранения (будем вызывать его из React)
-    async savePluginData() {
+    // Методы для сохранения
+    // Сохранение настроек, требует ре-рендера компонентов, поэтому с уведомлением
+    async saveSettings() {
         await this.saveData(this.data);
+
         // Вызываем событие обновления во всем плагине (чтобы увидел React)
         // Ответная ячасть находится в MangaInterface
         this.app.workspace.trigger("manga-reader:settings-update");
+    }
+
+    // Сохранение только прогресса (страница, глава) — без события
+    async saveProgress() {
+        await this.saveData(this.data);
     }
 
     // Логика открытия нашего окна
@@ -96,10 +103,9 @@ class MangaReaderSettingTab extends PluginSettingTab{
                 .addOption('ru', 'Русский')
                 .addOption('en', 'English')
                 .setValue(this.plugin.data.settings.language)
-                .onChange(async (value: "ru" | "en") => {
-                    this.plugin.data.settings.language = value;
-                    await this.plugin.savePluginData();
-                    // Сообщение пользователю (опционально)
+                .onChange(async (value) => {
+                    this.plugin.data.settings.language = value as 'ru' | 'en';
+                    await this.plugin.saveSettings();
                     new Notice("Language changed! / Язык изменен!");
                 })
             );

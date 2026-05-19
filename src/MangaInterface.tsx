@@ -45,7 +45,7 @@ export const MangaInterface = ({ app, plugin }: InterfaceProps) => {
         }
 
         // 3. Сначала сохраняем на диск
-        await plugin.savePluginData();
+        await plugin.saveSettings();
 
         // 4. И только потом меняем состояние, чтобы переключить экран
         setSelectedChapter(chapterName);

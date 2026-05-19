@@ -1,5 +1,4 @@
-import { ReaderPage } from "src/components/ReaderPage";
-import { ChapterCacheManager } from "./ChapterCacheManager";
+
 
 const LOG_FLAGS = {
     ReaderPage: false,
@@ -7,8 +6,8 @@ const LOG_FLAGS = {
     cache: false,
     chapterCacheManager: false,
     lazyLoader: false,
-    observer: false,
-    performance: true,
+    observer: true,
+    performance: false,
 };
 
 export const logger = {

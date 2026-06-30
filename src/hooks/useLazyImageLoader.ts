@@ -128,7 +128,7 @@ export const useLazyImageLoader = ({
     }, [visibleIndex, bufferSize, realTotalPages]);
 
     // Тут интересная логика применена.
-    // Если наш центр будет находится блихко к границам главы, 
+    // Если наш центр будет находится близко к границам главы, 
     // то логика будет пытаться сохранить retained range
     const getRetainedRange = useCallback((
         center: number,

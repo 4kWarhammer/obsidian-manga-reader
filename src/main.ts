@@ -1,7 +1,10 @@
 import React from 'react';
-import { Plugin, WorkspaceLeaf, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, PluginSettingTab, Setting, Notice, normalizePath } from 'obsidian';
 import { MangaView, VIEW_TYPE_MANGA } from './MangaView';
 import { PluginData, DEFAULT_DATA } from './types';
+import { ChapterIndexManager } from './utils/ChapterIndexManager';
+import { ChapterIndexCache } from './utils/ChapterIndexCache';
+import { ObsidianCacheStorageAdapter } from './utils/ObsidianCacheStorageAdapter';
 
 // Только для development
 if (process.env.NODE_ENV !== 'production') {
@@ -16,6 +19,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 export default class MangaReaderPlugin extends Plugin {
     data: PluginData = DEFAULT_DATA;
+
+    private chapterIndexManager: ChapterIndexManager | null = null;
 
     async onload() {
         // 1. Загружаем данные из файла data.json (если его нет, берем дефолты)
@@ -39,6 +44,8 @@ export default class MangaReaderPlugin extends Plugin {
     }
 
     async onunload() {
+        // Сохраняем при закрытии плагина
+        await this.chapterIndexManager?.save();
         console.log('Плагин читалки манги выгружен');
     }
 
@@ -77,8 +84,30 @@ export default class MangaReaderPlugin extends Plugin {
         // Делаем вкладку активной
         workspace.revealLeaf(leaf);
     }
+
+    // Создаем единственный экземпляр ChapterIndexManager
+    // Будет использоваться как singleton для всего плагина
+    getChapterIndexManager(): ChapterIndexManager {
+        if (!this.chapterIndexManager) {
+            const cachePath = normalizePath(
+                `${this.manifest.dir}/image-index-cache.json`
+            );
+
+            const storageAdapter = new ObsidianCacheStorageAdapter(
+                this.app.vault.adapter
+            );
+
+            const cache = new ChapterIndexCache(cachePath, storageAdapter);
+
+            this.chapterIndexManager = new ChapterIndexManager(cache);
+        }
+
+        return this.chapterIndexManager;
+    }
+
 }
 
+// Тут настройки встроенной панели для плагина
 class MangaReaderSettingTab extends PluginSettingTab{
     plugin: MangaReaderPlugin
 

@@ -116,9 +116,9 @@ export class ImageLoader {
     }
 
     // ПОМОЩНИК: Загружает конкретный файл в память (ArrayBuffer или Blob)
-    private async loadFile(fileName: string): Promise<ArrayBuffer> {
+    public async loadFile(fileName: string): Promise<ArrayBuffer> {
         
-        if (this.isArchive) {            
+        if (this.isArchive) {
             // Открываем архив с помощью JSZip
             const zip = await this.getZip();
             
@@ -159,7 +159,7 @@ export class ImageLoader {
     }
 
     // ПОМОЩНИК: Получает список файлов (изображений) в главе
-    private async getImageFilesList(): Promise<string[]> {
+    public async getImageFilesList(): Promise<string[]> {
         // Если список уже загружен → вернуть его
         if (this.imageFilesList !== null) {
             // console.log("ImageLoader: Using cached file list");
@@ -223,17 +223,17 @@ export class ImageLoader {
     }
 
     // Определяет MIME тип по расширению на конце файла
-    private getMimeType(fileName: string): string {
-            const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    public getMimeType(fileName: string): string {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
 
-            const types: Record<string, string> = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'webp': 'image/webp',
-                'avif': 'image/avif'
-            };
-            
-            return types[ext] || 'image/jpeg';
+        const types: Record<string, string> = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'webp': 'image/webp',
+            'avif': 'image/avif'
+        };
+        
+        return types[ext] || 'image/jpeg';
     }
 }

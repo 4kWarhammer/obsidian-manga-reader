@@ -43,7 +43,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     const toggleLanguage = async () => {
         const newLang = currentLang === "ru" ? "en" : "ru";
         plugin.data.settings.language = newLang;
-        await plugin.savePluginData(); 
+        await plugin.saveSettings();
         // Если ты внедрил шаг №2, страница обновится сама!
     };
 
@@ -107,7 +107,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     const addDefaultFolderModal = () => {
         new FolderSelectModal(app, plugin ,async (path) => {
             plugin.data.defaultLibraryPath = path;
-            await plugin.savePluginData();
+            await plugin.saveSettings();
             // Чтобы React увидел изменения plugin.data, нам нужно либо состояние, 
             // либо просто перезагрузить этот компонент. Для простоты:
             setDefaultPath(path)
@@ -121,7 +121,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
             if (!plugin.data.externalSources.includes(path)) {
                 const newSources = [...plugin.data.externalSources, path];
                 plugin.data.externalSources = newSources;
-                await plugin.savePluginData();
+                await plugin.saveSettings();
                 
                 // Обновляем стейт, чтобы React перерисовал список
                 setExternalPaths(newSources);

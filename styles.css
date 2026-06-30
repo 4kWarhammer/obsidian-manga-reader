@@ -176,15 +176,20 @@ body.is-reader-active .mobile-navbar.mod-raised {
 .manga-reader .manga-page-wrapper {
     /* Центрируем содержимое */
     width: 100%;
+    /* min-height: 80vh; */
     display: flex;
     justify-content: center; /* Центрирует по горизонтали */
     align-items: center;
     overflow: hidden; /* Чтобы ничего не вылазило за края */
-    
-    /* Минимальная высота, чтобы блок существовал до загрузки картинки.
-       Можно примерно прикинуть пропорцию или оставить min-height: 50vh */
-    min-height: 80vh;
     margin-bottom: 5px; /* Отступ между страницами */
+}
+
+.manga-reader .manga-page-wrapper .no-image {
+    min-height: 80vh;
+}
+
+.manga-reader .manga-page-wrapper .has-image {
+    min-height: min(80vh, 100%);
 }
 
 .manga-reader .manga-img {

@@ -1,11 +1,11 @@
 
 
 const LOG_FLAGS = {
-    ReaderPage: false,
+    ReaderPage: true,
     imageLoader: false,
     cache: false,
     chapterCacheManager: false,
-    lazyLoader: false,
+    lazyLoader: true,
     observer: true,
     performance: false,
 };

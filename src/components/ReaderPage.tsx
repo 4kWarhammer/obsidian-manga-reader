@@ -1,5 +1,5 @@
 import * as React from "react";
-import { App, TFolder, TFile } from "obsidian";
+import { App } from "obsidian";
 // import JSZip from "jszip";
 import MangaReaderPlugin from "../main";
 import { translations } from "src/i18n";
@@ -7,10 +7,8 @@ import { MangaCanvas } from "./ui/MangaCanvas";
 import { useProgressDebounce } from "src/hooks/useProgressDebounce";
 import { useLazyImageLoader } from "src/hooks/useLazyImageLoader";
 import { logger } from "src/utils/logger";
-
-// Достаем Node.js модули
-const fs = (window as any).require ? (window as any).require('fs') : null;
-const pathModule = (window as any).require ? (window as any).require('path') : null;
+import { useElementSize } from "src/hooks/useElementSize";
+import { useVirtualMangaReader } from "src/hooks/useVirtualMangaReader";
 
 interface Props {
     app: App;
@@ -63,6 +61,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     // вытаскиваем IntersectionObserver чтобы использовать не только в useEffect
     const observerRef = React.useRef<IntersectionObserver | null>(null);
     const containerRef = React.useRef<HTMLDivElement>(null);
+    const viewportSize = useElementSize(containerRef);
     
     // Refs для отслеживания переключения глав в режиме скролла
     const lastChapterRef = React.useRef(chapterName);  // ← Последняя глава в Observer
@@ -71,12 +70,8 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const pendingTransitionKeyRef = React.useRef<string | null>(null);
 
     const [viewMode, setViewMode] = React.useState(plugin.data.settings.viewMode);
-    const [isLoading, setIsLoading] = React.useState(false);
+    // const [isLoading, setIsLoading] = React.useState(false);
     const [isPositioning, setIsPositioning] = React.useState(true);
-
-    // Проверочки
-    // const isArchive = chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
-    // const isExternal = parentPath.includes(":\\") || parentPath.startsWith("/");
 
     const toggleViewMode = async () => {
         const newMode = viewMode === "scroll" ? "single" : "scroll";
@@ -103,7 +98,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const lazyLoader = useLazyImageLoader({
         parentPath,
         chapterName,
-        bufferSize: 2,
+        bufferSize: 3,
         app,
         initialPage: savedPage,
     });
@@ -123,12 +118,27 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         isObserverReady,
     } = lazyLoader;
 
+    // Пока временно подключаем virtual hook
+    const virtualReader = useVirtualMangaReader({
+        app,
+        plugin,
+        parentPath,
+        chapterName,
+        viewportWidth: viewportSize.width,
+        viewportHeight: viewportSize.height,
+        pageGap: 16,
+        maxPageWidth: 1200,
+        initialPage: savedPage,
+        overscan: 1000,
+    });
+
     const allChapters = getAllChapters();
     const chaptersToRender = getChaptersToRender();
     const totalPages = getTotalPages();
     logger.ReaderPage(`Chapter has ${totalPages} pages`);
 
-    const isReaderBusy = isLoading || !isReady || isPositioning;
+    const isReaderPreparing = virtualReader.isLoading || !isReady;
+    const isReaderBusy = isReaderPreparing || isPositioning;
     const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
 
     // === ИСПРАВЛЕНИЕ: Мемоизируем callback, чтобы он не пересоздавался ===
@@ -216,17 +226,22 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     // Основной эффект загрузки
     React.useEffect(() => {
-        const initChapter = async () => {
-            setIsLoading(true);
+        flush();
+    }, [parentPath, chapterName, flush]);
+    // Тут надо проверить flush, возможно стоит убрать из зависимостей - лишние ререндеры ??
 
-            // Сначала сохраняем прогресс текущей страницы, чтобы не потерять его при загрузке новой главы
-            await flush();
+    // Пока временный, для virtual hook
+    React.useEffect(() => {
+        if (!virtualReader.readerLayout) return;
 
-            setIsLoading(false);
-        };
-
-        initChapter();
-    }, [parentPath, chapterName]);
+        logger.ReaderPage(
+            `Virtual reader ready: ${virtualReader.readerLayout.pages.length} pages, visible=${virtualReader.visibleRange.start}-${virtualReader.visibleRange.end}, activePage=${virtualReader.activePage?.index}`
+        );
+    }, [
+        virtualReader.readerLayout,
+        virtualReader.visibleRange,
+        virtualReader.activePage,
+    ]);
 
     // // Автоскролл до нужной страницы при загрузке или смене режима
     React.useEffect(() => {
@@ -236,9 +251,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
         logger.ReaderPage("Switching chapter: scrolling locked");
 
-        if (isLoading || !isReady) {
-            return;
-        }
+        if (isReaderPreparing) return;
 
         const currentChapter = getCurrentChapter();
         const pageToScroll = viewMode === "scroll" ? visibleIndex : 0;
@@ -284,7 +297,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
             isAutoScrolling.current = true;
             // setIsPositioning(true);
         };
-    }, [isLoading, isReady, viewMode, chapterName]);
+    }, [virtualReader.isLoading, isReady, viewMode, chapterName]);
 
     React.useEffect(() => {
         lastVisibleRef.current = visibleIndex;
@@ -297,7 +310,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     // Эффект для отслеживания скролла
     React.useEffect(() => {
-        if (isLoading || !isObserverReady || totalPages === 0 || viewMode !== "scroll") return;
+        if (virtualReader.isLoading || !isObserverReady || totalPages === 0 || viewMode !== "scroll") return;
 
         // Debounce таймер для предотвращения слишком частых обновлений visibleIndex
         let visibleDebounceTimer: NodeJS.Timeout | null = null;
@@ -407,7 +420,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
             observerRef.current = null;
         };
     }, [
-        isLoading, 
+        virtualReader.isLoading, 
         isObserverReady, 
         totalPages, 
         viewMode, 
@@ -423,6 +436,17 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
     const currentChapterIndex = allChapters.indexOf(currentChapter);
     const hasNext = currentChapterIndex < allChapters.length - 1;
+
+    // Пока простая заглушка на случай ошибки
+    if (virtualReader.error) {
+        return (
+            <div className="reader-error">
+                <button onClick={onBack}>{t.back}</button>
+                <p>Failed to index chapter metadata.</p>
+                <pre>{virtualReader.error}</pre>
+            </div>
+        );
+    }
 
     return (
         <div className={`manga-reader ${showReaderLoader ? "is-reader-loading" : ""}`}>
@@ -447,7 +471,9 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 <div className="manga-reader-global-loader">
                     <div className="spinner"></div>
                     <div className="manga-reader-global-loader-text">
-                        {t.isloading}
+                        {virtualReader.indexingProgress
+                            ? `Indexing ${virtualReader.indexingProgress.loaded}/${virtualReader.indexingProgress.total}`
+                            : t.isloading}
                     </div>
                 </div>
             )}

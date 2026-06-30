@@ -44,7 +44,7 @@ const DelayedSpinner = React.memo(({ delayMs = 150 }: { delayMs?: number }) => {
 export const MangaPage = React.memo(({ url, index, chapterName, onClick, isLoading }: MangaPageProps) => {
     return (
         <div 
-        className="manga-page-wrapper" 
+        className={`manga-page-wrapper ${url ? 'has-image' : 'no-image'}`}
         data-chapter-name={chapterName} 
         data-page-idx={index}
         >

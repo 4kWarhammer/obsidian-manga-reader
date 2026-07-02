@@ -68,6 +68,12 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const transitionDebounceRef = React.useRef<NodeJS.Timeout | null>(null);  // ← Debounce для transitionToChapter
     const lastVisibleRef = React.useRef(0);
     const pendingTransitionKeyRef = React.useRef<string | null>(null);
+    const pendingPositionKeyRef = React.useRef<string | null>(null);
+
+
+    // Для requestAnimationFrame scroll
+    const scrollRafRef = React.useRef<number | null>(null);
+    const lastLoggedVirtualPageRef = React.useRef<string | null>(null);
 
     const [viewMode, setViewMode] = React.useState(plugin.data.settings.viewMode);
     // const [isLoading, setIsLoading] = React.useState(false);
@@ -93,6 +99,21 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const savedPage = (savedData && savedData.lastChapter === chapterName)
         ? Math.max(0, (savedData.lastPage || 1) - 1)
         : 0;
+    
+    const initialPageKey = `${parentPath}::${chapterName}`;
+    const initialPageRef = React.useRef({
+        key: initialPageKey,
+        page: savedPage,
+    });
+
+    if (initialPageRef.current.key !== initialPageKey) {
+        initialPageRef.current = {
+            key: initialPageKey,
+            page: savedPage,
+        };
+    }
+
+    const readerInitialPage = initialPageRef.current.page;
 
     // === ИНТЕГРАЦИЯ ХУКА ===
     const lazyLoader = useLazyImageLoader({
@@ -100,7 +121,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         chapterName,
         bufferSize: 3,
         app,
-        initialPage: savedPage,
+        initialPage: readerInitialPage,
     });
 
     const {
@@ -128,7 +149,7 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         viewportHeight: viewportSize.height,
         pageGap: 16,
         maxPageWidth: 1200,
-        initialPage: savedPage,
+        initialPage: readerInitialPage,
         overscan: 1000,
     });
 
@@ -140,6 +161,45 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     const isReaderPreparing = virtualReader.isLoading || !isReady;
     const isReaderBusy = isReaderPreparing || isPositioning;
     const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
+
+    // Handler для виртуального скрола
+    const handleVirtualScroll = React.useCallback(() => {
+        const container = containerRef.current;
+
+        if (!container) return;
+        if (scrollRafRef.current !== null) return;
+
+        scrollRafRef.current = window.requestAnimationFrame(() => {
+            scrollRafRef.current = null;
+
+            const scrollTop = container.scrollTop;
+            const clientHeight = container.clientHeight;
+
+            virtualReader.onScroll(scrollTop, clientHeight);
+        });
+    }, [virtualReader.onScroll]);
+
+    // И сразу к нему CleanUp - пока временно
+    React.useEffect(() => {
+        return () => {
+            if (scrollRafRef.current !== null) {
+                window.cancelAnimationFrame(scrollRafRef.current);
+                scrollRafRef.current = null;
+            }
+        };
+    }, []);
+
+    // addEventListener для handleVirtualScroll
+    React.useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        container.addEventListener("scroll", handleVirtualScroll, { passive: true });
+
+        return () => {
+            container.removeEventListener("scroll", handleVirtualScroll);
+        };
+    }, [handleVirtualScroll]);
 
     // === ИСПРАВЛЕНИЕ: Мемоизируем callback, чтобы он не пересоздавался ===
     // Это гарантирует, что функция onSave остается одинаковой между рендерами
@@ -230,28 +290,55 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
     }, [parentPath, chapterName, flush]);
     // Тут надо проверить flush, возможно стоит убрать из зависимостей - лишние ререндеры ??
 
-    // Пока временный, для virtual hook
+    // Отслеживание активной страницы для useVirtualMangaReader
     React.useEffect(() => {
-        if (!virtualReader.readerLayout) return;
+        const activePage = virtualReader.activePage;
+
+        if (!activePage) return;
+
+        const key = `${activePage.chapterKey}:${activePage.index}`;
+
+        if (lastLoggedVirtualPageRef.current === key) {
+            return;
+        }
+
+        lastLoggedVirtualPageRef.current = key;
 
         logger.ReaderPage(
-            `Virtual reader ready: ${virtualReader.readerLayout.pages.length} pages, visible=${virtualReader.visibleRange.start}-${virtualReader.visibleRange.end}, activePage=${virtualReader.activePage?.index}`
+            `Virtual scroll active page: ${activePage.chapterName} #${activePage.index + 1}, range=${virtualReader.visibleRange.start}-${virtualReader.visibleRange.end}`
         );
     }, [
-        virtualReader.readerLayout,
-        virtualReader.visibleRange,
         virtualReader.activePage,
+        virtualReader.visibleRange,
     ]);
 
-    // // Автоскролл до нужной страницы при загрузке или смене режима
+    // Пока добавим, для сохранения корректной работы старой системы ниже
+    // isReaderPreparing теперь может меняться в течении работы скролла читалки
+    // Что вызывает лишние реакции со стороны Автоскроллf до нужной страницы
     React.useEffect(() => {
-        // Пока готовимся/переключаемся — блокируем обсерверы другие и держим overlay.
+        const key = `${chapterName}:${viewMode}`;
+
+        pendingPositionKeyRef.current = key;
+
         isAutoScrolling.current = true;
         setIsPositioning(true);
 
-        logger.ReaderPage("Switching chapter: scrolling locked");
+        logger.ReaderPage(`Positioning requested: ${key}`);
+    }, [chapterName, viewMode]);
 
+    // // Автоскролл до нужной страницы при загрузке или смене режима
+    React.useEffect(() => {
         if (isReaderPreparing) return;
+
+        const pendingKey = pendingPositionKeyRef.current;
+
+        if (!pendingKey) return;
+
+        const currentKey = `${chapterName}:${viewMode}`;
+
+        if (pendingKey !== currentKey) return;
+
+        logger.ReaderPage(`Positioning running: ${currentKey}`);
 
         const currentChapter = getCurrentChapter();
         const pageToScroll = viewMode === "scroll" ? visibleIndex : 0;
@@ -270,34 +357,29 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
                 containerRef.current.scrollTo({ top: 0, behavior: "instant" });
             }
 
-            // Даём браузеру применить scroll, и только потом убираем overlay-флаг.
             animationFrame = window.requestAnimationFrame(() => {
                 setIsPositioning(false);
             });
 
-            // Разблокируем сохранение через секунду.
             unlockTimer = window.setTimeout(() => {
                 isAutoScrolling.current = false;
             }, 1000);
+
+            pendingPositionKeyRef.current = null;
         }, 100);
 
         return () => {
-            if (scrollTimer !== null){
-                window.clearTimeout(scrollTimer);
-            }
+            if (scrollTimer !== null) window.clearTimeout(scrollTimer);
 
-            if (animationFrame !== null) {
-                window.cancelAnimationFrame(animationFrame);
-            }
+            if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
 
-            if (unlockTimer !== null) {
-                window.clearTimeout(unlockTimer);
-            }
-
-            isAutoScrolling.current = true;
-            // setIsPositioning(true);
+            if (unlockTimer !== null) window.clearTimeout(unlockTimer);
         };
-    }, [virtualReader.isLoading, isReady, viewMode, chapterName]);
+    }, [
+        isReaderPreparing,
+        chapterName,
+        viewMode,
+    ]);
 
     React.useEffect(() => {
         lastVisibleRef.current = visibleIndex;

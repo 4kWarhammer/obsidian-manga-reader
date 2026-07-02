@@ -1,3 +1,13 @@
+// Для Будущего рефакторинга нужно будет разделить логику:
+// Effect A:
+//   chapter changed -> getOrBuildIndex -> setChapterIndex
+
+// Memo/effect B:
+//   chapterIndex + viewportWidth + pageGap + maxPageWidth -> readerLayout
+
+// Effect C:
+//   readerLayout + viewportHeight + overscan + scrollTop -> visibleRange/activePage
+
 import * as React from "react";
 import { App } from "obsidian";
 import MangaReaderPlugin from "../main";
@@ -143,7 +153,6 @@ export function useVirtualMangaReader(
         viewportHeight,
         pageGap,
         maxPageWidth,
-        initialPage,
         overscan,
     ]);
 
@@ -168,8 +177,15 @@ export function useVirtualMangaReader(
             overscan
         );
 
-        setActivePage(nextActivePage);
-        setVisibleRange(nextVisibleRange);
+        setActivePage(prev => {
+            const isSame = prev?.chapterKey === nextActivePage?.chapterKey && prev?.index === nextActivePage?.index;
+            return isSame ? prev : nextActivePage;
+        });
+
+        setVisibleRange(prev => {
+            const isSame = prev.start === nextVisibleRange.start && prev.end === nextVisibleRange.end
+            return isSame ? prev : nextVisibleRange;
+        });
     }, [readerLayout, viewportHeight, overscan]);
 
     const visiblePages = React.useMemo(() => {

@@ -3,6 +3,8 @@ import { MangaPage } from "./MangaPage";
 import { ReaderHeader } from "./ReaderHeader";
 import { ImageProvider } from "src/types";
 import { ChapterSegment } from "./ChapterSegment";
+import { ReaderLayout, ReaderPageLayout } from "src/types";
+import { VirtualScrollSurface } from "./VirtualScrollSurface";
 
 interface MangaCanvasProps {
     containerRef: React.RefObject<HTMLDivElement | null>
@@ -21,6 +23,10 @@ interface MangaCanvasProps {
     currentImageUrl?: string | null;
     isImageLoading?: boolean;
     chaptersToRender?: ChapterInfo[];
+    // Вот эти 3 пока добавлю
+    useVirtualScroll?: boolean;
+    virtualReaderLayout?: ReaderLayout | null;
+    virtualVisiblePages?: ReaderPageLayout[];
 }
 
 interface ChapterInfo {
@@ -43,8 +49,10 @@ export const MangaCanvas = React.memo(({
     onPageClick, 
     hasNextChapter, 
     imageProvider,
-    chaptersToRender
-
+    chaptersToRender,
+    useVirtualScroll,
+    virtualReaderLayout,
+    virtualVisiblePages
 }: MangaCanvasProps) => {
     const [showUI, setShowUI] = React.useState(false);
     const totalPages = imageProvider?.getTotalPages() || 0;
@@ -123,19 +131,29 @@ export const MangaCanvas = React.memo(({
                 className="manga-reader-container scroll-mode"
                 onClick={handleCanvasClick}
                 >
-                    {/* Тут у нас Fallback - если chaperToRender не передан, то рендерим одну главу */}
-                    {(chaptersToRender || [{ chapterName, totalPages }]).map(chapter => (
-                        <ChapterSegment
-                            key={chapter.chapterName}
-                            chapterName={chapter.chapterName}
-                            totalPages={chapter.totalPages}
+                    {/* Вот тут новая логика, пока двойная для двух систем */}
+                    {useVirtualScroll && virtualReaderLayout ? (
+                        <VirtualScrollSurface
+                            readerLayout={virtualReaderLayout}
+                            visiblePages={virtualVisiblePages || []}
                             imageProvider={imageProvider!}
                         />
-                    ))}
+                    ) : (
+                        <>
+                            {(chaptersToRender || [{ chapterName, totalPages }]).map(chapter => (
+                                <ChapterSegment
+                                    key={chapter.chapterName}
+                                    chapterName={chapter.chapterName}
+                                    totalPages={chapter.totalPages}
+                                    imageProvider={imageProvider!}
+                                />
+                            ))}
 
-                    <div id="end-of-list-sensor" className="manga-sensor">
-                        {hasNextChapter ? "Загрузка следующей главы..." : "Конец истории"}
-                    </div>
+                            <div id="end-of-list-sensor" className="manga-sensor">
+                                {hasNextChapter ? "Загрузка следующей главы..." : "Конец истории"}
+                            </div>
+                        </>
+                    )}
                 </div>
             ) : (
                 // Диспетчер режимов: Постранично

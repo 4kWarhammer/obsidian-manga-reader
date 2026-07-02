@@ -6,6 +6,7 @@ interface MangaPageProps {
     chapterName: string;
     onClick?: (index: number, chName: string) => void;
     isLoading?: boolean;
+    style?: React.CSSProperties;
 }
 
 function useDelayedBoolean(value: boolean, delayMs: number): boolean {
@@ -41,12 +42,14 @@ const DelayedSpinner = React.memo(({ delayMs = 150 }: { delayMs?: number }) => {
     );
 });
 
-export const MangaPage = React.memo(({ url, index, chapterName, onClick, isLoading }: MangaPageProps) => {
+export const MangaPage = React.memo(({ url, index, chapterName, onClick, isLoading, style }: MangaPageProps) => {
     return (
         <div 
         className={`manga-page-wrapper ${url ? 'has-image' : 'no-image'}`}
         data-chapter-name={chapterName} 
         data-page-idx={index}
+        style={style}
+        // А вот это нижнее оставляю? тут вроде другая логика
         >
             {url ? (
                 <img src={url} className="manga-img" />

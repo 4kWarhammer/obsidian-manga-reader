@@ -1,11 +1,12 @@
 
 
 const LOG_FLAGS = {
-    ReaderPage: true,
+    ReaderPage: false,
     imageLoader: false,
     cache: false,
     chapterCacheManager: false,
-    lazyLoader: true,
+    lazyLoader: false,
+    virtualManager: false,
     observer: true,
     performance: false,
 };
@@ -17,6 +18,10 @@ export const logger = {
 
     lazyLoader: (...args: unknown[]) => {
         if (LOG_FLAGS.lazyLoader) console.debug(...args);
+    },
+
+    virtualManager: (...args: unknown[]) => {
+        if (LOG_FLAGS.virtualManager) console.debug(...args);
     },
 
     imageLoader: (...args: unknown[]) => {

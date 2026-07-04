@@ -152,12 +152,19 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         isObserverReady,
     } = lazyLoader;
 
-    // Пока временно подключаем virtual hook
+    const allChapters = getAllChapters();
+    const chaptersToRender = getChaptersToRender();
+    const totalPages = getTotalPages();
+
+    logger.ReaderPage(`Chapter has ${totalPages} pages`);
+
+    // Подключаем virtual hook
     const virtualReader = useVirtualMangaReader({
         app,
         plugin,
         parentPath,
         chapterName,
+        allChapters,
         viewportWidth: viewportSize.width,
         viewportHeight: viewportSize.height,
         pageGap: 16,
@@ -166,17 +173,12 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         overscan: 1000,
     });
 
-    // Для отключения обсервера
-    const useVirtualScroll = viewMode === "scroll" && Boolean(virtualReader.readerLayout);
-
-    const allChapters = getAllChapters();
-    const chaptersToRender = getChaptersToRender();
-    const totalPages = getTotalPages();
-    logger.ReaderPage(`Chapter has ${totalPages} pages`);
-
     const isReaderPreparing = virtualReader.isLoading || !isReady;
     const isReaderBusy = isReaderPreparing || isPositioning;
     const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
+    // Для отключения обсервера
+    const useVirtualScroll = viewMode === "scroll" && Boolean(virtualReader.readerLayout);
+
 
     // Handler для виртуального скрола
     const handleVirtualScroll = React.useCallback(() => {
@@ -344,10 +346,18 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
 
         lastSyncedVirtualPageRef.current = key;
 
-        setVisible(activePage.index);
+        // Получаем текущую главу из хука
+        const currentLazyChapter = getCurrentChapter();
+
+        if (activePage.chapterName !== currentLazyChapter) {
+            transitionToChapter(activePage.chapterName, activePage.index);
+        } else {
+            setVisible(activePage.index);
+        }
+
         scheduleUpdate(activePage.index, activePage.chapterName);
 
-        logger.ReaderPage(
+        logger.virtualManager(
             `Virtual active synced to lazy loader: ${activePage.chapterName} #${activePage.index + 1}`
         );
     }, [
@@ -356,11 +366,13 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         viewMode,
         setVisible,
         scheduleUpdate,
+        getCurrentChapter,
+        transitionToChapter,
     ]);
 
     // Пока добавим, для сохранения корректной работы старой системы ниже
     // isReaderPreparing теперь может меняться в течении работы скролла читалки
-    // Что вызывает лишние реакции со стороны Автоскроллf до нужной страницы
+    // Что вызывает лишние реакции со стороны Автоскролл до нужной страницы
     React.useEffect(() => {
         const key = `${chapterName}:${viewMode}`;
 
@@ -403,43 +415,38 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
             }
         }
 
-        const selector = `.manga-page-wrapper[data-chapter-name="${currentChapter}"][data-page-idx="${pageToScroll}"]`;
-
-        let animationFrame: number | null = null;
-        let unlockTimer: number | null = null;
-
-        const scrollTimer = window.setTimeout(() => {
-            const targetEl = containerRef.current?.querySelector(selector);
-
-            if (targetEl) {
-                targetEl.scrollIntoView({ behavior: "instant", block: "start" });
-                logger.ReaderPage("Scrolled to:", currentChapter, pageToScroll);
-            } else if (pageToScroll === 0 && containerRef.current) {
-                containerRef.current.scrollTo({ top: 0, behavior: "instant" });
-            }
-
-            animationFrame = window.requestAnimationFrame(() => {
-                setIsPositioning(false);
-            });
-
-            unlockTimer = window.setTimeout(() => {
-                isAutoScrolling.current = false;
-            }, 1000);
-
-            pendingPositionKeyRef.current = null;
-        }, 100);
-
-        return () => {
-            if (scrollTimer !== null) window.clearTimeout(scrollTimer);
-
-            if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
-
-            if (unlockTimer !== null) window.clearTimeout(unlockTimer);
-        };
+        setIsPositioning(false);
+        pendingPositionKeyRef.current = null;
+        pendingViewModeAnchorRef.current = null;
     }, [
         isReaderPreparing,
-        chapterName,
+        chapterName, // пока тут лишний, но в будущем при смене главы пригодится? Хотя у меня при жесткой снеме - перезапуск всего ридера
         viewMode,
+        virtualReader.readerLayout,
+        visibleIndex
+    ]);
+
+    // Делаем scrollTo по запросу хука
+    React.useLayoutEffect(() => {
+        if (virtualReader.pendingScrollTop === null) {
+            return;
+        }
+
+        const container = containerRef.current;
+
+        if (!container) {
+            return;
+        }
+
+        container.scrollTo({
+            top: virtualReader.pendingScrollTop,
+            behavior: "instant",
+        });
+
+        virtualReader.ackPendingScroll();
+    }, [
+        virtualReader.pendingScrollTop,
+        virtualReader.ackPendingScroll,
     ]);
 
     React.useEffect(() => {
@@ -451,10 +458,10 @@ export const ReaderPage = ({ app, plugin, parentPath, chapterName, onChapterChan
         lastChapterRef.current = chapterName;
     }, [chapterName]);
 
-    // Эффект для отслеживания скролла
+    // Эффект для отслеживания скролла - полностью отключен сейчас
     React.useEffect(() => {
         if (
-            useVirtualScroll ||
+            useVirtualScroll || // Рабочий useVirtualScroll гарантирует, что эффект не запустится
             virtualReader.isLoading ||
             !isObserverReady ||
             totalPages === 0 ||

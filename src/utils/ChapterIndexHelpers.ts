@@ -24,15 +24,26 @@ export function createChapterIndexerOptions(params: {
         signal,
     };
 }
-
+/**
+ * Помошник, создает удобный ключ с разделителем, по которому потом легко достать содержимое
+ * В тех случаях, где сложно или неудобно передавать параметры по отдельности
+ * @returns `{parentPath}::{chapterName}`
+ * 
+ */
 export function createChapterKey(parentPath: string, chapterName: string): string {
     return `${parentPath}::${chapterName}`;
 }
 
+/**
+ * Проверка на архивность
+ */
 export function isArchiveChapter(chapterName: string): boolean {
     return chapterName.endsWith('.zip') || chapterName.endsWith('.cbz');
 }
 
+/**
+ * Проверка на внешний источник
+ */
 export function isExternalPath(parentPath: string): boolean {
     return parentPath.includes(":\\") || parentPath.startsWith("/");
 }

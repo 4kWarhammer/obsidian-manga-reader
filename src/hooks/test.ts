@@ -44,9 +44,6 @@ export interface UseVirtualMangaReaderResult {
     error: string | null;
     indexingProgress: ChapterIndexerProgress | null;
     onScroll: (scrollTop: number, clientHeight?: number) => void;
-    // Для якорения в момент resize
-    pendingScrollTop: number | null;
-    ackPendingScroll: () => void;
 }
 
 export function useVirtualMangaReader(
@@ -66,23 +63,6 @@ export function useVirtualMangaReader(
         overscan = 1000,
     } = options;
 
-    const readerLayoutRef = React.useRef<ReaderLayout | null>(null);
-    const activePageRef = React.useRef<ReaderPageLayout | null>(null);
-    const viewportHeightRef = React.useRef(viewportHeight);
-    const scrollTopRef = React.useRef(0);
-
-
-    /**
-     * Защита от повторной фоновой индексации одной и той же главы.
-     */
-    const loadingChapterKeysRef = React.useRef<Set<string>>(new Set());
-
-    /**
-     * Ключ стартовой главы. Нужен, чтобы initialPage применялся только
-     * А может просто сделать boolean флаг для разовой активации в начале???
-     */
-    const initialAnchorKeyRef = React.useRef<string | null>(null);
-
     /**
      * Индексы глав.
      *
@@ -95,6 +75,12 @@ export function useVirtualMangaReader(
 
     /**
      * Список глав, которые должны присутствовать в ReaderLayout.
+     *
+     * На первом этапе:
+     * [current, next]
+     *
+     * Потом при переходе activePage в next:
+     * [current, next, nextNext]
      */
     const [desiredChapterNames, setDesiredChapterNames] = React.useState<string[]>([]);
 
@@ -103,7 +89,9 @@ export function useVirtualMangaReader(
     const [visibleRange, setVisibleRange] = React.useState<VisibleRange>({ start: 0, end: 0 });
 
     /**
-     * Флаг для загрузки/индексации текущей главы.
+     * isLoading здесь означает именно загрузку/индексацию текущей главы.
+     *
+     * Background indexing соседей не должен включать глобальный loader.
      */
     const [isLoading, setIsLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -111,10 +99,23 @@ export function useVirtualMangaReader(
         React.useState<ChapterIndexerProgress | null>(null);
 
     /**
-     * Значение для корректировки положения экрана
+     * Текущий scrollTop virtual reader-а.
+     *
+     * Нужен, чтобы пересчитывать activePage/visibleRange
+     * после изменения readerLayout или viewportHeight.
      */
-    const [pendingScrollTop, setPendingScrollTop] = React.useState<number | null>(null);
+    const scrollTopRef = React.useRef(0);
 
+    /**
+     * Защита от повторной фоновой индексации одной и той же главы.
+     */
+    const loadingChapterKeysRef = React.useRef<Set<string>>(new Set());
+
+    /**
+     * Ключ стартовой главы. Нужен, чтобы initialPage применялся только
+     * при открытии новой главы, а не при каждом пересчёте layout.
+     */
+    const initialAnchorKeyRef = React.useRef<string | null>(null);
 
     const allChaptersKey = React.useMemo(() => {
         return allChapters.join("\u0000");
@@ -174,19 +175,6 @@ export function useVirtualMangaReader(
         });
     }, [overscan]);
 
-    // Синхронизируем отдельно Ref и State для readerLayout и activePage
-    React.useEffect(() => {
-        readerLayoutRef.current = readerLayout;
-    }, [readerLayout]);
-
-    React.useEffect(() => {
-        activePageRef.current = activePage;
-    }, [activePage]);
-
-    React.useEffect(() => {
-        viewportHeightRef.current = viewportHeight;
-    }, [viewportHeight]);
-
     // ============================================================
     // Desired chapters initialization
     // ============================================================
@@ -207,8 +195,8 @@ export function useVirtualMangaReader(
         initialAnchorKeyRef.current = null;
         scrollTopRef.current = 0;
 
-        logger.virtualManager(
-            `Virtual desired chapters set for "${chapterName}": ${initialWindow.join(", ")}`
+        logger.ReaderPage(
+            `Virtual desired chapters reset for "${chapterName}": ${initialWindow.join(", ")}`
         );
     }, [
         allChaptersKey,
@@ -368,7 +356,8 @@ export function useVirtualMangaReader(
     // ============================================================
 
     /**
-     * Строим ReaderLayout из desired chapters
+     * Строим ReaderLayout из тех desired chapters,
+     * чьи CachedChapterIndex уже готовы.
      *
      * Это лёгкая frontend-операция.
      * Она не включает isLoading.
@@ -389,7 +378,7 @@ export function useVirtualMangaReader(
 
 
             // Если какой то индекс ещё не готов — просто пропускаем.
-            if (!index) break;
+            if (!index) continue;
 
             layouts.push(
                 buildChapterLayout(index, targetChapterName, {
@@ -407,15 +396,12 @@ export function useVirtualMangaReader(
 
         const nextReaderLayout = buildReaderLayout(layouts);
 
-        // ============================================================
-        // Выставляем положение окна
-        // ============================================================
-
-        // При первичном открытии - на InitialPage
+        /**
+         * Применяем initialPage только один раз на открытую главу.
+         */
         const anchorKey = getChapterIndexKey(chapterName);
-        const isInitialAnchoring = initialAnchorKeyRef.current !== anchorKey;
 
-        if (isInitialAnchoring) {
+        if (initialAnchorKeyRef.current !== anchorKey) {
             const initialPageLayout =
                 nextReaderLayout.pages.find(page =>
                     page.chapterKey === anchorKey &&
@@ -428,30 +414,9 @@ export function useVirtualMangaReader(
                 null;
 
             scrollTopRef.current = initialPageLayout?.offsetTopInReader ?? 0;
-            setPendingScrollTop(scrollTopRef.current);
             initialAnchorKeyRef.current = anchorKey;
-        } else {
-            // Якоримся при изменении viewportWidth
-            const prevLayout = readerLayoutRef.current;
-            const prevScrollTop = scrollTopRef.current;
-            const prevViewportHeight = viewportHeightRef.current;
-            const nextViewportHeight = viewportHeight;
-
-            const anchoredScrollTop = computeAnchoredScrollTop(
-                prevLayout,
-                nextReaderLayout,
-                prevScrollTop,
-                prevViewportHeight,
-                nextViewportHeight
-            );
-
-            if (anchoredScrollTop !== null) {
-                scrollTopRef.current = anchoredScrollTop;
-                setPendingScrollTop(anchoredScrollTop);
-            }
         }
 
-        readerLayoutRef.current = nextReaderLayout;
         setReaderLayout(nextReaderLayout);
     }, [
         chapterIndexes,
@@ -517,12 +482,8 @@ export function useVirtualMangaReader(
             if (prev.includes(nextChapterName)) {
                 return prev;
             }
-            const addToDesired = [...prev, nextChapterName]
 
-            logger.virtualManager(
-                `Virtual desired chapters refresh for "${activeChapterName}": ${addToDesired.join(", ")}`
-            );
-            return addToDesired;
+            return [...prev, nextChapterName];
         });
     }, [
         activePage?.chapterName,
@@ -555,11 +516,6 @@ export function useVirtualMangaReader(
         updateVisibleState,
     ]);
 
-    // Для выполнения извне
-    const ackPendingScroll = React.useCallback(() => {
-        setPendingScrollTop(null);
-    }, []);
-
     const visiblePages = React.useMemo(() => {
         if (!readerLayout) return [];
 
@@ -581,8 +537,6 @@ export function useVirtualMangaReader(
         error,
         indexingProgress,
         onScroll,
-        pendingScrollTop,
-        ackPendingScroll,
     };
 }
 
@@ -634,54 +588,4 @@ function getNextChapterName(
     }
 
     return allChapters[currentIndex + 1];
-}
-
-function computeAnchoredScrollTop(
-    prevLayout: ReaderLayout | null,
-    nextLayout: ReaderLayout,
-    prevScrollTop: number,
-    prevViewportHeight: number,
-    nextViewportHeight: number
-): number | null {
-    if (!prevLayout || prevLayout.pages.length === 0 || nextLayout.pages.length === 0) {
-        return null;
-    }
-
-    const previousAnchorOffset = prevScrollTop + prevViewportHeight / 2;
-
-    const previousPage = findPageByOffset(
-        prevLayout.pages,
-        previousAnchorOffset
-    );
-
-    if (!previousPage) {
-        return null;
-    }
-
-    const nextPage = nextLayout.pages.find(page =>
-        page.chapterKey === previousPage.chapterKey &&
-        page.index === previousPage.index
-    );
-
-    if (!nextPage) {
-        return null;
-    }
-
-    const offsetInsidePage = previousAnchorOffset - previousPage.offsetTopInReader;
-
-    const ratio = previousPage.renderedHeight > 0
-        ? offsetInsidePage / previousPage.renderedHeight
-        : 0;
-
-    const clampedRatio = Math.max(0, Math.min(1, ratio));
-
-    const nextAnchorOffset =
-        nextPage.offsetTopInReader + nextPage.renderedHeight * clampedRatio;
-
-    const nextScrollTop = nextAnchorOffset - nextViewportHeight / 2;
-
-    return Math.max(0, Math.min(
-        nextScrollTop,
-        Math.max(0, nextLayout.totalHeight - nextViewportHeight)
-    ));
 }

@@ -23,9 +23,20 @@ export function useElementSize<T extends HTMLElement>(
         const updateSize = () => {
             const rect = element.getBoundingClientRect();
 
-            setSize({
-                width: rect.width,
-                height: rect.height,
+            // Нам не нужны subpixel изменения
+            // дробные размеры могут лишний раз пересобирать layout;
+            const nextWidth = Math.round(rect.width);
+            const nextHeight = Math.round(rect.height);
+
+            setSize(prev => {
+                if (prev.width === nextWidth && prev.height === nextHeight) {
+                    return prev;
+                }
+
+                return {
+                    width: nextWidth,
+                    height: nextHeight,
+                };
             });
         };
 

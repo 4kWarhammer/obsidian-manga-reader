@@ -115,8 +115,9 @@ export interface ImageIndexCacheFile {
 }
 
 // ============================================================
-// Runtime Layout (НЕ персистится)
+// Runtime Layout
 // ============================================================
+// Страницы, их данные в разрезе отдельной главы
 export interface PageLayout {
     chapterKey: string;
     index: number;
@@ -138,6 +139,7 @@ export interface ChapterLayout {
     totalHeight: number;
 }
 
+// Страницы, их данные в разрезе всего ридера
 export interface ReaderPageLayout {
     index: number;
     chapterKey: string;

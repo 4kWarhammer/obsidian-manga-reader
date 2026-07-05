@@ -2,42 +2,28 @@ import * as React from "react";
 import { MangaPage } from "./MangaPage";
 import { ReaderHeader } from "./ReaderHeader";
 import { ImageProvider } from "src/types";
-import { ChapterSegment } from "./ChapterSegment";
 import { ReaderLayout, ReaderPageLayout } from "src/types";
 import { VirtualScrollSurface } from "./VirtualScrollSurface";
 
 interface MangaCanvasProps {
     containerRef: React.RefObject<HTMLDivElement | null>
-    isLoading: boolean;
     viewMode: "scroll" | "single";
     isMobile?: boolean;
     onToggleViewMode: () => void;
     currentPage: number;
-    chapterName: string; // текущая активная глава из пропсов
+    chapterName: string;
     allChapters: string[],
     onBack:() => void,
     onChapterChange:(chapterName: string, resetPage?: boolean) => void,
     onPageClick: (index: number, chName: string) => void;
-    hasNextChapter: boolean;
-    imageProvider?: ImageProvider;
-    currentImageUrl?: string | null;
-    isImageLoading?: boolean;
-    chaptersToRender?: ChapterInfo[];
-    // Вот эти 3 пока добавлю
-    useVirtualScroll?: boolean;
-    virtualReaderLayout?: ReaderLayout | null;
-    virtualVisiblePages?: ReaderPageLayout[];
-}
-
-interface ChapterInfo {
-    chapterName: string;
-    totalPages: number;
+    imageProvider: ImageProvider;
+    virtualReaderLayout: ReaderLayout | null;
+    virtualVisiblePages: ReaderPageLayout[];
 }
 
 // Это наш "диспетчер" для отображаемых элементов
 export const MangaCanvas = React.memo(({ 
     containerRef,
-    isLoading,
     viewMode,
     isMobile,
     onToggleViewMode,
@@ -47,21 +33,17 @@ export const MangaCanvas = React.memo(({
     onBack, 
     onChapterChange, 
     onPageClick, 
-    hasNextChapter, 
     imageProvider,
-    chaptersToRender,
-    useVirtualScroll,
     virtualReaderLayout,
     virtualVisiblePages
 }: MangaCanvasProps) => {
     const [showUI, setShowUI] = React.useState(false);
-    const totalPages = imageProvider?.getTotalPages() || 0;
-    // Пока только для single mode используются
-    // const currentImageUrl = imageProvider?.getImageUrl(currentPage);
-    // const isImageLoading = imageProvider?.isLoading(currentPage)
 
-    // Обработчик клика/тапа по канвасу
-    // Возможно проблема - в скролле нам не нужны клики с onPageClick
+    /**
+     * Универсальный обработчик кликов по канвасу
+     * В scroll mode - вызывает header UI
+     * В single mode - навигация по страницам
+     */
     const handleCanvasClick = (e: React.MouseEvent | React.TouchEvent) => {
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
         const screenWidth = window.innerWidth;
@@ -93,16 +75,6 @@ export const MangaCanvas = React.memo(({
         };
     }, []);
 
-    // Диспетчер состояний: если грузимся - рисуем только лоадер
-    // if (isLoading) {
-    //     return (
-    //         <div className="manga-reader-loading">
-    //             <div className="spinner"></div>
-    //             <p>Загрузка контента...</p>
-    //         </div>
-    //     );
-    // }
-
     return (
         <div 
             ref={containerRef} 
@@ -131,29 +103,13 @@ export const MangaCanvas = React.memo(({
                 className="manga-reader-container scroll-mode"
                 onClick={handleCanvasClick}
                 >
-                    {/* Вот тут новая логика, пока двойная для двух систем */}
-                    {useVirtualScroll && virtualReaderLayout ? (
+                    {virtualReaderLayout ? (
                         <VirtualScrollSurface
                             readerLayout={virtualReaderLayout}
-                            visiblePages={virtualVisiblePages || []}
-                            imageProvider={imageProvider!}
+                            visiblePages={virtualVisiblePages}
+                            imageProvider={imageProvider}
                         />
-                    ) : (
-                        <>
-                            {(chaptersToRender || [{ chapterName, totalPages }]).map(chapter => (
-                                <ChapterSegment
-                                    key={chapter.chapterName}
-                                    chapterName={chapter.chapterName}
-                                    totalPages={chapter.totalPages}
-                                    imageProvider={imageProvider!}
-                                />
-                            ))}
-
-                            <div id="end-of-list-sensor" className="manga-sensor">
-                                {hasNextChapter ? "Загрузка следующей главы..." : "Конец истории"}
-                            </div>
-                        </>
-                    )}
+                    ) : null} 
                 </div>
             ) : (
                 // Диспетчер режимов: Постранично
@@ -162,7 +118,7 @@ export const MangaCanvas = React.memo(({
                 onClick={handleCanvasClick}
                 >
                     <MangaPage 
-                        url={imageProvider?.loadedUrls?.get(`${chapterName}:${currentPage}`) || undefined}
+                        url={imageProvider.loadedUrls?.get(`${chapterName}:${currentPage}`) || undefined}
                         isLoading={imageProvider?.isLoading?.(chapterName, currentPage)}
                         index={currentPage} 
                         chapterName={chapterName}

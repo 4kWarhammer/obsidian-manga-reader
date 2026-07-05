@@ -1,3 +1,4 @@
+// Под удаление!
 import * as React from "react";
 import { MangaPage } from "./MangaPage";
 import { ImageProvider } from "src/types";

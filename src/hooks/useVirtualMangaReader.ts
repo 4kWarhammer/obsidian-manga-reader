@@ -49,6 +49,10 @@ export interface UseVirtualMangaReaderResult {
     ackPendingScroll: () => void;
 }
 
+/**
+ * Хук управления virtual DOM. Выдает Layout для отрисовки
+ * Дает информацию о текущей и соседней странице 
+ */
 export function useVirtualMangaReader(
     options: UseVirtualMangaReaderOptions
 ): UseVirtualMangaReaderResult {

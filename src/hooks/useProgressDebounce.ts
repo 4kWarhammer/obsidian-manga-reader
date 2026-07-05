@@ -1,9 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 
 export const useProgressDebounce = (
-    // Основной callback, который реально записывает на диск
     onSave: (pageIdx: number, chapterName: string) => Promise<void>,
-    // Время ожидания в миллисекундах (500мс)
     delay: number = 500
 ) => {
     // === ПАМЯТЬ ===
@@ -12,8 +10,7 @@ export const useProgressDebounce = (
         pageIdx: number;
         chapterName: string;
     } | null>(null);
-    
-    // Таймер, который мы можем отменить если пришло новое событие
+
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     
     // Флаг: прямо сейчас записываем на диск?

@@ -5,7 +5,6 @@ import { useReaderInitialPage } from "src/hooks/useReaderInitialPage";
 import { useMinimumVisible } from "src/hooks/useMinimumVisible";
 import { translations } from "src/i18n";
 import { MangaCanvas } from "./ui/MangaCanvas";
-import { useProgressDebounce } from "src/hooks/useProgressDebounce";
 import { useLazyImageLoader } from "src/hooks/useLazyImageLoader";
 import { logger } from "src/utils/logger";
 import { useElementSize } from "src/hooks/useElementSize";

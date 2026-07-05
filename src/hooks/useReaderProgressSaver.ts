@@ -1,6 +1,6 @@
 import * as React from "react";
 import type MangaReaderPlugin from "../main";
-import { useProgressDebounce } from "src/hooks/useProgressDebounce";
+import { useDebouncedCallback } from "./useDebouncedCallback";
 import { logger } from "src/utils/logger";
 
 /**
@@ -13,8 +13,12 @@ export function useReaderProgressSaver(
     plugin: MangaReaderPlugin,
     parentPath: string,
     debounceTime: number = 500
-) {
-    const onSaveCallback = React.useCallback(
+): {
+    scheduleUpdate: (pageIdx: number, chapterName: string) => void;
+    flush: () => Promise<void>;
+    cancel: () => void;
+} {
+    const saveProgress = React.useCallback(
         async (pageIdx: number, chapterName: string) => {
             const progress = plugin.data.library[parentPath];
 
@@ -39,5 +43,15 @@ export function useReaderProgressSaver(
         [parentPath, plugin]
     );
 
-    return useProgressDebounce(onSaveCallback, debounceTime);
+    const {
+        scheduleUpdate,
+        flush,
+        cancel,
+    } = useDebouncedCallback(saveProgress, debounceTime);
+
+    return {
+        scheduleUpdate,
+        flush,
+        cancel,
+    };
 }

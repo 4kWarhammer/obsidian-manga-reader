@@ -3,6 +3,7 @@
 // извлекает размеры через createImageBitmap, возвращает CachedChapterIndex.
 // ============================================================
 
+import { TFile } from 'obsidian';
 import {
     CachedChapterIndex,
     ChapterSignature,
@@ -17,10 +18,10 @@ import {
     ChapterIndexerProgress,
 } from 'src/utils/indexTypes';
 import { 
-    ImageDimensionExtractor, 
-    extractWithConcurrency, 
+    ImageDimensionExtractor,
     INDEXER_CONCURRENCY 
 } from 'src/utils/ImageDimensionExtractor';
+import { runWithConcurrency } from './runWithConcurrency';
 import { ImageLoader } from './ImageLoader';
 import { ImageCache } from 'src/utils/ImageCache';
 import { logger } from 'src/utils/logger';
@@ -61,46 +62,41 @@ export class ChapterIndexer {
                 return this.buildEmptyIndex(opts, signature);
             }
 
-            // 3. Загружаем буферы
-            const items = await this.loadImageBuffers(loader, imageFiles, signal);
-
-            // 4. Извлекаем размеры
-            const pages: CachedChapterIndex['pages'] = [];
-
+            // 3. Загружаем изображения и извлекаем размеры с ограниченной конкуррентностью
             let completed = 0;
 
-            const extracted = await extractWithConcurrency(
-                items,
+            const pages: CachedChapterIndex['pages'] = await runWithConcurrency(
+                imageFiles,
                 INDEXER_CONCURRENCY,
-                async (buffer, mimeType) => {
+                async (fileName, index) => {
                     if (signal?.aborted) {
-                        throw new Error('Aborted during extraction');
+                        throw new Error('Aborted during indexing');
                     }
-                    return await ImageDimensionExtractor.extract(buffer, mimeType);
+
+                    const buffer = await loader.loadFile(fileName);
+                    const mimeType = loader.getMimeType(fileName);
+
+                    const dim = await ImageDimensionExtractor.extract(buffer, mimeType);
+
+                    return {
+                        index,
+                        fileName,
+                        width: dim.width,
+                        height: dim.height,
+                        aspectRatio: dim.aspectRatio,
+                        mimeType: dim.mimeType,
+                    };
                 },
-                index => {
+                (index, _page, fileName) => {
                     completed++;
 
                     onProgress?.({
                         loaded: completed,
                         total: totalFilesCount,
-                        currentFile: imageFiles[index],
+                        currentFile: fileName,
                     });
                 }
             );
-
-            for (let i = 0; i < extracted.length; i++) {
-                const dim = extracted[i];
-
-                pages.push({
-                    index: i,
-                    fileName: imageFiles[i],
-                    width: dim.width,
-                    height: dim.height,
-                    aspectRatio: dim.aspectRatio,
-                    mimeType: dim.mimeType,
-                });
-            }
 
             const elapsed = performance.now() - startedAt;
             logger.perf(`ChapterIndexer: indexed ${opts.chapterName} in ${elapsed.toFixed(0)}ms (${totalFilesCount} pages)`);
@@ -141,27 +137,22 @@ export class ChapterIndexer {
         : `${opts.parentPath}/${opts.chapterName}`;
 
         let size: number;
-        let mtime: number;
 
         if (opts.isExternal) {
             const stat = await fs.promises.stat(archivePath);
             size = stat.size;
-            mtime = stat.mtimeMs;
         } else {
             const file = opts.app.vault.getAbstractFileByPath(archivePath);
-            if (!file) {
-                throw new Error(`Archive not found: ${archivePath}`);
+            if (!(file instanceof TFile)) {
+                throw new Error(`Archive is not a file: ${archivePath}`);
             }
-            const buffer = await opts.app.vault.readBinary(file as any);
-            size = buffer.byteLength;
-            mtime = (file as any).stat.mtime;
+            size = file.stat.size;
         }
 
         return {
             kind: 'archive',
             path: archivePath,
             size,
-            mtime,
         };
     }
 
@@ -170,7 +161,6 @@ export class ChapterIndexer {
         const loader = this.createLoader(opts);
         const files = await loader.getImageFilesList();
 
-        // Если пустая папка??
         if (files.length === 0) {
             return {
                 kind: 'folder',
@@ -190,21 +180,18 @@ export class ChapterIndexer {
                 : `${opts.parentPath}/${opts.chapterName}/${fileName}`;
 
             let size: number;
-            let mtime: number;
 
             if (opts.isExternal) {
                 const stat = await fs.promises.stat(fullPath);
                 size = stat.size;
-                mtime = stat.mtimeMs;
             } else {
                 const file = opts.app.vault.getAbstractFileByPath(fullPath);
                 if (!file) continue;
-                const buffer = await opts.app.vault.readBinary(file as any);
-                size = buffer.byteLength;
-                mtime = (file as any).stat.mtime;
+                if (!(file instanceof TFile)) continue;;
+                size = file.stat.size;
             }
 
-            entries.push(`${fileName}:${size}:${mtime}`);
+            entries.push(`${fileName}:${size}`);
         }
 
         const sorted = entries.sort();
@@ -218,32 +205,6 @@ export class ChapterIndexer {
             fileCount: files.length,
             filesHash: hash,
         };
-    }
-
-    // ============================================================
-    // Загрузка буферов (по одному, без createImageBitmap)
-    // ============================================================
-
-    private async loadImageBuffers(
-        loader: ImageLoader,
-        files: string[],
-        signal?: AbortSignal
-    ): Promise<Array<{ buffer: ArrayBuffer; mimeType: string }>> {
-        const items: Array<{ buffer: ArrayBuffer; mimeType: string }> = [];
-
-        for (let i = 0; i < files.length; i++) {
-            if (signal?.aborted) {
-                throw new Error('Aborted during buffer loading');
-            }
-
-            const fileName = files[i];
-            const buffer = await loader.loadFile(fileName);
-            const mimeType = loader.getMimeType(fileName);
-
-            items.push({ buffer, mimeType });
-        }
-
-        return items;
     }
 
     // ============================================================
@@ -281,21 +242,6 @@ export class ChapterIndexer {
             pageCount: 0,
             pages: [],
         };
-    }
-
-    // Не нужна уже
-    private getMimeType(fileName: string): string {
-        const ext = fileName.split('.').pop()?.toLowerCase() || '';
-
-        const types: Record<string, string> = {
-            jpg: 'image/jpeg',
-            jpeg: 'image/jpeg',
-            png: 'image/png',
-            webp: 'image/webp',
-            avif: 'image/avif',
-        };
-
-        return types[ext] || 'image/jpeg';
     }
 }
 

@@ -74,6 +74,7 @@ export function useVirtualMangaReader(
     const activePageRef = React.useRef<ReaderPageLayout | null>(null);
     const viewportHeightRef = React.useRef(viewportHeight);
     const scrollTopRef = React.useRef(0);
+    const mountedRef = React.useRef(true);
 
 
     /**
@@ -190,6 +191,14 @@ export function useVirtualMangaReader(
     React.useEffect(() => {
         viewportHeightRef.current = viewportHeight;
     }, [viewportHeight]);
+
+    React.useEffect(() => {
+        mountedRef.current = true;
+
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     // ============================================================
     // Desired chapters initialization
@@ -309,6 +318,8 @@ export function useVirtualMangaReader(
             const indexManager = plugin.getChapterIndexManager();
 
             for (const targetChapterName of desiredChapterNames) {
+                if (cancelled) return;
+
                 if (targetChapterName === chapterName) {
                     continue;
                 }
@@ -335,9 +346,15 @@ export function useVirtualMangaReader(
                         1
                     );
 
-                    if (cancelled) return;
+                    if (!mountedRef.current) {
+                        return;
+                    }
 
                     setChapterIndexes(prev => {
+                        if (prev.has(opts.chapterKey)) {
+                            return prev;
+                        }
+
                         const next = new Map(prev);
                         next.set(opts.chapterKey, index);
                         return next;

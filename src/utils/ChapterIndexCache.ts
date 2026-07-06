@@ -44,6 +44,13 @@ export class ChapterIndexCache {
             }
 
             const content = await this.adapter.read(this.cachePath);
+
+            // Перехватываем, если content не создался
+            if (!content.trim()) {
+                console.warn('ChapterIndexCache: empty cache file, starting fresh');
+                this.cache = createEmptyCache();
+                return;
+            }
             const parsed = JSON.parse(content) as ImageIndexCacheFile;
 
             // Базовая валидация структуры
@@ -141,8 +148,8 @@ export class ChapterIndexCache {
         if (entry.signature.kind === 'archive' && signature.kind === 'archive') {
             return (
                 entry.signature.path === signature.path &&
-                entry.signature.size === signature.size &&
-                entry.signature.mtime === signature.mtime
+                entry.signature.size === signature.size
+                // entry.signature.mtime === signature.mtime
             );
         }
 

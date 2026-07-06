@@ -71,7 +71,6 @@ export interface ChapterSignatureArchive {
     kind: 'archive';
     path: string;
     size: number;
-    mtime: number;
 }
 export interface ChapterSignatureFolder {
     kind: 'folder';

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { App } from "obsidian";
-import { ReaderLayout, ReaderPageLayout } from "src/types";
+import { ReaderLayout, ReaderPageLayout, VirtualImageProvider } from "src/types";
 import { ImageCache } from "src/utils/ImageCache";
 import { ImageLoader } from "src/utils/ImageLoader";
 import { isArchiveChapter } from "src/utils/ChapterIndexHelpers";
@@ -18,17 +18,12 @@ export interface UseVirtualImageLoaderOptions {
     retainBefore?: number;
     retainAfter?: number;
 
-    //Сколько Blob URL загружать параллельно.
-    loadConcurrency?: number;
-}
+    // Насколько близко activePage должна подойти к краю retained range,
+    // чтобы окно пересчиталось.
+    retainEdgeThreshold?: number;
 
-// Альтернатива ImageProvider, но с меньшим количеством методов
-export interface VirtualImageLoaderResult {
-    loadedUrls: Map<string, string>;
-    isLoading: (chapter: string, index: number) => boolean;
-    isInRange: (chapter: string, index: number) => boolean;
-    releasePage: (chapter: string, index: number) => void;
-    clear: () => void;
+    // Сколько Blob URL загружать параллельно.
+    loadConcurrency?: number;
 }
 
 interface ChapterLoaderEntry {
@@ -36,41 +31,141 @@ interface ChapterLoaderEntry {
     cache: ImageCache;
 }
 
+interface RetainedRange {
+    chapterName: string;
+    start: number;
+    end: number;
+}
+
+interface LoadedImageResult {
+    key: string;
+    url: string | null;
+}
+
 export function useVirtualImageLoader({
     app,
     parentPath,
+    readerLayout,
     visiblePages,
     activePage,
     retainBefore = 6,
     retainAfter = 8,
+    retainEdgeThreshold = 2,
     loadConcurrency = 2,
-}: UseVirtualImageLoaderOptions): VirtualImageLoaderResult {
+}: UseVirtualImageLoaderOptions): VirtualImageProvider {
     const [loadedUrls, setLoadedUrls] = React.useState<Map<string, string>>(
         () => new Map()
     );
 
+    /**
+     * State нужен, чтобы effects/useMemo реагировали на изменение retained range.
+     * Ref нужен, чтобы быстро проверять актуальное окно без лишних deps.
+     */
+    const [retainedRange, setRetainedRange] =
+        React.useState<RetainedRange | null>(null);
+
+    const retainedRangeRef = React.useRef<RetainedRange | null>(null);
+
+    const desiredKeysRef = React.useRef<Set<string>>(new Set());
+    const mountedRef = React.useRef(true);
+
     const loadedUrlsRef = React.useRef<Map<string, string>>(new Map());
     const loadingSetRef = React.useRef<Set<string>>(new Set());
     const promiseMapRef = React.useRef<Map<string, Promise<string>>>(new Map());
+
     const chapterLoadersRef = React.useRef<Map<string, ChapterLoaderEntry>>(new Map());
 
-    const desiredKeys = React.useMemo(() => {
+    /**
+     * Для visible pages отдельно строим key set:
+     * они имеют самый высокий приоритет для загрузки.
+     */
+    const visibleKeys = React.useMemo(() => {
         const keys = new Set<string>();
 
         for (const page of visiblePages) {
             keys.add(createImageKey(page.chapterName, page.index));
         }
 
-        if (activePage) {
-            for (const page of visiblePages) {
-                if (page.chapterName !== activePage.chapterName) {
+        return keys;
+    }, [visiblePages]);
+
+    const effectiveRetainedRange = React.useMemo(() => {
+        if (!readerLayout || !activePage) {
+            return retainedRange;
+        }
+
+        // Тут оператор проверки на пустоту. Если левая часть есть - возвращает
+        // Если нету (null, undefined) - выполняет функцию из правой части
+        return retainedRange ?? buildRetainedRange(
+            readerLayout,
+            activePage,
+            retainBefore,
+            retainAfter
+        );
+    }, [
+        readerLayout,
+        activePage,
+        retainedRange,
+        retainBefore,
+        retainAfter,
+    ]);
+
+    // Эффект для переопределения retained range
+    React.useEffect(() => {
+        if (!readerLayout) return;
+        if (!activePage) return;
+
+        const currentRange = retainedRangeRef.current;
+
+        const shouldRecenter = shouldRecenterRetainedRange(
+                activePage,
+                currentRange,
+                retainEdgeThreshold
+            )
+            
+        if (!shouldRecenter) {
+            return;
+        }
+
+        const nextRange = buildRetainedRange(
+            readerLayout,
+            activePage,
+            retainBefore,
+            retainAfter
+        );
+
+        retainedRangeRef.current = nextRange;
+        setRetainedRange(nextRange);
+
+        logger.virtualManager(
+            `Virtual image retained range: ${nextRange.chapterName} [${nextRange.start}-${nextRange.end}]`
+        );
+    }, [
+        readerLayout,
+        activePage,
+        retainBefore,
+        retainAfter,
+        retainEdgeThreshold,
+    ]);
+
+    /**
+     * desiredKeys = то, что нужно держать в памяти:
+     * 1. Все видимые страницы.
+     * 2. Retained range вокруг activePage.
+     */
+    const desiredKeys = React.useMemo(() => {
+        const keys = new Set<string>(visibleKeys);
+
+        if (readerLayout && effectiveRetainedRange) {
+            for (const page of readerLayout.pages) {
+                if (page.chapterName !== effectiveRetainedRange.chapterName) {
                     continue;
                 }
 
-                const min = activePage.index - retainBefore;
-                const max = activePage.index + retainAfter;
-
-                if (page.index >= min && page.index <= max) {
+                if (
+                    page.index >= effectiveRetainedRange.start &&
+                    page.index <= effectiveRetainedRange.end
+                ) {
                     keys.add(createImageKey(page.chapterName, page.index));
                 }
             }
@@ -78,16 +173,18 @@ export function useVirtualImageLoader({
 
         return keys;
     }, [
-        visiblePages,
-        activePage,
-        retainBefore,
-        retainAfter,
+        readerLayout,
+        effectiveRetainedRange,
+        visibleKeys,
     ]);
 
     const desiredKeysKey = React.useMemo(() => {
         return Array.from(desiredKeys).sort().join("\u0000");
     }, [desiredKeys]);
 
+    /**
+     * Подключает к главе ImageCache и ImageLoader
+     */
     const getChapterLoader = React.useCallback((chapterName: string): ChapterLoaderEntry => {
         const existing = chapterLoadersRef.current.get(chapterName);
 
@@ -171,8 +268,11 @@ export function useVirtualImageLoader({
         chapterLoadersRef.current.clear();
         loadingSetRef.current.clear();
         promiseMapRef.current.clear();
+        retainedRangeRef.current = null;
+
         loadedUrlsRef.current = new Map();
 
+        setRetainedRange(null);
         setLoadedUrls(new Map());
     }, []);
 
@@ -182,8 +282,37 @@ export function useVirtualImageLoader({
         };
     }, [clear]);
 
+    // Синхронизируем refs
     React.useEffect(() => {
-        const pagesToLoad = visiblePages.filter(page => {
+        desiredKeysRef.current = desiredKeys;
+    }, [desiredKeys]);
+
+    React.useEffect(() => {
+        mountedRef.current = true;
+
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
+
+    /**
+     * Основной эффект загрузки / выгрузки Blob URL.
+     *
+     * Он реагирует на изменение desiredKeys,
+     * но retained range меняется редко, поэтому загрузка/выгрузка
+     * не будет дёргаться на каждое мелкое изменение visibleRange.
+     */
+    React.useEffect(() => {
+        if (!readerLayout) {
+            pruneLoadedUrlsToDesiredKeys(
+                loadedUrlsRef.current,
+                desiredKeys,
+                releasePage
+            );
+            return;
+        }
+
+        const pagesToLoad = readerLayout.pages.filter(page => {
             const key = createImageKey(page.chapterName, page.index);
 
             if (!desiredKeys.has(key)) {
@@ -201,6 +330,13 @@ export function useVirtualImageLoader({
             return true;
         });
 
+        pagesToLoad.sort((a, b) => {
+            return (
+                getLoadPriority(a, activePage, visibleKeys) -
+                getLoadPriority(b, activePage, visibleKeys)
+            );
+        });
+
         if (pagesToLoad.length === 0) {
             pruneLoadedUrlsToDesiredKeys(
                 loadedUrlsRef.current,
@@ -211,61 +347,41 @@ export function useVirtualImageLoader({
             return;
         }
 
-        let cancelled = false;
-
         void runWithConcurrency(
             pagesToLoad,
             loadConcurrency,
+            // 3. Функция загрузки отдельной страницы
             async page => {
                 const key = createImageKey(page.chapterName, page.index);
 
-                if (cancelled) {
-                    return {
-                        key,
-                        url: null,
-                    };
-                }
-
                 loadingSetRef.current.add(key);
 
-                const existingPromise = promiseMapRef.current.get(key);
-
-                if (existingPromise) {
-                    const url = await existingPromise;
-                    return { key, url };
+                // Используем существующий промис или создаем новый
+                let promise = promiseMapRef.current.get(key);
+                if (!promise) {
+                    const { loader } = getChapterLoader(page.chapterName);
+                    promise = loader.load(page.index);
+                    promiseMapRef.current.set(key, promise);
                 }
 
-                const { loader } = getChapterLoader(page.chapterName);
-
-                const promise = loader.load(page.index);
-                promiseMapRef.current.set(key, promise);
-
-                const url = await promise;
-
-                return {
-                    key,
-                    url,
-                };
+                return { key, url: await promise };
             },
+            // 4. Функция обработки результата загрузки, onItemDone
             (_index, result) => {
-                if (cancelled) {
-                    return;
-                }
-
                 const { key, url } = result;
 
                 loadingSetRef.current.delete(key);
                 promiseMapRef.current.delete(key);
 
-                if (!url) {
-                    return;
-                }
+                // Единая проверка: нужен ли этот ресурс сейчас
+                const isNotNeeded = 
+                !mountedRef.current ||
+                !url ||
+                !desiredKeysRef.current.has(key);
 
-                if (!desiredKeys.has(key)) {
+                if (isNotNeeded) {
                     const parsed = parseImageKey(key);
-                    if (parsed) {
-                        releasePage(parsed.chapter, parsed.index);
-                    }
+                    if (parsed && url) releasePage(parsed.chapter, parsed.index);
                     return;
                 }
 
@@ -281,24 +397,25 @@ export function useVirtualImageLoader({
                 });
             }
         ).catch(error => {
-            if (!cancelled) {
-                logger.error("useVirtualImageLoader: failed to load visible images", error);
+            if (mountedRef.current) {
+                logger.error(
+                    "useVirtualImageLoader: failed to load desired images",
+                    error
+                );
             }
         }).finally(() => {
-            if (!cancelled) {
+            if (mountedRef.current) {
                 pruneLoadedUrlsToDesiredKeys(
                     loadedUrlsRef.current,
-                    desiredKeys,
+                    desiredKeysRef.current,
                     releasePage
                 );
             }
         });
-
-        return () => {
-            cancelled = true;
-        };
     }, [
-        visiblePages,
+        readerLayout,
+        activePage,
+        visibleKeys,
         desiredKeys,
         desiredKeysKey,
         loadConcurrency,
@@ -337,6 +454,82 @@ function parseImageKey(key: string): { chapter: string; index: number } | null {
         chapter,
         index,
     };
+}
+
+function buildRetainedRange(
+    readerLayout: ReaderLayout,
+    activePage: ReaderPageLayout,
+    retainBefore: number,
+    retainAfter: number
+): RetainedRange {
+    let minIndex = activePage.index;
+    let maxIndex = activePage.index;
+
+    for (const page of readerLayout.pages) {
+        if (page.chapterName !== activePage.chapterName) {
+            continue;
+        }
+
+        if (page.index < minIndex) {
+            minIndex = page.index;
+        }
+
+        if (page.index > maxIndex) {
+            maxIndex = page.index;
+        }
+    }
+
+    return {
+        chapterName: activePage.chapterName,
+        start: Math.max(minIndex, activePage.index - retainBefore),
+        end: Math.min(maxIndex, activePage.index + retainAfter),
+    };
+}
+
+function shouldRecenterRetainedRange(
+    activePage: ReaderPageLayout,
+    range: RetainedRange | null,
+    edgeThreshold: number
+): boolean {
+    if (!range) {
+        return true;
+    }
+
+    if (range.chapterName !== activePage.chapterName) {
+        return true;
+    }
+
+    if (activePage.index <= range.start + edgeThreshold) {
+        return true;
+    }
+
+    if (activePage.index >= range.end - edgeThreshold) {
+        return true;
+    }
+
+    return false;
+}
+
+function getLoadPriority(
+    page: ReaderPageLayout,
+    activePage: ReaderPageLayout | null,
+    visibleKeys: Set<string>
+): number {
+    const key = createImageKey(page.chapterName, page.index);
+
+    if (visibleKeys.has(key)) {
+        return 0;
+    }
+
+    if (!activePage) {
+        return 1000 + page.index;
+    }
+
+    if (page.chapterName === activePage.chapterName) {
+        return 10 + Math.abs(page.index - activePage.index);
+    }
+
+    return 500 + Math.abs(page.index - activePage.index);
 }
 
 function pruneLoadedUrlsToDesiredKeys(

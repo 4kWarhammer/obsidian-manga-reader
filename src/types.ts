@@ -32,11 +32,13 @@ export interface ImageProvider {
     getCurrentChapter: () => string;
 }
 
-// Новый, на замену старому, пока простой
+// Новый, на замену старому
 export interface VirtualImageProvider {
     loadedUrls: Map<string, string>;
     isLoading: (chapter: string, index: number) => boolean;
     isInRange: (chapter: string, index: number) => boolean;
+    releasePage: (chapter: string, index: number) => void;
+    clear: () => void;
 }
 
 // 2. Описываем структуру всего data.json

@@ -13,16 +13,9 @@ export interface UseVirtualImageLoaderOptions {
     readerLayout: ReaderLayout | null;
     visiblePages: ReaderPageLayout[];
     activePage: ReaderPageLayout | null;
-
-    // Сколько страниц удерживать до и после activePage внутри той же главы.
     retainBefore?: number;
     retainAfter?: number;
-
-    // Насколько близко activePage должна подойти к краю retained range,
-    // чтобы окно пересчиталось.
     retainEdgeThreshold?: number;
-
-    // Сколько Blob URL загружать параллельно.
     loadConcurrency?: number;
 }
 
@@ -37,11 +30,6 @@ interface RetainedRange {
     end: number;
 }
 
-interface LoadedImageResult {
-    key: string;
-    url: string | null;
-}
-
 export function useVirtualImageLoader({
     app,
     parentPath,
@@ -53,16 +41,6 @@ export function useVirtualImageLoader({
     retainEdgeThreshold = 2,
     loadConcurrency = 2,
 }: UseVirtualImageLoaderOptions): VirtualImageProvider {
-    const [loadedUrls, setLoadedUrls] = React.useState<Map<string, string>>(
-        () => new Map()
-    );
-
-    /**
-     * State нужен, чтобы effects/useMemo реагировали на изменение retained range.
-     * Ref нужен, чтобы быстро проверять актуальное окно без лишних deps.
-     */
-    const [retainedRange, setRetainedRange] =
-        React.useState<RetainedRange | null>(null);
 
     const retainedRangeRef = React.useRef<RetainedRange | null>(null);
 
@@ -74,6 +52,12 @@ export function useVirtualImageLoader({
     const promiseMapRef = React.useRef<Map<string, Promise<string>>>(new Map());
 
     const chapterLoadersRef = React.useRef<Map<string, ChapterLoaderEntry>>(new Map());
+
+    const [loadedUrls, setLoadedUrls] = React.useState<Map<string, string>>(
+        () => new Map()
+    );
+
+    const [retainedRange, setRetainedRange] = React.useState<RetainedRange | null>(null);
 
     /**
      * Для visible pages отдельно строим key set:
@@ -108,44 +92,6 @@ export function useVirtualImageLoader({
         retainedRange,
         retainBefore,
         retainAfter,
-    ]);
-
-    // Эффект для переопределения retained range
-    React.useEffect(() => {
-        if (!readerLayout) return;
-        if (!activePage) return;
-
-        const currentRange = retainedRangeRef.current;
-
-        const shouldRecenter = shouldRecenterRetainedRange(
-                activePage,
-                currentRange,
-                retainEdgeThreshold
-            )
-            
-        if (!shouldRecenter) {
-            return;
-        }
-
-        const nextRange = buildRetainedRange(
-            readerLayout,
-            activePage,
-            retainBefore,
-            retainAfter
-        );
-
-        retainedRangeRef.current = nextRange;
-        setRetainedRange(nextRange);
-
-        logger.virtualManager(
-            `Virtual image retained range: ${nextRange.chapterName} [${nextRange.start}-${nextRange.end}]`
-        );
-    }, [
-        readerLayout,
-        activePage,
-        retainBefore,
-        retainAfter,
-        retainEdgeThreshold,
     ]);
 
     /**
@@ -295,6 +241,44 @@ export function useVirtualImageLoader({
         };
     }, []);
 
+    // Эффект для переопределения retained range
+    React.useEffect(() => {
+        if (!readerLayout) return;
+        if (!activePage) return;
+
+        const currentRange = retainedRangeRef.current;
+
+        const shouldRecenter = shouldRecenterRetainedRange(
+                activePage,
+                currentRange,
+                retainEdgeThreshold
+            )
+            
+        if (!shouldRecenter) {
+            return;
+        }
+
+        const nextRange = buildRetainedRange(
+            readerLayout,
+            activePage,
+            retainBefore,
+            retainAfter
+        );
+
+        retainedRangeRef.current = nextRange;
+        setRetainedRange(nextRange);
+
+        logger.virtualManager(
+            `Virtual image retained range: ${nextRange.chapterName} [${nextRange.start}-${nextRange.end}]`
+        );
+    }, [
+        readerLayout,
+        activePage,
+        retainBefore,
+        retainAfter,
+        retainEdgeThreshold,
+    ]);
+
     /**
      * Основной эффект загрузки / выгрузки Blob URL.
      *
@@ -347,9 +331,16 @@ export function useVirtualImageLoader({
             return;
         }
 
+        // Защита от передачи неподходящего loadConcurrency
+        // (loadConcurrency = 0, или слишком большое число)
+        const safeConcurrency = Math.max(1, Math.floor(loadConcurrency));
+        const workerCount = Math.min(safeConcurrency, pagesToLoad.length);
+
         void runWithConcurrency(
+            // 1. Список из readerPageLayout
             pagesToLoad,
-            loadConcurrency,
+            // 2. Выставляем сколько параллельно workers
+            workerCount,
             // 3. Функция загрузки отдельной страницы
             async page => {
                 const key = createImageKey(page.chapterName, page.index);
@@ -525,8 +516,10 @@ function getLoadPriority(
         return 1000 + page.index;
     }
 
-    if (page.chapterName === activePage.chapterName) {
-        return 10 + Math.abs(page.index - activePage.index);
+    if (visibleKeys.has(key)) {
+        return activePage && page.chapterName === activePage.chapterName
+            ? Math.abs(page.index - activePage.index)   // для соседей
+        : 0;                                            // для текущей главы
     }
 
     return 500 + Math.abs(page.index - activePage.index);

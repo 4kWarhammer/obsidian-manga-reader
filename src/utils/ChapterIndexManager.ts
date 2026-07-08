@@ -1,7 +1,3 @@
-// Заметка: двойной расчет сигнатуры, сначала в getOrBuildIndex
-// Потом в runTask this.indexer.index
-// Нужно будет или передавать, или сделать ChapterSignatureBuilder
-
 import { CachedChapterIndex } from 'src/types';
 import {
     ChapterIndexerOptions,
@@ -13,8 +9,6 @@ import { logger } from 'src/utils/logger';
 
 export type IndexPriority = 0 | 1 | 2 | 3;
 
-type DirectionHint = 'previous' | 'next' | 'both';
-
 interface IndexQueueItem {
     opts: ChapterIndexerOptions;
     priority: IndexPriority;
@@ -22,11 +16,6 @@ interface IndexQueueItem {
     onProgress?: (progress: ChapterIndexerProgress) => void;
     resolve: (index: CachedChapterIndex) => void;
     reject: (error: unknown) => void;
-}
-
-export interface PreindexTitleOptions {
-    includeCurrent?: boolean;
-    priority?: IndexPriority;
 }
 
 export class ChapterIndexManager {
@@ -75,14 +64,6 @@ export class ChapterIndexManager {
      * которая раньше была добавлена.
      */
     private nextSequence = 0;
-
-    /**
-     * Текущая активная глава.
-     *
-     * Используется только для preindexTitle/preindexNeighbors,
-     * чтобы не ставить текущую главу в фон с низким priority.
-     */
-    private currentChapterKey: string | null = null;
 
     constructor(cache: ChapterIndexCache, indexer = new ChapterIndexer()) {
         this.cache = cache;
@@ -172,149 +153,6 @@ export class ChapterIndexManager {
         this.drainQueue();
 
         return promise;
-    }
-
-    // ============================================================
-    // Текущая глава
-    // ============================================================
-
-    /**
-     * Сообщает менеджеру, какая глава сейчас активная.
-     *
-     * Сам по себе этот метод не запускает индексацию.
-     * Он только сохраняет currentChapterKey, чтобы фоновые методы
-     * могли правильно расставлять приоритеты.
-     */
-    setCurrentChapter(chapterKey: string): void {
-        if (this.currentChapterKey === chapterKey) {
-            return;
-        }
-
-        this.currentChapterKey = chapterKey;
-
-        logger.lazyLoader(
-            `ChapterIndexManager: current chapter set to "${chapterKey}"`
-        );
-    }
-
-    getCurrentChapter(): string | null {
-        return this.currentChapterKey;
-    }
-
-    // ============================================================
-    // Фоновая индексация соседей
-    // ============================================================
-
-    /**
-     * Поставить в очередь соседние главы.
-     *
-     * Ожидает полный список opts для глав в порядке чтения.
-     *
-     * Приоритеты:
-     * - immediate previous/next: priority 1
-     * - near previous/next через одну главу: priority 2
-     *
-     * directionHint позволяет сначала поставить более вероятное направление.
-     */
-    preindexNeighbors(
-        chapters: ChapterIndexerOptions[],
-        currentChapterKey: string,
-        directionHint: DirectionHint = 'both'
-    ): void {
-        this.setCurrentChapter(currentChapterKey);
-
-        const currentIndex = chapters.findIndex(
-            chapter => chapter.chapterKey === currentChapterKey
-        );
-
-        if (currentIndex === -1) {
-            logger.lazyLoader(
-                `ChapterIndexManager: cannot preindex neighbors, current chapter not found "${currentChapterKey}"`
-            );
-            return;
-        }
-
-        const previous = chapters[currentIndex - 1];
-        const next = chapters[currentIndex + 1];
-
-        const previousNear = chapters[currentIndex - 2];
-        const nextNear = chapters[currentIndex + 2];
-
-        const tasks: Array<{
-            opts: ChapterIndexerOptions | undefined;
-            priority: IndexPriority;
-        }> = [];
-
-        // При одинаковом priority порядок задаётся sequence/FIFO:
-        // next попадёт в очередь раньше previous и будет выбран первым.
-        if (directionHint === 'next') {
-            tasks.push(
-                { opts: next, priority: 1 },
-                { opts: previous, priority: 1 },
-                { opts: nextNear, priority: 2 },
-                { opts: previousNear, priority: 2 }
-            );
-        } else if (directionHint === 'previous') {
-            tasks.push(
-                { opts: previous, priority: 1 },
-                { opts: next, priority: 1 },
-                { opts: previousNear, priority: 2 },
-                { opts: nextNear, priority: 2 }
-            );
-        } else {
-            tasks.push(
-                { opts: previous, priority: 1 },
-                { opts: next, priority: 1 },
-                { opts: previousNear, priority: 2 },
-                { opts: nextNear, priority: 2 }
-            );
-        }
-
-        for (const task of tasks) {
-            if (!task.opts) continue;
-
-            this.getOrBuildIndex(task.opts, task.priority).catch(error => {
-                logger.error(
-                    `ChapterIndexManager: neighbor preindex failed for "${task.opts?.chapterName}"`,
-                    error
-                );
-            });
-        }
-    }
-
-    // ============================================================
-    // Фоновая индексация всего тайтла
-    // ============================================================
-
-    /**
-     * Поставить весь тайтл в фоновую индексацию.
-     *
-     * По умолчанию текущая глава пропускается, потому что она обычно
-     * должна индексироваться отдельно с priority 0.
-     */
-    preindexTitle(
-        chapters: ChapterIndexerOptions[],
-        options: PreindexTitleOptions = {}
-    ): void {
-        const includeCurrent = options.includeCurrent ?? false;
-        const priority = options.priority ?? 3;
-
-        logger.lazyLoader(
-            `ChapterIndexManager: preindexTitle queued ${chapters.length} chapters`
-        );
-
-        for (const chapter of chapters) {
-            if (!includeCurrent && chapter.chapterKey === this.currentChapterKey) {
-                continue;
-            }
-
-            this.getOrBuildIndex(chapter, priority).catch(error => {
-                logger.error(
-                    `ChapterIndexManager: title preindex failed for "${chapter.chapterName}"`,
-                    error
-                );
-            });
-        }
     }
 
     // ============================================================
@@ -503,13 +341,11 @@ export class ChapterIndexManager {
         queueLength: number;
         inFlightCount: number;
         isDraining: boolean;
-        currentChapterKey: string | null;
     } {
         return {
             queueLength: this.queue.length,
             inFlightCount: this.inFlight.size,
             isDraining: this.isDraining,
-            currentChapterKey: this.currentChapterKey,
         };
     }
 }

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { TFolder, App, Plugin } from "obsidian";
+import { useChapterList } from "src/hooks/useChapterList";
 import { translations } from "src/i18n";
 import MangaReaderPlugin from "src/main";
 
@@ -7,61 +8,25 @@ import MangaReaderPlugin from "src/main";
 const fs = (window as any).require ? (window as any).require('fs') : null;
 
 interface Props {
-    app: App;
-    plugin: MangaReaderPlugin
-    folderPath: string;      // Путь к папке манги
-    onBack: () => void;      // Функция возврата назад
-    onSelectChapter: (chapterName: string, resetPage?: boolean) => void; // Выбор главы для чтения
+    plugin: MangaReaderPlugin;
+    chapters: string[];
+    onSelectChapter: (chapterName: string, resetPage?: boolean) => void;
 }
 
-export const ChapterListPage = ({ app, plugin, folderPath, onBack, onSelectChapter }: Props) => {
-    const t = translations[plugin.data.settings.language || "en"]
-    const [chapters, setChapters] = React.useState<string[]>([]);
-
-    // Эффект загрузки: выполняется один раз при открытии компонента
-    React.useEffect(() => {
-        // Опеределяем, внешний это путь или Vault
-        const isExternal = folderPath.includes(":\\") || folderPath.startsWith("/");
-        if (isExternal && fs) {
-            // ЛОГИКА ДЛЯ ВНЕШНЕЙ ПАПКИ
-            try {
-                const files = fs.readdirSync(folderPath, { withFileTypes: true });
-                const chapterNames = files
-                    .filter((f: any) => f.isDirectory() || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))
-                    .map((f: any) => f.name)
-                    .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }));
-                setChapters(chapterNames);
-            } catch (e) {
-                console.error("Ошибка чтения внешних глав", e);
-            }
-        } else {
-            // СТАНДАРТНАЯ ЛОГИКА VAULT
-            const folder = app.vault.getAbstractFileByPath(folderPath);
-            if (folder instanceof TFolder) {
-                const chapterFiles = folder.children
-                    .filter(f => f instanceof TFolder || f.name.endsWith('.zip') || f.name.endsWith('.cbz'))
-                    .map(f => f.name)
-                    // Сортировка: Глава 1, Глава 2, Глава 10...
-                    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-                setChapters(chapterFiles);
-            }
-        }
-    }, [app, folderPath]); // Если путь изменится, список обновится
+export const ChapterListPage = ({ plugin, chapters, onSelectChapter }: Props) => {
+    const t = translations[plugin.data.settings.language || "en"];
 
     return (
         <div>
-            {/* <button onClick={onBack} style={{ marginBottom: "10px" }}>⬅ Назад к библиотеке</button> */}
-            {/* <h2>📖 {folderPath.split('/').pop()}</h2> */}
-            
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {chapters.length > 0 ? (
                     chapters.map(name => (
-                        <div 
-                            key={name} 
+                        <div
+                            key={name}
                             onClick={() => onSelectChapter(name, true)}
-                            style={{ 
-                                padding: "12px", 
-                                background: "var(--background-secondary)", 
+                            style={{
+                                padding: "12px",
+                                background: "var(--background-secondary)",
                                 borderRadius: "4px",
                                 cursor: "pointer",
                                 borderLeft: "4px solid var(--interactive-accent)"

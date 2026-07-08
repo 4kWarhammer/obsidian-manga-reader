@@ -9,8 +9,10 @@ import { useLazyImageLoader } from "src/hooks/useLazyImageLoader";
 import { logger } from "src/utils/logger";
 import { useElementSize } from "src/hooks/useElementSize";
 import { useVirtualMangaReader } from "src/hooks/useVirtualMangaReader";
+import { useVirtualImageLoader } from "src/hooks/useVirtualImageLoader";
 import { useRafScrollBinding } from "src/hooks/useRafScrollBinding";
 import { useReaderProgressSaver } from "src/hooks/useReaderProgressSaver";
+import { useReaderNeighborPreindex } from "src/hooks/useReaderNeighborPreindex";
 
 interface Props {
     app: App;
@@ -90,6 +92,27 @@ export const ReaderPage = ({
         maxPageWidth: 1200,
         initialPage: readerInitialPage,
         overscan: 1000,
+    });
+
+    const virtualImageLoader = useVirtualImageLoader({
+        app,
+        parentPath,
+        readerLayout: virtualReader.readerLayout,
+        visiblePages: virtualReader.visiblePages,
+        activePage: virtualReader.activePage,
+        retainBefore: 6,
+        retainAfter: 8,
+        loadConcurrency: 2,
+    });
+
+    useReaderNeighborPreindex({
+        app,
+        plugin,
+        parentPath,
+        allChapters,
+        activeChapterName: virtualReader.activePage?.chapterName ?? currentChapter ?? chapterName,
+        mode: "extended",
+        enabled: viewMode === "scroll",
     });
 
     useRafScrollBinding(containerRef, virtualReader.onScroll);
@@ -351,6 +374,7 @@ export const ReaderPage = ({
                 onChapterChange={onChapterChange}
                 onPageClick={(idx, ch) => goToPage(idx, ch)}
                 imageProvider={lazyLoader}
+                virtualImageProvider={virtualImageLoader}
                 virtualReaderLayout={virtualReader.readerLayout}
                 virtualVisiblePages={virtualReader.visiblePages}
             />

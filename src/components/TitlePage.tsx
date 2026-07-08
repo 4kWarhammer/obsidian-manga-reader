@@ -3,6 +3,8 @@ import { App } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { ChapterListPage } from "./ChapterListPage";
 import { translations } from "src/i18n";
+import { useChapterList } from "src/hooks/useChapterList";
+import { useTitleBackgroundPreindex } from "src/hooks/useTitleBackgroundPreindex";
 
 interface Props {
     app: App;
@@ -16,10 +18,19 @@ interface Props {
 
 export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapter }: Props) => {
     const t = translations[plugin.data.settings.language || "en"]
-    
     const progress = plugin.data.library[path];
-    // const titleName = path.split('/').pop();
+    
     const titleName = path.split(/[\\/]/).pop();
+
+    const chapters = useChapterList(app, path);
+
+    useTitleBackgroundPreindex({
+        app,
+        plugin,
+        parentPath: path,
+        chapters,
+        enabled: true,
+    });
 
     return (
         <div className="title-showcase">
@@ -58,10 +69,8 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
             <div className="bottom-showcase">
                 <h3>{t.chapterList}</h3>
                 <ChapterListPage
-                    app={app}
                     plugin={plugin}
-                    folderPath={path}
-                    onBack={() => {}} // Передаем пустой? Потому что у TitlePage уже есть "Назад"
+                    chapters={chapters}
                     onSelectChapter={(name) => onSelectChapter(name, true)}
                 />
             </div>

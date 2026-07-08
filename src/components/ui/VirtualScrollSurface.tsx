@@ -1,11 +1,15 @@
 import * as React from "react";
-import { ImageProvider, ReaderLayout, ReaderPageLayout } from "src/types";
+import { 
+    VirtualImageProvider, 
+    ReaderLayout, 
+    ReaderPageLayout 
+} from "src/types";
 import { MangaPage } from "./MangaPage";
 
 interface VirtualScrollSurfaceProps {
     readerLayout: ReaderLayout;
     visiblePages: ReaderPageLayout[];
-    imageProvider: ImageProvider;
+    imageProvider: VirtualImageProvider;
 }
 
 export const VirtualScrollSurface = React.memo(({

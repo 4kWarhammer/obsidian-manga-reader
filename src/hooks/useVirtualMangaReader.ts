@@ -254,8 +254,6 @@ export function useVirtualMangaReader(
 
                 const indexManager = plugin.getChapterIndexManager();
 
-                indexManager.setCurrentChapter(opts.chapterKey);
-
                 const index = await indexManager.getOrBuildIndex(
                     opts,
                     0,

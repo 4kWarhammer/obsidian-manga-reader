@@ -1,7 +1,7 @@
 import * as React from "react";
 import { MangaPage } from "./MangaPage";
 import { ReaderHeader } from "./ReaderHeader";
-import { ImageProvider } from "src/types";
+import { ImageProvider, VirtualImageProvider } from "src/types";
 import { ReaderLayout, ReaderPageLayout } from "src/types";
 import { VirtualScrollSurface } from "./VirtualScrollSurface";
 
@@ -17,6 +17,7 @@ interface MangaCanvasProps {
     onChapterChange:(chapterName: string, resetPage?: boolean) => void,
     onPageClick: (index: number, chName: string) => void;
     imageProvider: ImageProvider;
+    virtualImageProvider: VirtualImageProvider;
     virtualReaderLayout: ReaderLayout | null;
     virtualVisiblePages: ReaderPageLayout[];
 }
@@ -34,6 +35,7 @@ export const MangaCanvas = React.memo(({
     onChapterChange, 
     onPageClick, 
     imageProvider,
+    virtualImageProvider,
     virtualReaderLayout,
     virtualVisiblePages
 }: MangaCanvasProps) => {
@@ -107,7 +109,7 @@ export const MangaCanvas = React.memo(({
                         <VirtualScrollSurface
                             readerLayout={virtualReaderLayout}
                             visiblePages={virtualVisiblePages}
-                            imageProvider={imageProvider}
+                            imageProvider={virtualImageProvider}
                         />
                     ) : null} 
                 </div>

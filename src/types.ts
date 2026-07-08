@@ -32,6 +32,13 @@ export interface ImageProvider {
     getCurrentChapter: () => string;
 }
 
+// Новый, на замену старому, пока простой
+export interface VirtualImageProvider {
+    loadedUrls: Map<string, string>;
+    isLoading: (chapter: string, index: number) => boolean;
+    isInRange: (chapter: string, index: number) => boolean;
+}
+
 // 2. Описываем структуру всего data.json
 export interface PluginData {
     settings: {

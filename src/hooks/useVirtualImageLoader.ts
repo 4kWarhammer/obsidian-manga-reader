@@ -29,7 +29,9 @@ interface RetainedRange {
     start: number;
     end: number;
 }
-
+/**
+ * Хук для подготовления virtual DOM в scroll режиме
+ */
 export function useVirtualImageLoader({
     app,
     parentPath,

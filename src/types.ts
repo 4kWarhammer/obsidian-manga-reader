@@ -171,6 +171,18 @@ export interface ReaderLayout {
     totalHeight: number;
 }
 
+// ============================================================
+// Runtime Reader anchor
+// ============================================================
+
+/**
+ * Rакая глава/страница сейчас активна при переключении режимов чтения
+ */
+export interface ReaderAnchor {
+    chapterName: string;
+    pageIndex: number;
+}
+
 // --- Версии кэша ---
 export const CURRENT_IMAGE_INDEX_SCHEMA_VERSION = 1;
 export const CURRENT_IMAGE_INDEX_EXTRACTOR_VERSION = 1;

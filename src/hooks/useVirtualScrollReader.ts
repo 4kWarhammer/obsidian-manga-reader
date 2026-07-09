@@ -4,6 +4,7 @@ import MangaReaderPlugin from "../main";
 import {
     CachedChapterIndex,
     ChapterLayout,
+    ReaderAnchor,
     ReaderLayout,
     ReaderPageLayout,
 } from "src/types";
@@ -21,21 +22,20 @@ import {
 import { ChapterIndexerProgress } from "src/utils/indexTypes";
 import { logger } from "src/utils/logger";
 
-export interface UseVirtualMangaReaderOptions {
+export interface UseVirtualScrollReaderOptions {
     app: App;
     plugin: MangaReaderPlugin;
     parentPath: string;
-    chapterName: string;
+    anchor: ReaderAnchor;
     allChapters: string[];
     viewportWidth: number;
     viewportHeight: number;
     pageGap: number;
     maxPageWidth?: number;
-    initialPage?: number;
     overscan?: number;
 }
 
-export interface UseVirtualMangaReaderResult {
+export interface UseVirtualScrollReaderResult {
     readerLayout: ReaderLayout | null;
     activePage: ReaderPageLayout | null;
     visibleRange: VisibleRange;
@@ -53,22 +53,24 @@ export interface UseVirtualMangaReaderResult {
  * Хук управления virtual DOM. Выдает Layout для отрисовки
  * Дает информацию о текущей и соседней странице 
  */
-export function useVirtualMangaReader(
-    options: UseVirtualMangaReaderOptions
-): UseVirtualMangaReaderResult {
+export function useVirtualScrollReader(
+    options: UseVirtualScrollReaderOptions
+): UseVirtualScrollReaderResult {
     const {
         app,
         plugin,
         parentPath,
-        chapterName,
+        anchor,
         allChapters,
         viewportWidth,
         viewportHeight,
         pageGap,
         maxPageWidth,
-        initialPage = 0,
         overscan = 1000,
     } = options;
+
+    const anchorChapterName = anchor.chapterName;
+    const anchorPageIndex = anchor.pageIndex;
 
     const readerLayoutRef = React.useRef<ReaderLayout | null>(null);
     const activePageRef = React.useRef<ReaderPageLayout | null>(null);
@@ -212,20 +214,20 @@ export function useVirtualMangaReader(
      * Это только говорит hook-у: "эти главы должны быть в layout".
      */
     React.useEffect(() => {
-        const initialWindow = getInitialForwardWindow(allChapters, chapterName);
+        const initialWindow = getInitialForwardWindow(allChapters, anchorChapterName);
 
         setDesiredChapterNames(initialWindow);
 
-        const anchorKey = getChapterIndexKey(chapterName);
+        const anchorKey = getChapterIndexKey(anchorChapterName);
         initialAnchorKeyRef.current = null;
         scrollTopRef.current = 0;
 
         logger.virtualManager(
-            `Virtual desired chapters set for "${chapterName}": ${initialWindow.join(", ")}`
+            `Virtual desired chapters set for "${anchorChapterName}": ${initialWindow.join(", ")}`
         );
     }, [
         allChaptersKey,
-        chapterName,
+        anchorChapterName,
         getChapterIndexKey,
     ]);
 
@@ -249,7 +251,7 @@ export function useVirtualMangaReader(
                 const opts = createChapterIndexerOptions({
                     app,
                     parentPath,
-                    chapterName,
+                    chapterName: anchorChapterName,
                 });
 
                 const indexManager = plugin.getChapterIndexManager();
@@ -291,7 +293,7 @@ export function useVirtualMangaReader(
         app,
         plugin,
         parentPath,
-        chapterName,
+        anchorChapterName,
     ]);
 
     // ============================================================
@@ -318,7 +320,7 @@ export function useVirtualMangaReader(
             for (const targetChapterName of desiredChapterNames) {
                 if (cancelled) return;
 
-                if (targetChapterName === chapterName) {
+                if (targetChapterName === anchorChapterName) {
                     continue;
                 }
 
@@ -377,7 +379,7 @@ export function useVirtualMangaReader(
         app,
         plugin,
         parentPath,
-        chapterName,
+        anchorChapterName,
         desiredChaptersKey,
         chapterIndexes,
     ]);
@@ -431,14 +433,15 @@ export function useVirtualMangaReader(
         // ============================================================
 
         // При первичном открытии - на InitialPage
-        const anchorKey = getChapterIndexKey(chapterName);
-        const isInitialAnchoring = initialAnchorKeyRef.current !== anchorKey;
+        const anchorKey = getChapterIndexKey(anchorChapterName);
+        const anchorStateKey = `${anchorKey}:${anchorPageIndex}`;
+        const isInitialAnchoring = initialAnchorKeyRef.current !== anchorStateKey;
 
         if (isInitialAnchoring) {
             const initialPageLayout =
                 nextReaderLayout.pages.find(page =>
                     page.chapterKey === anchorKey &&
-                    page.index === initialPage
+                    page.index === anchorPageIndex
                 ) ??
                 nextReaderLayout.pages.find(page =>
                     page.chapterKey === anchorKey
@@ -448,7 +451,7 @@ export function useVirtualMangaReader(
 
             scrollTopRef.current = initialPageLayout?.offsetTopInReader ?? 0;
             setPendingScrollTop(scrollTopRef.current);
-            initialAnchorKeyRef.current = anchorKey;
+            initialAnchorKeyRef.current = anchorStateKey;
         } else {
             // Якоримся при изменении viewportWidth
             const prevLayout = readerLayoutRef.current;
@@ -478,8 +481,8 @@ export function useVirtualMangaReader(
         viewportWidth,
         pageGap,
         maxPageWidth,
-        chapterName,
-        initialPage,
+        anchorChapterName,
+        anchorPageIndex,
         getChapterIndexKey,
     ]);
 
@@ -521,7 +524,7 @@ export function useVirtualMangaReader(
      * Активная глава сменилась -> добавили next.
      */
     React.useEffect(() => {
-        const activeChapterName = activePage?.chapterName ?? chapterName;
+        const activeChapterName = activePage?.chapterName ?? anchorChapterName;
 
         const nextChapterName = getNextChapterName(
             allChapters,
@@ -545,7 +548,7 @@ export function useVirtualMangaReader(
         });
     }, [
         activePage?.chapterName,
-        chapterName,
+        anchorChapterName,
         allChaptersKey,
     ]);
 

@@ -8,11 +8,14 @@ import { MangaCanvas } from "./ui/MangaCanvas";
 import { useLazyImageLoader } from "src/hooks/useLazyImageLoader";
 import { logger } from "src/utils/logger";
 import { useElementSize } from "src/hooks/useElementSize";
-import { useVirtualMangaReader } from "src/hooks/useVirtualMangaReader";
+import { useVirtualScrollReader } from "src/hooks/useVirtualScrollReader";
 import { useVirtualImageLoader } from "src/hooks/useVirtualImageLoader";
+// import { useSinglePageReader } from "src/hooks/useSinglePageReader";
 import { useRafScrollBinding } from "src/hooks/useRafScrollBinding";
 import { useReaderProgressSaver } from "src/hooks/useReaderProgressSaver";
 import { useReaderNeighborPreindex } from "src/hooks/useReaderNeighborPreindex";
+import { useChapterList } from "src/hooks/useChapterList";
+import { ReaderAnchor } from "src/types";
 
 interface Props {
     app: App;
@@ -38,7 +41,10 @@ export const ReaderPage = ({
     // 2. Refs
     const containerRef = React.useRef<HTMLDivElement>(null);
     const pendingPositionKeyRef = React.useRef<string | null>(null);
-    const pendingViewModeAnchorRef = React.useRef<number | null>(null);
+    const pendingViewModeAnchorRef = React.useRef<{
+        chapterName: string;
+        pageIndex: number;
+    } | null>(null);
     const lastSyncedVirtualPageRef = React.useRef<string | null>(null);
 
     // 3. Local state
@@ -56,6 +62,11 @@ export const ReaderPage = ({
         parentPath,
         chapterName
     );
+
+    const [readerAnchor, setReaderAnchor] = React.useState<ReaderAnchor>(() => ({
+        chapterName,
+        pageIndex: readerInitialPage,
+    }));
 
     const lazyLoader = useLazyImageLoader({
         parentPath,
@@ -77,22 +88,32 @@ export const ReaderPage = ({
         isReady,
     } = lazyLoader;
 
-    const allChapters = getAllChapters();
+    const allChapters = useChapterList(app, parentPath);
     const totalPages = getTotalPages();
 
-    const virtualReader = useVirtualMangaReader({
+    // Переименовать наверное уже надо - этот хук для скролла
+    // И так понятно, что это virtual DOM
+    const virtualReader = useVirtualScrollReader({
         app,
         plugin,
         parentPath,
-        chapterName,
+        anchor: readerAnchor,
         allChapters,
         viewportWidth: viewportSize.width,
         viewportHeight: viewportSize.height,
         pageGap: 16,
         maxPageWidth: 1200,
-        initialPage: readerInitialPage,
         overscan: 1000,
     });
+
+    // const singlePageReader = useSinglePageReader_({
+    //     app,
+    //     plugin,
+    //     parentPath,
+    //     allChapters,
+    //     anchor: readerAnchor,
+    //     onAnchorChange: setReaderAnchor,
+    // });
 
     const virtualImageLoader = useVirtualImageLoader({
         app,
@@ -135,14 +156,25 @@ export const ReaderPage = ({
     const toggleViewMode = React.useCallback(async () => {
         const newMode = viewMode === "scroll" ? "single" : "scroll";
 
-        const anchorPage =
-            viewMode === "scroll"
-                ? virtualReader.activePage?.index ?? visibleIndex
-                : visibleIndex;
+        const anchor =
+            viewMode === "scroll" && virtualReader.activePage
+                ? {
+                    chapterName: virtualReader.activePage.chapterName,
+                    pageIndex: virtualReader.activePage.index,
+                }
+                : {
+                    chapterName: currentChapter,
+                    pageIndex: visibleIndex,
+                };
 
-        pendingViewModeAnchorRef.current = anchorPage;
+        setReaderAnchor(anchor);
+        pendingViewModeAnchorRef.current = anchor;
 
-        setVisible(anchorPage);
+        if (anchor.chapterName !== currentChapter) {
+            transitionToChapter(anchor.chapterName, anchor.pageIndex);
+        } else {
+            setVisible(anchor.pageIndex);
+        }
 
         // Надежнее перед сменой режима заблокировать и указать что сейчас будет смена режима
         // Так scroll DOM не успеет появиться на мгновение
@@ -158,7 +190,9 @@ export const ReaderPage = ({
         viewMode,
         virtualReader.activePage,
         visibleIndex,
+        currentChapter,
         setVisible,
+        transitionToChapter,
         plugin,
     ]);
 
@@ -232,6 +266,14 @@ export const ReaderPage = ({
         }
     }, [visibleIndex, viewMode]);
 
+    // При смене режимов просмотра
+    React.useEffect(() => {
+        setReaderAnchor({
+            chapterName,
+            pageIndex: readerInitialPage,
+        });
+    }, [chapterName, readerInitialPage]);
+
     // Отслеживание активной страницы для useVirtualMangaReader
     // Основная движуха?
     React.useEffect(() => {
@@ -276,12 +318,17 @@ export const ReaderPage = ({
 
     // Запрос на разовое позиционирование после смены главы или режима просмотра
     React.useEffect(() => {
-        const key = `${chapterName}:${viewMode}`;
+        const key = `${readerAnchor.chapterName}:${readerAnchor.pageIndex}:${viewMode}`;
+
         pendingPositionKeyRef.current = key;
         setIsPositioning(true);
 
         logger.ReaderPage(`Positioning requested: ${key}`);
-    }, [chapterName, viewMode]);
+    }, [
+        readerAnchor.chapterName,
+        readerAnchor.pageIndex,
+        viewMode,
+    ]);
 
     // Автоскролл до нужной страницы при загрузке или смене режима просмотра
     React.useEffect(() => {
@@ -291,25 +338,39 @@ export const ReaderPage = ({
 
         if (!pendingKey) return;
 
-        const currentKey = `${chapterName}:${viewMode}`;
+        const currentKey = `${readerAnchor.chapterName}:${readerAnchor.pageIndex}:${viewMode}`;
 
         if (pendingKey !== currentKey) return;
 
         logger.ReaderPage(`Positioning running: ${currentKey}`);
 
         const pendingAnchor = pendingViewModeAnchorRef.current;
-        const pageToScroll = pendingAnchor ?? visibleIndex;
+
+        const targetChapterName = pendingAnchor?.chapterName ?? currentChapter;
+        const targetPageIndex = pendingAnchor?.pageIndex ?? visibleIndex;
 
         if (viewMode === "scroll" && virtualReader.readerLayout) {
-            const page = virtualReader.readerLayout.pages[pageToScroll];
+            const page = virtualReader.readerLayout.pages.find(page =>
+                page.chapterName === targetChapterName &&
+                page.index === targetPageIndex
+            );
 
-            if (page && containerRef.current) {
+            if (!page) {
+                logger.virtualManager(
+                    `Positioning target not found yet: ${targetChapterName} page ${targetPageIndex + 1}`
+                );
+                return;
+            }
+
+            if (containerRef.current) {
                 containerRef.current.scrollTo({
                     top: page.offsetTopInReader,
                     behavior: "instant",
                 });
 
-                logger.ReaderPage(`Scrolled by layout to page ${pageToScroll + 1}`);
+                logger.ReaderPage(
+                    `Scrolled by layout to ${targetChapterName} page ${targetPageIndex + 1}`
+                );
             }
         }
 
@@ -321,7 +382,8 @@ export const ReaderPage = ({
         chapterName, // пока тут лишний, но в будущем при смене главы пригодится? Хотя у меня при жесткой снеме - перезапуск всего ридера
         viewMode,
         virtualReader.readerLayout,
-        visibleIndex
+        visibleIndex,
+        currentChapter,
     ]);
 
     // Делаем scrollTo по запросу хука при изменении окна

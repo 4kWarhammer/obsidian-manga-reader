@@ -10,7 +10,7 @@ import { logger } from "src/utils/logger";
 import { useElementSize } from "src/hooks/useElementSize";
 import { useVirtualScrollReader } from "src/hooks/useVirtualScrollReader";
 import { useVirtualImageLoader } from "src/hooks/useVirtualImageLoader";
-// import { useSinglePageReader } from "src/hooks/useSinglePageReader";
+import { useSinglePageReader } from "src/hooks/useSinglePageReader";
 import { useRafScrollBinding } from "src/hooks/useRafScrollBinding";
 import { useReaderProgressSaver } from "src/hooks/useReaderProgressSaver";
 import { useReaderNeighborPreindex } from "src/hooks/useReaderNeighborPreindex";
@@ -89,7 +89,6 @@ export const ReaderPage = ({
     } = lazyLoader;
 
     const allChapters = useChapterList(app, parentPath);
-    const totalPages = getTotalPages();
 
     // Переименовать наверное уже надо - этот хук для скролла
     // И так понятно, что это virtual DOM
@@ -106,21 +105,43 @@ export const ReaderPage = ({
         overscan: 1000,
     });
 
-    // const singlePageReader = useSinglePageReader_({
-    //     app,
-    //     plugin,
-    //     parentPath,
-    //     allChapters,
-    //     anchor: readerAnchor,
-    //     onAnchorChange: setReaderAnchor,
-    // });
+    const {
+        scheduleUpdate,
+        flush
+    } = useReaderProgressSaver(
+        plugin,
+        parentPath,
+        500
+    );
 
+    const singlePageReader = useSinglePageReader({
+        app,
+        plugin,
+        parentPath,
+        allChapters,
+        readerLayout: virtualReader.readerLayout,
+        anchor: readerAnchor,
+        onAnchorChange: setReaderAnchor,
+        onProgressSave: scheduleUpdate,
+    });
+
+    const imageVisiblePages =
+        viewMode === "single" && singlePageReader.page
+            ? [singlePageReader.page]
+            : virtualReader.visiblePages;
+
+    const imageActivePage =
+        viewMode === "single"
+            ? singlePageReader.page
+            : virtualReader.activePage;
+
+    // Может не только в scroll режиме уже...
     const virtualImageLoader = useVirtualImageLoader({
         app,
         parentPath,
         readerLayout: virtualReader.readerLayout,
-        visiblePages: virtualReader.visiblePages,
-        activePage: virtualReader.activePage,
+        visiblePages: imageVisiblePages,
+        activePage: imageActivePage,
         retainBefore: 6,
         retainAfter: 8,
         loadConcurrency: 2,
@@ -138,14 +159,6 @@ export const ReaderPage = ({
 
     useRafScrollBinding(containerRef, virtualReader.onScroll);
 
-    const {
-        scheduleUpdate,
-        flush
-    } = useReaderProgressSaver(
-        plugin,
-        parentPath,
-        500
-    );
 
     // 6. Derived values
     const isReaderPreparing = virtualReader.isLoading || !isReady;
@@ -163,13 +176,14 @@ export const ReaderPage = ({
                     pageIndex: virtualReader.activePage.index,
                 }
                 : {
-                    chapterName: currentChapter,
-                    pageIndex: visibleIndex,
+                    chapterName: singlePageReader.chapterName,
+                    pageIndex: singlePageReader.pageIndex,
                 };
 
         setReaderAnchor(anchor);
         pendingViewModeAnchorRef.current = anchor;
 
+        // Это от lazyImage - под удаление
         if (anchor.chapterName !== currentChapter) {
             transitionToChapter(anchor.chapterName, anchor.pageIndex);
         } else {
@@ -178,7 +192,11 @@ export const ReaderPage = ({
 
         // Надежнее перед сменой режима заблокировать и указать что сейчас будет смена режима
         // Так scroll DOM не успеет появиться на мгновение
-        setIsPositioning(true);
+        if (newMode === "scroll") {
+            setIsPositioning(true);
+        } else {
+            setIsPositioning(false);
+        }
 
         // Обновляем визуальное состояние
         setViewMode(newMode);
@@ -189,53 +207,13 @@ export const ReaderPage = ({
     },[
         viewMode,
         virtualReader.activePage,
+        singlePageReader.chapterName,
+        singlePageReader.pageIndex,
         visibleIndex,
         currentChapter,
         setVisible,
         transitionToChapter,
         plugin,
-    ]);
-
-    const goToPage = React.useCallback(async (index: number, chapter: string) => {
-        if (index >= totalPages) {
-            // Если вышли за пределы — пытаемся включить следующую главу
-            const nextIdx = allChapters.indexOf(chapter) + 1;
-            if (nextIdx < allChapters.length) {
-                const nextChapter = allChapters[nextIdx];
-                // Переходим на следующую главу, сбрасываем на 1 страницу
-                transitionToChapter(nextChapter, 0);
-                scheduleUpdate(0, nextChapter);
-                return;
-            }
-            return;
-        }
-        
-        if (index < 0) {
-            // Если листаем назад с первой страницы — на предыдущую главу
-            const prevIdx = allChapters.indexOf(chapter) - 1;
-            if (prevIdx >= 0) {
-                const prevChapter = allChapters[prevIdx];
-                // Получаем totalPages предыдущей главы для перехода на последнюю страницу
-                const prevTotalPages = await getTotalPagesForChapter(prevChapter);
-                const lastIndex = Math.max(0, prevTotalPages - 1);
-                
-                transitionToChapter(prevChapter, lastIndex);
-                scheduleUpdate(lastIndex, prevChapter);
-                return;
-            }
-            return;
-        }
-
-        // Обновляем видимую страницу через хук
-        setVisible(index);
-        scheduleUpdate(index, chapter);
-    },[
-        totalPages,
-        allChapters,
-        transitionToChapter,
-        scheduleUpdate,
-        getTotalPagesForChapter,
-        setVisible,
     ]);
 
     // 8. Effects
@@ -258,15 +236,22 @@ export const ReaderPage = ({
     }, [parentPath, chapterName, flush]);
 
     // Эффект для скролла наверх в постраничном режиме
-    React.useEffect(() => {
-        // Если мы в режиме "по страницам" и container есть
-        // Значит можно делать scrollTo
-        if (viewMode === "single" && containerRef.current) {
-            containerRef.current.scrollTo({ top: 0, behavior: "instant" });
+    React.useLayoutEffect(() => {
+        if (viewMode !== "single") {
+            return;
         }
-    }, [visibleIndex, viewMode]);
 
-    // При смене режимов просмотра
+        containerRef.current?.scrollTo({
+            top: 0,
+            behavior: "instant",
+        });
+    }, [
+        viewMode,
+        singlePageReader.chapterName,
+        singlePageReader.pageIndex,
+    ]);
+
+    // При первом открытии, можно так то переписать под разовое выполнение
     React.useEffect(() => {
         setReaderAnchor({
             chapterName,
@@ -318,6 +303,13 @@ export const ReaderPage = ({
 
     // Запрос на разовое позиционирование после смены главы или режима просмотра
     React.useEffect(() => {
+        if (viewMode !== "scroll") {
+            pendingPositionKeyRef.current = null;
+            pendingViewModeAnchorRef.current = null;
+            setIsPositioning(false);
+            return;
+        }
+
         const key = `${readerAnchor.chapterName}:${readerAnchor.pageIndex}:${viewMode}`;
 
         pendingPositionKeyRef.current = key;
@@ -346,8 +338,8 @@ export const ReaderPage = ({
 
         const pendingAnchor = pendingViewModeAnchorRef.current;
 
-        const targetChapterName = pendingAnchor?.chapterName ?? currentChapter;
-        const targetPageIndex = pendingAnchor?.pageIndex ?? visibleIndex;
+        const targetChapterName = pendingAnchor?.chapterName ?? readerAnchor.chapterName;
+        const targetPageIndex = pendingAnchor?.pageIndex ?? readerAnchor.pageIndex;
 
         if (viewMode === "scroll" && virtualReader.readerLayout) {
             const page = virtualReader.readerLayout.pages.find(page =>
@@ -379,18 +371,23 @@ export const ReaderPage = ({
         pendingViewModeAnchorRef.current = null;
     }, [
         isReaderPreparing,
-        chapterName, // пока тут лишний, но в будущем при смене главы пригодится? Хотя у меня при жесткой снеме - перезапуск всего ридера
         viewMode,
         virtualReader.readerLayout,
-        visibleIndex,
-        currentChapter,
+        readerAnchor.chapterName,
+        readerAnchor.pageIndex,
     ]);
 
-    // Делаем scrollTo по запросу хука при изменении окна
+    // Делаем scrollTo по запросу хука при изменении окна в scroll mode
     React.useLayoutEffect(() => {
+        // Без него single mode также будет подвержен его работе
+        if (viewMode !== "scroll") {
+            return;
+        }
         if (virtualReader.pendingScrollTop === null) {
             return;
         }
+
+
 
         const container = containerRef.current;
 
@@ -434,11 +431,11 @@ export const ReaderPage = ({
                 allChapters={allChapters}
                 onBack={onBack}
                 onChapterChange={onChapterChange}
-                onPageClick={(idx, ch) => goToPage(idx, ch)}
-                imageProvider={lazyLoader}
                 virtualImageProvider={virtualImageLoader}
                 virtualReaderLayout={virtualReader.readerLayout}
                 virtualVisiblePages={virtualReader.visiblePages}
+                singlePage={singlePageReader.page}
+                onPageClick={(idx) => singlePageReader.goToPage(idx)}
             />
 
             {showReaderLoader && (

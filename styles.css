@@ -166,8 +166,8 @@ body.is-reader-active .mobile-navbar.mod-raised {
 /* Центрируем по высоте в single-mode */
 .manga-reader .manga-reader-container.single-mode {
     display: flex;
-    justify-content: center; /* Центр по горизонтали */
-    align-items: center;     /* Центр по вертикали */
+    justify-content: center;
+    align-items: center;
     min-height: 100%;
     width: 100%;
 }

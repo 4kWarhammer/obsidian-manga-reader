@@ -15,11 +15,11 @@ interface MangaCanvasProps {
     allChapters: string[],
     onBack:() => void,
     onChapterChange:(chapterName: string, resetPage?: boolean) => void,
-    onPageClick: (index: number, chName: string) => void;
-    imageProvider: ImageProvider;
+    onPageClick: (pageIndex: number) => Promise<void>;
     virtualImageProvider: VirtualImageProvider;
     virtualReaderLayout: ReaderLayout | null;
     virtualVisiblePages: ReaderPageLayout[];
+    singlePage: ReaderPageLayout | null;
 }
 
 // Это наш "диспетчер" для отображаемых элементов
@@ -33,13 +33,17 @@ export const MangaCanvas = React.memo(({
     allChapters, 
     onBack, 
     onChapterChange, 
-    onPageClick, 
-    imageProvider,
+    onPageClick,
     virtualImageProvider,
     virtualReaderLayout,
-    virtualVisiblePages
+    virtualVisiblePages,
+    singlePage,
 }: MangaCanvasProps) => {
     const [showUI, setShowUI] = React.useState(false);
+
+    const singleKey = singlePage
+        ? `${singlePage.chapterName}:${singlePage.index}`
+        : null;
 
     /**
      * Универсальный обработчик кликов по канвасу
@@ -51,14 +55,18 @@ export const MangaCanvas = React.memo(({
         const screenWidth = window.innerWidth;
         const tapZone = 0.2; // 20% ширины экрана
 
+        if (!singlePage) {
+            return;
+        }
+
         if (viewMode === "single") {
             // Если нажали в левые 20%
             if (clientX < screenWidth * tapZone) {
-                onPageClick(currentPage - 1, chapterName); // Листаем назад
+                onPageClick(singlePage.index - 1); // Листаем назад
             } 
             // Если нажали в правые 20%
             else if (clientX > screenWidth * (1 - tapZone)) {
-                onPageClick(currentPage + 1, chapterName); // Листаем вперед
+                onPageClick(singlePage.index + 1); // Листаем вперед
             } 
             // Если нажали в центр — переключаем UI хедера
             else {
@@ -119,11 +127,11 @@ export const MangaCanvas = React.memo(({
                 className="manga-reader-container single-mode"
                 onClick={handleCanvasClick}
                 >
-                    <MangaPage 
-                        url={imageProvider.loadedUrls?.get(`${chapterName}:${currentPage}`) || undefined}
-                        isLoading={imageProvider?.isLoading?.(chapterName, currentPage)}
-                        index={currentPage} 
-                        chapterName={chapterName}
+                    <MangaPage
+                        url={singleKey ? virtualImageProvider.loadedUrls.get(singleKey) || undefined : undefined}
+                        isLoading={singlePage ? virtualImageProvider.isLoading(singlePage.chapterName, singlePage.index) : false}
+                        index={singlePage?.index ?? currentPage}
+                        chapterName={singlePage?.chapterName ?? chapterName}
                     />
                 </div>
             )}

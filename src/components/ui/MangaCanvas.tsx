@@ -1,7 +1,7 @@
 import * as React from "react";
 import { MangaPage } from "./MangaPage";
 import { ReaderHeader } from "./ReaderHeader";
-import { ImageProvider, VirtualImageProvider } from "src/types";
+import { VirtualImageProvider } from "src/types";
 import { ReaderLayout, ReaderPageLayout } from "src/types";
 import { VirtualScrollSurface } from "./VirtualScrollSurface";
 

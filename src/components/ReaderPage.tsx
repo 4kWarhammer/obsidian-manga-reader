@@ -5,7 +5,6 @@ import { useReaderInitialPage } from "src/hooks/useReaderInitialPage";
 import { useMinimumVisible } from "src/hooks/useMinimumVisible";
 import { translations } from "src/i18n";
 import { MangaCanvas } from "./ui/MangaCanvas";
-import { useLazyImageLoader } from "src/hooks/useLazyImageLoader";
 import { logger } from "src/utils/logger";
 import { useElementSize } from "src/hooks/useElementSize";
 import { useVirtualScrollReader } from "src/hooks/useVirtualScrollReader";
@@ -67,26 +66,6 @@ export const ReaderPage = ({
         chapterName,
         pageIndex: readerInitialPage,
     }));
-
-    const lazyLoader = useLazyImageLoader({
-        parentPath,
-        chapterName,
-        bufferSize: 3,
-        app,
-        initialPage: readerInitialPage,
-    });
-
-    const {
-        visibleIndex,           // ← Текущая видимая страница (единый источник правды)
-        setVisible,             // Синхронизация visibleIndex для legacy image loader/single mode
-        getTotalPages,
-        getAllChapters,
-        transitionToChapter,
-        getTotalPagesForChapter,
-        getCurrentChapter,      // ← Для получения актуальной главы но с мемо
-        currentChapter,
-        isReady,
-    } = lazyLoader;
 
     const allChapters = useChapterList(app, parentPath);
 
@@ -152,7 +131,8 @@ export const ReaderPage = ({
         plugin,
         parentPath,
         allChapters,
-        activeChapterName: virtualReader.activePage?.chapterName ?? currentChapter ?? chapterName,
+        // Работать должен в любом режиме
+        activeChapterName: virtualReader.activePage?.chapterName ?? readerAnchor.chapterName,
         mode: "extended",
         enabled: viewMode === "scroll",
     });
@@ -161,7 +141,11 @@ export const ReaderPage = ({
 
 
     // 6. Derived values
-    const isReaderPreparing = virtualReader.isLoading || !isReady;
+    const isReaderPreparing =
+        viewMode === "scroll"
+            ? virtualReader.isLoading || !virtualReader.readerLayout
+            : !singlePageReader.isReady;
+
     const isReaderBusy = isReaderPreparing || isPositioning;
     const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
 
@@ -183,13 +167,6 @@ export const ReaderPage = ({
         setReaderAnchor(anchor);
         pendingViewModeAnchorRef.current = anchor;
 
-        // Это от lazyImage - под удаление
-        if (anchor.chapterName !== currentChapter) {
-            transitionToChapter(anchor.chapterName, anchor.pageIndex);
-        } else {
-            setVisible(anchor.pageIndex);
-        }
-
         // Надежнее перед сменой режима заблокировать и указать что сейчас будет смена режима
         // Так scroll DOM не успеет появиться на мгновение
         if (newMode === "scroll") {
@@ -209,10 +186,6 @@ export const ReaderPage = ({
         virtualReader.activePage,
         singlePageReader.chapterName,
         singlePageReader.pageIndex,
-        visibleIndex,
-        currentChapter,
-        setVisible,
-        transitionToChapter,
         plugin,
     ]);
 
@@ -277,14 +250,23 @@ export const ReaderPage = ({
 
         lastSyncedVirtualPageRef.current = key;
 
-        // Получаем текущую главу из хука
-        const currentLazyChapter = getCurrentChapter();
+        // А раньше набыло тут nextAnchor но как то же работал скролл
+        // Это не мое предложение, посмотрю потом
+        // const nextAnchor = {
+        //     chapterName: activePage.chapterName,
+        //     pageIndex: activePage.index,
+        // };
 
-        if (activePage.chapterName !== currentLazyChapter) {
-            transitionToChapter(activePage.chapterName, activePage.index);
-        } else {
-            setVisible(activePage.index);
-        }
+        // setReaderAnchor(prev => {
+        //     if (
+        //         prev.chapterName === nextAnchor.chapterName &&
+        //         prev.pageIndex === nextAnchor.pageIndex
+        //     ) {
+        //         return prev;
+        //     }
+
+        //     return nextAnchor;
+        // });
 
         scheduleUpdate(activePage.index, activePage.chapterName);
 
@@ -295,10 +277,7 @@ export const ReaderPage = ({
         virtualReader.activePage,
         virtualReader.isLoading,
         viewMode,
-        setVisible,
         scheduleUpdate,
-        getCurrentChapter,
-        transitionToChapter,
     ]);
 
     // Запрос на разовое позиционирование после смены главы или режима просмотра
@@ -402,6 +381,7 @@ export const ReaderPage = ({
 
         virtualReader.ackPendingScroll();
     }, [
+        viewMode,
         virtualReader.pendingScrollTop,
         virtualReader.ackPendingScroll,
     ]);
@@ -424,10 +404,15 @@ export const ReaderPage = ({
             <MangaCanvas
                 containerRef={containerRef}
                 viewMode={viewMode}
-                isMobile={isMobile}                
+                isMobile={isMobile}
                 onToggleViewMode={toggleViewMode}
-                currentPage={visibleIndex}
-                chapterName={currentChapter}
+                currentPage={readerAnchor.pageIndex}
+                // Ну тут бардак
+                chapterName={
+                    viewMode === "scroll"
+                        ? virtualReader.activePage?.chapterName ?? readerAnchor.chapterName
+                        : singlePageReader.chapterName
+                }
                 allChapters={allChapters}
                 onBack={onBack}
                 onChapterChange={onChapterChange}

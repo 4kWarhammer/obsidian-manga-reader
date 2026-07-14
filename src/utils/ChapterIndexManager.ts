@@ -65,6 +65,16 @@ export class ChapterIndexManager {
      */
     private nextSequence = 0;
 
+    /**
+     * AbortController для текущих выполняющихся задач.
+     *
+     * chapterKey -> AbortController
+     *
+     * Нужен для возможности прервать I/O индексации конкретной главы
+     * без влияния на других consumers, которые могут ждать тот же Promise.
+     */
+    private taskAbortControllers = new Map<string, AbortController>();
+
     constructor(cache: ChapterIndexCache, indexer = new ChapterIndexer()) {
         this.cache = cache;
         this.indexer = indexer;
@@ -256,17 +266,23 @@ export class ChapterIndexManager {
      */
     private async runTask(task: IndexQueueItem): Promise<void> {
         const { opts } = task;
+        const controller = new AbortController();
+        this.taskAbortControllers.set(opts.chapterKey, controller);
 
         try {
             logger.lazyLoader(
                 `ChapterIndexManager: indexing "${opts.chapterName}" with priority ${task.priority}`
             );
 
-            const result = await this.indexer.index(opts, task.onProgress);
+            const result = await this.indexer.index(
+                opts,
+                task.onProgress,
+                controller.signal
+            );
 
             this.cache.setChapter(result);
 
-            await this.cache.save(opts.signal);
+            await this.cache.save();
 
             logger.lazyLoader(
                 `ChapterIndexManager: indexed and cached "${opts.chapterName}" (${result.pageCount} pages)`
@@ -280,6 +296,8 @@ export class ChapterIndexManager {
             );
 
             task.reject(error);
+        } finally {
+            this.taskAbortControllers.delete(opts.chapterKey);
         }
     }
 
@@ -334,6 +352,44 @@ export class ChapterIndexManager {
     }
 
     /**
+     * Прерывает индексацию конкретной главы, если она выполняется.
+     * Задачи в очереди для этой главы удаляются.
+     */
+    abortChapter(chapterKey: string): void {
+        const controller = this.taskAbortControllers.get(chapterKey);
+        if (controller) {
+            controller.abort();
+            this.taskAbortControllers.delete(chapterKey);
+        }
+
+        const queueIndex = this.queue.findIndex(
+            item => item.opts.chapterKey === chapterKey
+        );
+        if (queueIndex !== -1) {
+            const task = this.queue.splice(queueIndex, 1)[0];
+            task.reject(new Error(`Indexing aborted for ${chapterKey}`));
+        }
+    }
+
+    /**
+     * Прерывает все текущие задачи, очищает очередь и останавливает worker.
+     * Полезно при закрытии плагина или полном сбросе.
+     */
+    dispose(): void {
+        for (const [chapterKey, controller] of this.taskAbortControllers) {
+            controller.abort();
+            this.taskAbortControllers.delete(chapterKey);
+        }
+
+        for (const task of this.queue) {
+            task.reject(new Error('ChapterIndexManager disposed'));
+        }
+        this.queue = [];
+
+        this.isDraining = false;
+    }
+
+    /**
      * Возвращает диагностическое состояние менеджера.
      * Удобно для логов/devtools.
      */
@@ -341,11 +397,13 @@ export class ChapterIndexManager {
         queueLength: number;
         inFlightCount: number;
         isDraining: boolean;
+        activeTaskCount: number;
     } {
         return {
             queueLength: this.queue.length,
             inFlightCount: this.inFlight.size,
             isDraining: this.isDraining,
+            activeTaskCount: this.taskAbortControllers.size,
         };
     }
 }

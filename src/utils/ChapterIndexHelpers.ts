@@ -9,9 +9,8 @@ export function createChapterIndexerOptions(params: {
     parentPath: string;
     chapterName: string;
     titleKey?: string;
-    signal?: AbortSignal;
 }): ChapterIndexerOptions {
-    const { app, parentPath, chapterName, titleKey, signal } = params;
+    const { app, parentPath, chapterName, titleKey } = params;
 
     return {
         chapterKey: createChapterKey(parentPath, chapterName),
@@ -21,7 +20,6 @@ export function createChapterIndexerOptions(params: {
         isArchive: isArchiveChapter(chapterName),
         isExternal: isExternalPath(parentPath),
         app,
-        signal,
     };
 }
 /**

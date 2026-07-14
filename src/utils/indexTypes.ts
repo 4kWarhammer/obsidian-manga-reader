@@ -15,7 +15,6 @@ export interface ChapterIndexerOptions {
     isArchive: boolean;
     isExternal: boolean;
     app: App;
-    signal?: AbortSignal;
 }
 
 export interface ChapterIndexerProgress {

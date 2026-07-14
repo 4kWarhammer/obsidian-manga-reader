@@ -43,10 +43,10 @@ export class ChapterIndexer {
      */
     async index(
         opts: ChapterIndexerOptions,
-        onProgress?: (progress: ChapterIndexerProgress) => void
+        onProgress?: (progress: ChapterIndexerProgress) => void,
+        signal?: AbortSignal
     ): Promise<CachedChapterIndex> {
         const startedAt = performance.now();
-        const { signal } = opts;
 
         // 1. Сигнатура
         const signature = await this.computeSignature(opts);

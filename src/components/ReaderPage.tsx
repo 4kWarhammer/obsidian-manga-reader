@@ -134,7 +134,7 @@ export const ReaderPage = ({
         // Работать должен в любом режиме
         activeChapterName: virtualReader.activePage?.chapterName ?? readerAnchor.chapterName,
         mode: "extended",
-        enabled: viewMode === "scroll",
+        enabled: true,
     });
 
     useRafScrollBinding(containerRef, virtualReader.onScroll);

@@ -3,7 +3,7 @@ import { App } from "obsidian";
 import { ReaderLayout, ReaderPageLayout, VirtualImageProvider } from "src/types";
 import { ImageCache } from "src/utils/ImageCache";
 import { ImageLoader } from "src/utils/ImageLoader";
-import { isArchiveChapter } from "src/utils/ChapterIndexHelpers";
+import { isArchiveChapter, isExternalPath } from "src/utils/ChapterIndexHelpers";
 import { runWithConcurrency } from "src/utils/runWithConcurrency";
 import { logger } from "src/utils/logger";
 
@@ -147,7 +147,7 @@ export function useVirtualImageLoader({
             chapterName,
             cache,
             isArchiveChapter(chapterName),
-            false,
+            isExternalPath(parentPath),
             app
         );
 

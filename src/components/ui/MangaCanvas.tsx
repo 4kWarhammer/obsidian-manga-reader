@@ -132,6 +132,11 @@ export const MangaCanvas = React.memo(({
                         isLoading={singlePage ? virtualImageProvider.isLoading(singlePage.chapterName, singlePage.index) : false}
                         index={singlePage?.index ?? currentPage}
                         chapterName={singlePage?.chapterName ?? chapterName}
+                        style={singlePage ? {
+                            width: singlePage.renderedWidth,
+                            height: singlePage.renderedHeight,
+                            margin: '0 auto',
+                        } : undefined}
                     />
                 </div>
             )}

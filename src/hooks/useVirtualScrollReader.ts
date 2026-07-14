@@ -7,13 +7,13 @@ import {
     ReaderAnchor,
     ReaderLayout,
     ReaderPageLayout,
+    VisibleRange,
 } from "src/types";
 import {
     buildChapterLayout,
     buildReaderLayout,
     findPageByOffset,
     getVisibleRange,
-    VisibleRange,
 } from "src/utils/ReaderLayoutBuilder";
 import {
     createChapterIndexerOptions,
@@ -52,6 +52,7 @@ export interface UseVirtualScrollReaderResult {
 /**
  * Хук управления virtual DOM. Выдает Layout для отрисовки
  * Дает информацию о текущей и соседней странице 
+ * Это индексатор + layout-движок пока только для vertical scroll
  */
 export function useVirtualScrollReader(
     options: UseVirtualScrollReaderOptions

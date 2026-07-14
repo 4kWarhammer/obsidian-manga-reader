@@ -4,6 +4,7 @@ import {
     PageLayout,
     ReaderLayout,
     ReaderPageLayout,
+    VisibleRange,
 } from 'src/types';
 
 export interface ChapterLayoutOptions {
@@ -13,11 +14,6 @@ export interface ChapterLayoutOptions {
     verticalPaddingTop?: number; // Верхний отступ
     verticalPaddingBottom?: number; // Нижний отступ
     maxPageWidth?: number; // Ограничитель максимальной ширины (как опция)
-}
-
-export interface VisibleRange {
-    start: number;
-    end: number;
 }
 
 /**

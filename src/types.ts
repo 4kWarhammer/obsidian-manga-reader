@@ -3,8 +3,8 @@
 
 // 1. Описываем, что такое прогресс для одной манги
 export interface MangaProgress {
-    lastChapter: string;
-    lastPage: number;
+    lastChapter: string; // соответствует ReaderAnchor.chapterName, вроде как
+    lastPage: number;    // соответствует ReaderAnchor.pageIndex, вроде бы как
     title?: string;      // Описание
     tags?: string[];     // Жанры
     notes?: string;      // Личные комментарии
@@ -126,18 +126,8 @@ export interface ChapterLayout {
 }
 
 // Страницы, их данные в разрезе всего ридера
-export interface ReaderPageLayout {
-    index: number;
-    chapterKey: string;
+export interface ReaderPageLayout extends PageLayout{
     chapterName: string;
-    width: number;
-    height: number;
-    aspectRatio: number;
-    mimeType: string;
-    renderedWidth: number;
-    renderedHeight: number;
-    offsetTopInChapter: number;
-    offsetBottomInChapter: number;
     chapterOffsetTop: number;
     offsetTopInReader: number;
     offsetBottomInReader: number;
@@ -149,12 +139,16 @@ export interface ReaderLayout {
     totalHeight: number;
 }
 
+export interface VisibleRange {
+    start: number;
+    end: number;
+}
 // ============================================================
 // Runtime Reader anchor
 // ============================================================
 
 /**
- * Rакая глава/страница сейчас активна при переключении режимов чтения
+ * Какая глава/страница сейчас активна при переключении режимов чтения
  */
 export interface ReaderAnchor {
     chapterName: string;

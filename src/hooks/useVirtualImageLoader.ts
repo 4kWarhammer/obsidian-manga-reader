@@ -366,14 +366,22 @@ export function useVirtualImageLoader({
                 loadingSetRef.current.delete(key);
                 promiseMapRef.current.delete(key);
 
+                const parsed = parseImageKey(key);
+                // Guard на случай, если ChapterLoaderEntry очищен и уже cache.clear()
+                // Но еще есть promise в работе - может вернуть dead URL.
+                if (parsed && url && !chapterLoadersRef.current.has(parsed.chapter)) {
+                    // URL уже revoked в cache.clear(), но на всякий случай:
+                    URL.revokeObjectURL(url);
+                    return;
+                }
+
                 // Единая проверка: нужен ли этот ресурс сейчас
                 const isNotNeeded = 
                 !mountedRef.current ||
                 !url ||
                 !desiredKeysRef.current.has(key);
 
-                if (isNotNeeded) {
-                    const parsed = parseImageKey(key);
+                if (isNotNeeded) {                    
                     if (parsed && url) releasePage(parsed.chapter, parsed.index);
                     return;
                 }
@@ -415,6 +423,69 @@ export function useVirtualImageLoader({
         getChapterLoader,
         releasePage,
     ]);
+
+    // Эффект для выгрузки chapterLoadersRef - ChapterLoaderEntry
+    React.useEffect(() => {
+        if (!readerLayout) return;
+
+        const activeChapters = getActiveChapters(desiredKeys);
+
+        const timer = setTimeout(() => {
+            for (const [chapterName, entry] of chapterLoadersRef.current.entries()) {
+                if (activeChapters.has(chapterName)) continue;
+
+                // 1. Отменяем pending загрузки и обещания для этой главы
+                for (const key of loadingSetRef.current.keys()) {
+                    const parsed = parseImageKey(key);
+                    if (parsed?.chapter === chapterName) {
+                        loadingSetRef.current.delete(key);
+                    }
+                }
+
+                for (const key of promiseMapRef.current.keys()) {
+                    const parsed = parseImageKey(key);
+                    if (parsed?.chapter === chapterName) {
+                        promiseMapRef.current.delete(key);
+                    }
+                }
+
+                // 2. Освобождаем resources
+                entry.cache.clear();
+                entry.loader.clear();
+                chapterLoadersRef.current.delete(chapterName);
+
+                // 3. Удалить все ключи этой главы из loadedUrls (ref + state)
+                setLoadedUrls(prev => {
+                    let changed = false;
+                    const next = new Map(prev);
+
+                    for (const key of next.keys()) {
+                    
+                        const parsed = parseImageKey(key);
+
+                        if (parsed?.chapter === chapterName) {
+                            next.delete(key);
+                            changed = true;
+                        }
+                    }
+
+                    if (changed) {
+                        loadedUrlsRef.current = next
+                    }
+
+                    return changed ? next : prev;
+                });
+
+                logger.lazyLoader(
+                    `useVirtualImageLoader: purged orphaned chapter loader ${chapterName}`
+                );
+            }
+        }, 2000); // 2s debounce
+
+        return () => {
+            clearTimeout(timer)
+        };
+    }, [desiredKeysKey, readerLayout]);
 
     return {
         loadedUrls,
@@ -510,21 +581,24 @@ function getLoadPriority(
 ): number {
     const key = createImageKey(page.chapterName, page.index);
 
-    if (visibleKeys.has(key)) {
-        return 0;
-    }
-
     if (!activePage) {
-        return 1000 + page.index;
+        return 10000 + page.index;
     }
+
+    const isSameChapter = page.chapterName === activePage.chapterName;
+    const distance = isSameChapter ? Math.abs(page.index - activePage.index) : page.index;
+
+    // Слои:
+    // 0..499    — видимые, текущая глава (ранжируются по distance)
+    // 500..999  — видимые, другая глава (стык глав)
+    // 1000..1499 — скрытые, текущая глава (retained range)
+    // 1500+     — скрытые, другая глава (background / neighbors)
 
     if (visibleKeys.has(key)) {
-        return activePage && page.chapterName === activePage.chapterName
-            ? Math.abs(page.index - activePage.index)   // для соседей
-        : 0;                                            // для текущей главы
+        return isSameChapter ? distance : 500 + distance;
     }
 
-    return 500 + Math.abs(page.index - activePage.index);
+    return isSameChapter ? 1000 + distance : 1500 + distance;
 }
 
 function pruneLoadedUrlsToDesiredKeys(
@@ -545,4 +619,18 @@ function pruneLoadedUrlsToDesiredKeys(
 
         releasePage(parsed.chapter, parsed.index);
     }
+}
+
+function getActiveChapters(desiredKeys: Set<string>): Set<string> {
+    const chapters = new Set<string>();
+
+    for (const key of desiredKeys) {
+        const parsed = parseImageKey(key);
+        
+        if (parsed) {
+            chapters.add(parsed.chapter)
+        };
+    };
+
+    return chapters;
 }

@@ -10,6 +10,7 @@ interface MangaCanvasProps {
     viewMode: "scroll" | "single";
     isMobile?: boolean;
     onToggleViewMode: () => void;
+    onOpenSettings?: () => void; // для окна настроек
     currentPage: number;
     chapterName: string;
     allChapters: string[],
@@ -28,6 +29,7 @@ export const MangaCanvas = React.memo(({
     viewMode,
     isMobile,
     onToggleViewMode,
+    onOpenSettings,
     currentPage, 
     chapterName, 
     allChapters, 
@@ -104,6 +106,7 @@ export const MangaCanvas = React.memo(({
                     onChapterChange={(name) => onChapterChange(name, true)}
                     viewMode={viewMode}
                     onToggleViewMode={onToggleViewMode}
+                    onOpenSettings={onOpenSettings} // для окна настроек
                 />
             </div>
 

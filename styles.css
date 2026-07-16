@@ -73,18 +73,38 @@ body.is-reader-active .mobile-navbar.mod-raised {
         }
         /* Сам хедер */
         & .reader-header{
-            background-color: color-mix(in srgb, var(--background-primary-alt), transparent 15%);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            height: 55px;
-            width: 100%;
+            /* Локальная ссылка на нужный тип */
+            --reader-callout-color: var(--interactive-accent);
+            --reader-callout-color-2: var(--background-primary-alt);
+            
+
+            /* Фон: акцентный цвет на 10% поверх фона заметки */
+            background-color: color-mix(in srgb, var(--reader-callout-color-2) 50%, transparent);
+
+            /* Левая полоска */
+            border-left: var(--callout-border-width, 4px) solid rgb(var(--reader-callout-color));
+
+            /* Геометрия и общие стили callout */
+            border-radius: var(--callout-radius, 4px);
+            padding: var(--callout-padding, 8px 16px);
+
+            /* Остальное из твоей текущей структуры */
+            margin: 8px 12px 0;
+            width: calc(100% - 24px);
+            max-width: 720px;
+            height: auto;
+            min-height: 48px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
+            box-shadow: var(--shadow-s);
+
             opacity: 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;            
+            pointer-events: none;
         }
+
     }
 }
 

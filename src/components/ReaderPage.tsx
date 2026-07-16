@@ -4,6 +4,7 @@ import MangaReaderPlugin from "../main";
 import { useReaderInitialPage } from "src/hooks/useReaderInitialPage";
 import { useMinimumVisible } from "src/hooks/useMinimumVisible";
 import { translations } from "src/i18n";
+import { ReaderSettingsModal } from "src/modal/ReaderSettingsModal";
 import { MangaCanvas } from "./ui/MangaCanvas";
 import { logger } from "src/utils/logger";
 import { useElementSize } from "src/hooks/useElementSize";
@@ -188,6 +189,10 @@ export const ReaderPage = ({
         singlePageReader.pageIndex,
         plugin,
     ]);
+
+    const handleOpenSettings = React.useCallback(() => {
+        new ReaderSettingsModal(app, plugin).open();
+    }, [app, plugin]);
 
     // 8. Effects
     // Эффект для добавления класса к телу при монтировании/размонтировании
@@ -406,6 +411,7 @@ export const ReaderPage = ({
                 viewMode={viewMode}
                 isMobile={isMobile}
                 onToggleViewMode={toggleViewMode}
+                onOpenSettings={handleOpenSettings} // Для окна настроек
                 currentPage={readerAnchor.pageIndex}
                 // Ну тут бардак
                 chapterName={

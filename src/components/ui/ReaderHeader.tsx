@@ -8,7 +8,7 @@ interface ReaderHeaderProps {
     onChapterChange: (name: string) => void;
     viewMode: string;
     onToggleViewMode?: () => void;
-    // Сюда позже добавим пропсы для настроек
+    onOpenSettings?: () => void
 }
 
 export const ReaderHeader = ({ 
@@ -18,6 +18,7 @@ export const ReaderHeader = ({
     onChapterChange, 
     viewMode,
     onToggleViewMode,
+    onOpenSettings,
 }: ReaderHeaderProps) => {
     return (
         <div className="reader-header">
@@ -40,8 +41,20 @@ export const ReaderHeader = ({
             </div>
 
             <div className="header-right">
-                <button className="nav-btn" onClick={onToggleViewMode} title="Сменить режим">
+                {/* Переключение режимов просмотра */}
+                <button 
+                    className="nav-btn"
+                    onClick={onToggleViewMode}
+                    title="Сменить режим">
                     {viewMode === "scroll" ? "📜" : "📄"}
+                </button>
+                {/* Настройки */}
+                <button 
+                    className="nav-btn" 
+                    onClick={onOpenSettings} 
+                    title="Настройки"
+                >
+                    <span>⚙️</span>
                 </button>
             </div>
         </div>

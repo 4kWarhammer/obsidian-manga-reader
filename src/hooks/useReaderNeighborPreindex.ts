@@ -28,7 +28,8 @@ interface UseReaderNeighborPreindexOptions {
 }
 
 /**
- * Ставит в ChapterIndexManager фоновые задачи индексации вокруг активной главы.
+ * Index Warmer - Ставит в ChapterIndexManager 
+ * фоновые задачи индексации вокруг активной главы.
  *
  * adjacent:
  *   previous / next -> priority 1

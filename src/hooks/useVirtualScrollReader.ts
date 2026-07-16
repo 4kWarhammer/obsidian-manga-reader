@@ -101,6 +101,8 @@ export function useVirtualScrollReader(
         () => new Map()
     );
 
+    const chapterIndexesRef = React.useRef<Map<string, CachedChapterIndex>>(chapterIndexes);
+
     /**
      * Список глав, которые должны присутствовать в ReaderLayout.
      */
@@ -196,12 +198,19 @@ export function useVirtualScrollReader(
     }, [viewportHeight]);
 
     React.useEffect(() => {
+        chapterIndexesRef.current = chapterIndexes;
+    }, [chapterIndexes]);
+
+    // Добавляем mountedRef
+    React.useEffect(() => {
         mountedRef.current = true;
 
         return () => {
             mountedRef.current = false;
         };
     }, []);
+
+
 
     // ============================================================
     // Desired chapters initialization
@@ -215,16 +224,13 @@ export function useVirtualScrollReader(
      * Это только говорит hook-у: "эти главы должны быть в layout".
      */
     React.useEffect(() => {
-        const initialWindow = getInitialForwardWindow(allChapters, anchorChapterName);
+        setDesiredChapterNames([anchorChapterName]);
 
-        setDesiredChapterNames(initialWindow);
-
-        const anchorKey = getChapterIndexKey(anchorChapterName);
         initialAnchorKeyRef.current = null;
         scrollTopRef.current = 0;
 
         logger.virtualManager(
-            `Virtual desired chapters set for "${anchorChapterName}": ${initialWindow.join(", ")}`
+            `Virtual desired window reset for "${anchorChapterName}"`
         );
     }, [
         allChaptersKey,
@@ -302,13 +308,10 @@ export function useVirtualScrollReader(
     // ============================================================
 
     /**
-     * Все desired chapters кроме текущей индексируются в фоне.
+     * Fallback, если извне нужные соседние главы не были проиндексированы,
+     * добавит в очередь для ChapterIndexManager с нужным приоритетом
      *
-     * Например:
-     * current ch.1 уже готов priority 0
-     * next ch.2 уйдёт сюда priority 1
-     *
-     * Важно: это НЕ включает isLoading.
+     * Важно: НЕ включает isLoading и не блокирует Reader
      */
     React.useEffect(() => {
         let cancelled = false;
@@ -318,57 +321,58 @@ export function useVirtualScrollReader(
 
             const indexManager = plugin.getChapterIndexManager();
 
-            for (const targetChapterName of desiredChapterNames) {
-                if (cancelled) return;
+            // Собираем задачи параллельно, а не последовательно
+            const tasks = desiredChapterNames
+                .filter(targetChapterName => targetChapterName !== anchorChapterName)
+                .map(targetChapterName => {
+                    const opts = createChapterIndexerOptions({
+                        app,
+                        parentPath,
+                        chapterName: targetChapterName,
+                    });
 
-                if (targetChapterName === anchorChapterName) {
-                    continue;
-                }
-
-                const opts = createChapterIndexerOptions({
-                    app,
-                    parentPath,
-                    chapterName: targetChapterName,
-                });
-
-                if (chapterIndexes.has(opts.chapterKey)) {
-                    continue;
-                }
-
-                if (loadingChapterKeysRef.current.has(opts.chapterKey)) {
-                    continue;
-                }
-
-                loadingChapterKeysRef.current.add(opts.chapterKey);
-
-                try {
-                    const index = await indexManager.getOrBuildIndex(
-                        opts,
-                        1
-                    );
-
-                    if (!mountedRef.current) {
-                        return;
+                    if (chapterIndexesRef.current.has(opts.chapterKey)) {
+                        return null;
                     }
 
-                    setChapterIndexes(prev => {
-                        if (prev.has(opts.chapterKey)) {
-                            return prev;
-                        }
+                    if (loadingChapterKeysRef.current.has(opts.chapterKey)) {
+                        return null;
+                    }
 
-                        const next = new Map(prev);
-                        next.set(opts.chapterKey, index);
-                        return next;
-                    });
-                } catch (err) {
-                    logger.error(
-                        `useVirtualMangaReader: failed to index desired chapter "${targetChapterName}"`,
-                        err
-                    );
-                } finally {
-                    loadingChapterKeysRef.current.delete(opts.chapterKey);
+                    loadingChapterKeysRef.current.add(opts.chapterKey);
+
+                    return indexManager
+                        .getOrBuildIndex(opts, 1)
+                        .then(index => ({ chapterKey: opts.chapterKey, index }))
+                        .catch(err => {
+                            logger.error(
+                                `useVirtualScrollReader: failed to index desired chapter "${targetChapterName}"`,
+                                err
+                            );
+                            return null;
+                        })
+                        .finally(() => {
+                            loadingChapterKeysRef.current.delete(opts.chapterKey);
+                        });
+                })
+                .filter(Boolean) as Promise<{ chapterKey: string; index: CachedChapterIndex } | null>[];
+
+            if (tasks.length === 0) return;
+
+            const results = await Promise.all(tasks);
+
+            if (cancelled) return;
+            if (!mountedRef.current) return;
+
+            const nextMap = new Map(chapterIndexesRef.current);
+
+            for (const item of results) {
+                if (item && !nextMap.has(item.chapterKey)) {
+                    nextMap.set(item.chapterKey, item.index);
                 }
             }
+
+            setChapterIndexes(nextMap);
         };
 
         indexDesiredChapters();
@@ -382,7 +386,6 @@ export function useVirtualScrollReader(
         parentPath,
         anchorChapterName,
         desiredChaptersKey,
-        chapterIndexes,
     ]);
 
     // ============================================================
@@ -409,9 +412,12 @@ export function useVirtualScrollReader(
             const chapterKey = getChapterIndexKey(targetChapterName);
             const index = chapterIndexes.get(chapterKey);
 
-
-            // Если какой то индекс ещё не готов — просто пропускаем.
-            if (!index) break;
+            if (!index) {
+                // Missing chapter at the start (e.g. prev not yet indexed) — skip and keep looking.
+                // Missing in the middle/end — stop, we can't compute offsets beyond this point.
+                if (layouts.length === 0) continue;
+                break;
+            }
 
             layouts.push(
                 buildChapterLayout(index, targetChapterName, {
@@ -474,6 +480,16 @@ export function useVirtualScrollReader(
             }
         }
 
+        // Обновляем VisibleRange 
+        // когда делаем prepend
+        if (viewportHeight > 0) {
+            updateVisibleState(
+                nextReaderLayout,
+                scrollTopRef.current,
+                viewportHeight
+            );
+        }
+
         readerLayoutRef.current = nextReaderLayout;
         setReaderLayout(nextReaderLayout);
     }, [
@@ -493,7 +509,7 @@ export function useVirtualScrollReader(
     // ============================================================
 
     /**
-     * При изменении layout или viewportHeight пересчитываем
+     * При изменении layout или viewportHeight - пересчитываем
      * visibleRange и activePage по текущему scrollTop.
      *
      * Это не должно запускать indexing и не должно включать loading.
@@ -514,42 +530,52 @@ export function useVirtualScrollReader(
     ]);
 
     // ============================================================
-    // Ensure next chapter when active chapter changes
+    // Desired window management
     // ============================================================
 
     /**
-     * Когда activePage переходит в новую главу,
-     * гарантируем, что следующая глава добавлена в desiredChapterNames.
+     * Единый эффект управления окном глав.
+     * - append next: когда активная глава сменилась или открыли ридер.
+     * - prepend prev: когда пользователь близок к началу текущей главы.
      *
-     * Это не ждёт конца главы.
-     * Активная глава сменилась -> добавили next.
+     * Никакой индексации здесь нет — только desiredChapterNames.
+     * Fallback-индексация отсутствующих глав выполняется Effect A2.
      */
     React.useEffect(() => {
         const activeChapterName = activePage?.chapterName ?? anchorChapterName;
+        const activePageIndex = activePage?.index ?? anchorPageIndex;
 
-        const nextChapterName = getNextChapterName(
-            allChapters,
-            activeChapterName
-        );
-
-        if (!nextChapterName) {
-            return;
-        }
+        const nextChapterName = getNextChapterName(allChapters, activeChapterName);
+        const prevChapterName = getPreviousChapterName(allChapters, activeChapterName);
 
         setDesiredChapterNames(prev => {
-            if (prev.includes(nextChapterName)) {
-                return prev;
-            }
-            const addToDesired = [...prev, nextChapterName]
+            let next = prev;
 
-            logger.virtualManager(
-                `Virtual desired chapters refresh for "${activeChapterName}": ${addToDesired.join(", ")}`
-            );
-            return addToDesired;
+            if (nextChapterName && !next.includes(nextChapterName)) {
+                next = addSorted(next, nextChapterName, allChapters);
+            }
+
+            if (
+                prevChapterName &&
+                !next.includes(prevChapterName) &&
+                activePageIndex <= 3 // тут если индекс меньше 3 - вынести в верх как переменную
+            ) {
+                next = addSorted(next, prevChapterName, allChapters);
+            }
+
+            if (next !== prev) {
+                logger.virtualManager(
+                    `Virtual desired window: ${next.join(", ")}`
+                );
+            }
+
+            return next;
         });
     }, [
         activePage?.chapterName,
+        activePage?.index,
         anchorChapterName,
+        anchorPageIndex,
         allChaptersKey,
     ]);
 
@@ -612,31 +638,6 @@ export function useVirtualScrollReader(
 // ============================================================
 // Helpers
 // ============================================================
-
-function getInitialForwardWindow(
-    allChapters: string[],
-    chapterName: string
-): string[] {
-    if (allChapters.length === 0) {
-        return [chapterName];
-    }
-
-    const currentIndex = allChapters.indexOf(chapterName);
-
-    if (currentIndex === -1) {
-        return [chapterName];
-    }
-
-    const result = [chapterName];
-
-    const next = allChapters[currentIndex + 1];
-
-    if (next) {
-        result.push(next);
-    }
-
-    return result;
-}
 
 function getNextChapterName(
     allChapters: string[],
@@ -707,4 +708,37 @@ function computeAnchoredScrollTop(
         nextScrollTop,
         Math.max(0, nextLayout.totalHeight - nextViewportHeight)
     ));
+}
+
+function getPreviousChapterName(
+    allChapters: string[],
+    chapterName: string
+): string | null {
+    if (allChapters.length === 0) {
+        return null
+    };
+
+    const idx = allChapters.indexOf(chapterName);
+
+    if (idx <= 0) {
+        return null
+    };
+    return allChapters[idx - 1];
+}
+
+/**
+ * Добавляет главу в массив, сохраняя порядок из allChapters.
+ * Гарантирует, что desiredChapterNames всегда отсортирован.
+ */
+function addSorted(
+    current: string[],
+    chapter: string,
+    allChapters: string[]
+): string[] {
+    if (current.includes(chapter)) {
+        return current
+    };
+    const set = new Set([...current, chapter]);
+
+    return allChapters.filter(c => set.has(c));
 }

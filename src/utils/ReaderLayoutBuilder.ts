@@ -1,3 +1,4 @@
+import { off } from 'node:cluster';
 import {
     CachedChapterIndex,
     ChapterLayout,
@@ -65,15 +66,7 @@ export function buildChapterLayout(
         };
     });
 
-    /**
-     * После последней страницы offset уже включает pageGap.
-     * Убираем последний gap, но оставляем bottom padding.
-     */
-    const pagesHeight = pages.length > 0
-        ? pages[pages.length - 1].offsetBottomInChapter
-        : verticalPaddingTop;
-
-    const totalHeight = pagesHeight + verticalPaddingBottom;
+    const totalHeight = offset + verticalPaddingBottom;
 
     return {
         chapterKey: index.chapterKey,

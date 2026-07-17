@@ -1,5 +1,6 @@
 import { Plugin } from "obsidian";
 import * as React from "react";
+import * as Lucide from "lucide-react";
 
 interface ReaderHeaderProps {
     chapterName: string;

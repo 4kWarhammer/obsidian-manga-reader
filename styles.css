@@ -79,7 +79,7 @@ body.is-reader-active .mobile-navbar.mod-raised {
             
 
             /* Фон: акцентный цвет на 10% поверх фона заметки */
-            background-color: color-mix(in srgb, var(--reader-callout-color-2) 50%, transparent);
+            background-color: color-mix(in srgb, var(--reader-callout-color-2) 90%, transparent);
 
             /* Левая полоска */
             border-left: var(--callout-border-width, 4px) solid rgb(var(--reader-callout-color));

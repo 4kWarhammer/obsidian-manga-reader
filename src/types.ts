@@ -23,18 +23,26 @@ export interface VirtualImageProvider {
 export interface PluginData {
     settings: {
         viewMode: 'scroll' | 'single';
-        language: "ru" | "en"
+        language: "ru" | "en";
+        indexWarmerMode: 'adjacent' | 'extended';
+        readerBackgroundIndexing: boolean;
+        pageGap: number;
+        readerWidthPercent: number;
     };
     library: { [path: string]: MangaProgress };
-    defaultLibraryPath: string; // Путь внутри Vault по умолчанию
-    externalSources: string[]; // Массив путей к внешним папкам
+    defaultLibraryPath: string;
+    externalSources: string[];
 }
 
 // 3. Дефолтные значения для инициализации плагина
 export const DEFAULT_DATA: PluginData = {
     settings: {
         viewMode: 'scroll',
-        language: "ru"
+        language: "ru",
+        indexWarmerMode: 'adjacent',
+        readerBackgroundIndexing: false,
+        pageGap: 5,
+        readerWidthPercent: 100,
     },
     library: {},
     defaultLibraryPath: "",

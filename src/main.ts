@@ -23,8 +23,16 @@ export default class MangaReaderPlugin extends Plugin {
     private chapterIndexManager: ChapterIndexManager | null = null;
 
     async onload() {
-        // 1. Загружаем данные из файла data.json (если его нет, берем дефолты)
-        this.data = Object.assign({}, DEFAULT_DATA, await this.loadData());
+        const loaded = (await this.loadData()) || {};
+        // 1. Сверяем и дополняем из data.json (если его нет, берем дефолты)
+        this.data = {
+            ...DEFAULT_DATA,
+            ...loaded,
+            settings: {
+                ...DEFAULT_DATA.settings,
+                ...(loaded.settings || {}),
+            },
+        };
 
         // 2. Регистрируем тип нашего окна (View)
         this.registerView(

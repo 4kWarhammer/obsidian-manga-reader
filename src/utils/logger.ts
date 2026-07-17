@@ -5,7 +5,7 @@ const LOG_FLAGS = {
     imageLoader: false,
     cache: false,
     chapterCacheManager: false,
-    lazyLoader: false,
+    lazyLoader: true,
     virtualManager: true,
     observer: true,
     performance: false,

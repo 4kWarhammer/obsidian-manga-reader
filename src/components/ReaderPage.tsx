@@ -1,6 +1,7 @@
 import * as React from "react";
 import { App } from "obsidian";
 import MangaReaderPlugin from "../main";
+import { usePluginSettings } from "src/hooks/usePluginSettings";
 import { useReaderInitialPage } from "src/hooks/useReaderInitialPage";
 import { useMinimumVisible } from "src/hooks/useMinimumVisible";
 import { translations } from "src/i18n";
@@ -14,8 +15,10 @@ import { useSinglePageReader } from "src/hooks/useSinglePageReader";
 import { useRafScrollBinding } from "src/hooks/useRafScrollBinding";
 import { useReaderProgressSaver } from "src/hooks/useReaderProgressSaver";
 import { useReaderNeighborPreindex } from "src/hooks/useReaderNeighborPreindex";
+import { useTitleBackgroundPreindex } from "src/hooks/useTitleBackgroundPreindex";
 import { useChapterList } from "src/hooks/useChapterList";
-import { ReaderAnchor } from "src/types";
+import { ReaderAnchor, PluginData } from "src/types";
+import { Anchor } from "lucide-react";
 
 interface Props {
     app: App;
@@ -32,7 +35,7 @@ export const ReaderPage = ({
     parentPath, 
     chapterName, 
     onChapterChange, 
-    onBack 
+    onBack,
 }: Props) => {
     // 1. Props / basic constants
     const t = translations[plugin.data.settings.language || "en"]
@@ -48,13 +51,17 @@ export const ReaderPage = ({
     const lastSyncedVirtualPageRef = React.useRef<string | null>(null);
 
     // 3. Local state
-    const [viewMode, setViewMode] = React.useState(plugin.data.settings.viewMode);
+    const { settings, update } = usePluginSettings(plugin);
+    const [viewMode, setViewMode] = React.useState(settings.viewMode);
+
     const [isPositioning, setIsPositioning] = React.useState(true);
 
     // 4. Custom hooks 
     // 5. Destructure hook results
     // 6. Derived values
     // Не всегда удается разделить структуру
+
+
     const viewportSize = useElementSize(containerRef);
 
     const readerInitialPage = useReaderInitialPage(
@@ -78,9 +85,9 @@ export const ReaderPage = ({
         parentPath,
         anchor: readerAnchor,
         allChapters,
-        viewportWidth: viewportSize.width,
+        viewportWidth: viewportSize.width * (settings.readerWidthPercent / 100),
         viewportHeight: viewportSize.height,
-        pageGap: 16,
+        pageGap: settings.pageGap,
         maxPageWidth: 1200,
         overscan: 1000,
     });
@@ -127,6 +134,14 @@ export const ReaderPage = ({
         loadConcurrency: 2,
     });
 
+    useTitleBackgroundPreindex({
+        app,
+        plugin,
+        parentPath,
+        chapters: allChapters,
+        enabled: settings.readerBackgroundIndexing,
+    });
+
     useReaderNeighborPreindex({
         app,
         plugin,
@@ -134,7 +149,7 @@ export const ReaderPage = ({
         allChapters,
         // Работать должен в любом режиме
         activeChapterName: virtualReader.activePage?.chapterName ?? readerAnchor.chapterName,
-        mode: "extended",
+        mode: settings.indexWarmerMode,
         enabled: true,
     });
 
@@ -151,44 +166,10 @@ export const ReaderPage = ({
     const showReaderLoader = useMinimumVisible(isReaderBusy, 600);
 
     // 7. Callbacks / event handlers
-    const toggleViewMode = React.useCallback(async () => {
+    const ontoggleViewMode = () => {
         const newMode = viewMode === "scroll" ? "single" : "scroll";
-
-        const anchor =
-            viewMode === "scroll" && virtualReader.activePage
-                ? {
-                    chapterName: virtualReader.activePage.chapterName,
-                    pageIndex: virtualReader.activePage.index,
-                }
-                : {
-                    chapterName: singlePageReader.chapterName,
-                    pageIndex: singlePageReader.pageIndex,
-                };
-
-        setReaderAnchor(anchor);
-        pendingViewModeAnchorRef.current = anchor;
-
-        // Надежнее перед сменой режима заблокировать и указать что сейчас будет смена режима
-        // Так scroll DOM не успеет появиться на мгновение
-        if (newMode === "scroll") {
-            setIsPositioning(true);
-        } else {
-            setIsPositioning(false);
-        }
-
-        // Обновляем визуальное состояние
-        setViewMode(newMode);
-        
-        // Сохраняем в настройки плагина
-        plugin.data.settings.viewMode = newMode;
-        await plugin.saveSettings();
-    },[
-        viewMode,
-        virtualReader.activePage,
-        singlePageReader.chapterName,
-        singlePageReader.pageIndex,
-        plugin,
-    ]);
+        update("viewMode", newMode);
+    };
 
     const handleOpenSettings = React.useCallback(() => {
         new ReaderSettingsModal(app, plugin).open();
@@ -207,6 +188,44 @@ export const ReaderPage = ({
             document.body.classList.remove("is-manga-plugin-active");
         };
     }, []);
+
+    // Если настройки изменились извне (например, в модалке настроек),
+    // синхронизируем локальный стейт.
+    React.useEffect(() => {
+        if (viewMode === settings.viewMode) return;
+        
+        // viewMode — это ещё СТАРЫЙ режим в момент срабатывания.
+        // Именно то, что нам нужно для вычисления anchor.
+        const oldMode = viewMode;
+        const newMode = settings.viewMode;
+        
+        setViewMode(newMode);
+        
+        const anchor =
+            oldMode === "scroll" && virtualReader.activePage
+                ? {
+                    chapterName: virtualReader.activePage.chapterName,
+                    pageIndex: virtualReader.activePage.index,
+                }
+                : {
+                    chapterName: singlePageReader.chapterName,
+                    pageIndex: singlePageReader.pageIndex,
+                };
+
+        setReaderAnchor(anchor);
+        
+        if (newMode === "scroll") {
+            setIsPositioning(true);
+        } else {
+            setIsPositioning(false);
+        }
+    }, [
+        settings.viewMode,
+        viewMode,
+        virtualReader.activePage,
+        singlePageReader.chapterName,
+        singlePageReader.pageIndex
+    ]);
 
     // При смене главы из пропс делаем принудительное сохранение данных на диск
     React.useEffect(() => {
@@ -320,10 +339,8 @@ export const ReaderPage = ({
 
         logger.ReaderPage(`Positioning running: ${currentKey}`);
 
-        const pendingAnchor = pendingViewModeAnchorRef.current;
-
-        const targetChapterName = pendingAnchor?.chapterName ?? readerAnchor.chapterName;
-        const targetPageIndex = pendingAnchor?.pageIndex ?? readerAnchor.pageIndex;
+        const targetChapterName = readerAnchor.chapterName;
+        const targetPageIndex = readerAnchor.pageIndex;
 
         if (viewMode === "scroll" && virtualReader.readerLayout) {
             const page = virtualReader.readerLayout.pages.find(page =>
@@ -410,7 +427,7 @@ export const ReaderPage = ({
                 containerRef={containerRef}
                 viewMode={viewMode}
                 isMobile={isMobile}
-                onToggleViewMode={toggleViewMode}
+                onToggleViewMode={ontoggleViewMode}
                 onOpenSettings={handleOpenSettings} // Для окна настроек
                 currentPage={readerAnchor.pageIndex}
                 // Ну тут бардак

@@ -323,3 +323,89 @@ body.is-reader-active .mobile-navbar.mod-raised {
         margin-bottom: 10px;
     }
 }
+
+/* ======================================
+Блок заметки
+====================================== */
+.title-note-preview {
+    margin: 5px;
+    padding: 5px;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--radius-s, 6px);
+    background: var(--background-primary-alt);
+    cursor: pointer;
+    min-height: 80px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+.title-note-preview:hover {
+    border-color: var(--interactive-accent);
+    background: var(--background-modifier-hover);
+}
+.title-note-preview.has-note {
+    border-style: solid;
+}
+
+.title-note-preview .note-placeholder {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px 0;
+    font-size: 0.9em;
+    pointer-events: none;
+}
+
+.title-note-preview .note-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-normal);
+    font-size: 0.9em;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow-y: auto;
+}
+/* Скрываем frontmatter, чтобы не мешал */
+.title-note-preview .note-content .frontmatter {
+    display: none;
+}
+
+/* Штатный мод-хедер Obsidian (метаданные файла) в превью не нужен */
+.title-note-preview .note-content .mod-header {
+    display: none;
+}
+
+/* === Сброс встроенных padding от Obsidian markdown preview === */
+.title-note-preview .note-content.markdown-preview-view,
+.title-note-preview .note-content .markdown-preview-view,
+.title-note-preview .note-content .markdown-reading-view {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.title-note-preview .note-content .markdown-preview-sizer,
+.title-note-preview .note-content .markdown-preview-section {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    min-height: auto !important;
+}
+
+/* Компактные отступы у типографики */
+.title-note-preview .note-content p,
+.title-note-preview .note-content ul,
+.title-note-preview .note-content ol,
+.title-note-preview .note-content h1,
+.title-note-preview .note-content h2,
+.title-note-preview .note-content h3,
+.title-note-preview .note-content h4,
+.title-note-preview .note-content h5,
+.title-note-preview .note-content h6,
+.title-note-preview .note-content blockquote {
+    margin: 0.35em 0 !important;
+    padding: 0 !important;
+}
+
+/* Списки — оставляем небольшой left padding для буллетов */
+.title-note-preview .note-content ul,
+.title-note-preview .note-content ol {
+    padding-left: 1.2em !important;
+    margin: 0.2em 0 !important;
+}

@@ -31,8 +31,8 @@ export const translations = {
         singlePageMode: "Постранично",
         nextPage: "След. страница",
         prevPage: "Пред. страница",
-        
-
+        notePlaceholder: "📝 Двойной клик, чтобы создать заметку",
+        noteEmpty: "Заметка пуста. Двойной клик для редактирования.",
     },
     en: {
         // Библиотека
@@ -66,7 +66,8 @@ export const translations = {
         singlePageMode: "Page-by-page",
         nextPage: "Next page",
         prevPage: "Prev. page",
-        
+        notePlaceholder: "📝 Double-click to create a note",
+        noteEmpty: "Note is empty. Double-click to edit.",
     }
 };
 

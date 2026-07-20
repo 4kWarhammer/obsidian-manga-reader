@@ -1,7 +1,7 @@
 // Это «контракт», описывающий структуру данных. 
 // Так удобнее, чем держать это в голове.
 
-// 1. Описываем, что такое прогресс для одной манги
+// Прогресс чтения манги
 export interface MangaProgress {
     lastChapter: string; // соответствует ReaderAnchor.chapterName, вроде как
     lastPage: number;    // соответствует ReaderAnchor.pageIndex, вроде бы как
@@ -10,7 +10,7 @@ export interface MangaProgress {
     notes?: string;      // Личные комментарии
 }
 
-// Новый, на замену старому
+// Интерфейс поставщика подготовленных изображений
 export interface VirtualImageProvider {
     loadedUrls: Map<string, string>;
     isLoading: (chapter: string, index: number) => boolean;
@@ -19,7 +19,7 @@ export interface VirtualImageProvider {
     clear: () => void;
 }
 
-// 2. Описываем структуру всего data.json
+// Структура data.json
 export interface PluginData {
     settings: {
         viewMode: 'scroll' | 'single';
@@ -28,6 +28,7 @@ export interface PluginData {
         readerBackgroundIndexing: boolean;
         pageGap: number;
         readerWidthPercent: number;
+        notesFolder: string;    // Пока тут пусть, но как будто бы надо переделать путь
     };
     library: { [path: string]: MangaProgress };
     defaultLibraryPath: string;
@@ -43,6 +44,7 @@ export const DEFAULT_DATA: PluginData = {
         readerBackgroundIndexing: false,
         pageGap: 5,
         readerWidthPercent: 100,
+        notesFolder: "MangaReader/Notes",   // Также пока пусть будет
     },
     library: {},
     defaultLibraryPath: "",

@@ -5,13 +5,14 @@ import { ChapterListPage } from "./ChapterListPage";
 import { translations } from "src/i18n";
 import { useChapterList } from "src/hooks/useChapterList";
 import { useTitleBackgroundPreindex } from "src/hooks/useTitleBackgroundPreindex";
+import { useTitleNote } from "src/hooks/useTitleNote";
+import { MarkdownNote } from "./MarkDownNote";
 
 interface Props {
     app: App;
     plugin: MangaReaderPlugin;
     path: string;
     onBack: () => void;
-    // Тут второй аргумент необязателен, поэтому ставим ?
     onContinue: (chapter: string, resetPage?: boolean) => void; // Для кнопки "Продолжить"
     onSelectChapter: (chapter: string, resetPage?: boolean) => void;
 }
@@ -23,6 +24,13 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
     const titleName = path.split(/[\\/]/).pop();
 
     const chapters = useChapterList(app, path);
+
+    // Заметка - описание
+    const { content, exists, openOrCreate } = useTitleNote(
+        app,
+        path,
+        plugin.data.settings.notesFolder
+    );
 
     useTitleBackgroundPreindex({
         app,
@@ -61,6 +69,19 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
                         <p>{t.noStartReading}</p>
                     )}
                 </div>
+            </div>
+
+            {/* === БЛОК ЗАМЕТКИ === */}
+            <div
+                className={`title-note-preview ${exists ? "has-note" : ""}`}
+                onDoubleClick={openOrCreate}
+                title="Двойной клик — открыть/создать заметку"
+            >
+                {exists ? (
+                    <MarkdownNote app={app} source={content} path={path} />
+                ) : (
+                    <div className="note-placeholder">{t.notePlaceholder}</div>
+                )}
             </div>
 
             <hr />

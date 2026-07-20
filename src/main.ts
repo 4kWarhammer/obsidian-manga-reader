@@ -24,7 +24,7 @@ export default class MangaReaderPlugin extends Plugin {
 
     async onload() {
         const loaded = (await this.loadData()) || {};
-        // 1. Сверяем и дополняем из data.json (если его нет, берем дефолты)
+        // Сверяем и дополняем из data.json (если его нет, берем дефолты)
         this.data = {
             ...DEFAULT_DATA,
             ...loaded,
@@ -34,18 +34,29 @@ export default class MangaReaderPlugin extends Plugin {
             },
         };
 
-        // 2. Регистрируем тип нашего окна (View)
+        // Создаем системные папки если их нет
+        const systemFolders = [
+            normalizePath(this.data.settings.notesFolder),
+            normalizePath(this.data.settings.imagesFolder),
+        ];
+        for (const folderPath of systemFolders) {
+            if (!this.app.vault.getAbstractFileByPath(folderPath)) {
+                await this.app.vault.createFolder(folderPath);
+            }
+        }
+
+        // Регистрируем тип нашего окна (View)
         this.registerView(
             VIEW_TYPE_MANGA,
             (leaf) => new MangaView(leaf, this)
         );
 
-        // 3. Добавляем иконку на левую панель
+        // Добавляем иконку на левую панель
         this.addRibbonIcon('book-open', 'Manga Reader', () => {
             this.activateView();
         });
 
-        // 4. Регистрируем вкладку настроек
+        // Регистрируем вкладку настроек
         this.addSettingTab(new MangaReaderSettingTab(this.app, this));
 
         console.log('Плагин читалки манги загружен!');

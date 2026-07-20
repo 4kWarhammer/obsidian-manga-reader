@@ -8,6 +8,7 @@ export interface MangaProgress {
     title?: string;      // Описание
     tags?: string[];     // Жанры
     notes?: string;      // Личные комментарии
+    posterImages?: string[];    // Для постеров
 }
 
 // Интерфейс поставщика подготовленных изображений
@@ -29,6 +30,7 @@ export interface PluginData {
         pageGap: number;
         readerWidthPercent: number;
         notesFolder: string;    // Пока тут пусть, но как будто бы надо переделать путь
+        imagesFolder: string;
     };
     library: { [path: string]: MangaProgress };
     defaultLibraryPath: string;
@@ -45,6 +47,7 @@ export const DEFAULT_DATA: PluginData = {
         pageGap: 5,
         readerWidthPercent: 100,
         notesFolder: "MangaReader/Notes",   // Также пока пусть будет
+        imagesFolder: "MangaReader/Images",
     },
     library: {},
     defaultLibraryPath: "",

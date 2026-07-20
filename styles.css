@@ -435,3 +435,101 @@ body.is-reader-active .mobile-navbar.mod-raised {
     white-space: nowrap;
     user-select: none;
 }
+
+/* ======================================
+Постер — слайдшоу
+====================================== */
+.title-showcase .poster {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+.title-showcase .poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+}
+.title-showcase .poster img.active {
+    opacity: 1;
+}
+
+/* Модалка */
+.image-select-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 60vh;
+    min-width: 420px;
+}
+.image-select-container {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px;
+}
+.image-select-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+}
+.image-select-folder {
+    margin-bottom: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.folder-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--background-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+.folder-header input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+}
+.folder-content {
+    background: var(--background-primary);
+}
+.image-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px 6px 28px;
+    border-top: 1px solid var(--background-modifier-border-hover);
+}
+.image-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.image-item img {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.image-item span {
+    font-size: 0.85em;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.image-select-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    margin-top: 8px;
+    border-top: 1px solid var(--background-modifier-border);
+}

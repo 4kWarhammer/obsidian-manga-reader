@@ -45,7 +45,7 @@ export function useTitleNote(
         
         // Если объект существует, но это папка — прерываем выполнение
         if (file instanceof TFolder) {
-            console.error("По указанному пути находится папка, а не файл");
+            console.error("По указанному пути находится папка, не файл");
             return;
         }
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { App } from "obsidian";
+import { App, TFile } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { ChapterListPage } from "./ChapterListPage";
 import { translations } from "src/i18n";
@@ -7,6 +7,7 @@ import { useChapterList } from "src/hooks/useChapterList";
 import { useTitleBackgroundPreindex } from "src/hooks/useTitleBackgroundPreindex";
 import { useTitleNote } from "src/hooks/useTitleNote";
 import { MarkdownNote } from "./MarkDownNote";
+import { ImageSelectModal } from "../modal/ImageSelectModal";
 
 interface Props {
     app: App;
@@ -38,6 +39,12 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
         plugin.data.settings.notesFolder
     );
 
+    // Для постера
+    const [posterImages, setPosterImages] = React.useState<string[]>(
+        plugin.data.library[path]?.posterImages || []
+    );
+    const [currentSlide, setCurrentSlide] = React.useState(0);
+
     useTitleBackgroundPreindex({
         app,
         plugin,
@@ -45,6 +52,41 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
         chapters,
         enabled: true,
     });
+
+    const getResourcePath = (imgPath: string): string => {
+        const file = app.vault.getAbstractFileByPath(imgPath);
+        if (file instanceof TFile) {
+            return app.vault.getResourcePath(file);
+        }
+        return "";
+    };
+
+    const handlePosterClick = () => {
+        const onSave = (selected: string[]) => {
+            setPosterImages(selected);
+            if (!plugin.data.library[path]) {
+                plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
+            }
+            plugin.data.library[path].posterImages = selected;
+            plugin.saveProgress();
+        };
+
+        new ImageSelectModal(
+            app,
+            plugin.data.settings.imagesFolder,
+            posterImages,
+            onSave
+        ).open();
+    };
+
+    // Постер крутить?
+    React.useEffect(() => {
+        if (posterImages.length <= 1) return;
+        const timer = setInterval(() => {
+            setCurrentSlide(prev => (prev + 1) % posterImages.length);
+        }, 4000);
+        return () => clearInterval(timer);
+    }, [posterImages]);
 
     return (
         <div className="title-showcase">
@@ -56,7 +98,24 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
 
             <div className="top-showcase">
                 {/* Постер */}
-                <div className="poster"> 🖼 Постер </div>
+                <div
+                    className="poster"
+                    onClick={handlePosterClick}
+                    title="Клик — выбрать изображения"
+                >
+                    {posterImages.length > 0 ? (
+                        posterImages.map((imgPath, i) => (
+                            <img
+                                key={imgPath}
+                                src={getResourcePath(imgPath)}
+                                className={i === currentSlide ? "active" : ""}
+                                alt="poster"
+                            />
+                        ))
+                    ) : (
+                        "🖼 Постер"
+                    )}
+                </div>
                 <div className="title-info">
                     {titleName}
                 </div>                

@@ -26,7 +26,13 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
     const chapters = useChapterList(app, path);
 
     // Заметка - описание
-    const { content, exists, openOrCreate } = useTitleNote(
+    const {
+        description,
+        comments,
+        tags,
+        exists,
+        openOrCreate
+    } = useTitleNote(
         app,
         path,
         plugin.data.settings.notesFolder
@@ -77,10 +83,46 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
                 onDoubleClick={openOrCreate}
                 title="Двойной клик — открыть/создать заметку"
             >
-                {exists ? (
-                    <MarkdownNote app={app} source={content} path={path} />
+                {exists && description ? (
+                    <MarkdownNote app={app} source={description} path={path} />
                 ) : (
-                    <div className="note-placeholder">{t.notePlaceholder}</div>
+                    <div className="note-placeholder">
+                        {exists ? t.noteDescriptionEmpty : t.notePlaceholder}
+                    </div>
+                )}
+            </div>
+
+            {/* === БЛОК Комментариев === */}
+            <div
+                className={`title-note-preview ${exists ? "has-note" : ""}`}
+                onDoubleClick={openOrCreate}
+                title="Двойной клик — открыть/создать заметку"
+            >
+                {exists && comments ? (
+                    <MarkdownNote app={app} source={comments} path={path} />
+                ) : (
+                    <div className="note-placeholder">
+                        {exists ? t.noteDescriptionEmpty : t.noteCommentsEmpty}
+                    </div>
+                )}
+            </div>
+
+            {/* === БЛОК ТЕГОВ === */}
+            <div
+                className={`title-note-preview tag-preview ${exists ? "has-note" : ""}`}
+                onDoubleClick={openOrCreate}
+                title="Двойной клик — открыть/создать заметку"
+            >
+                {exists && tags.length > 0 ? (
+                    <div className="tag-cloud">
+                        {tags.map((tag) => (
+                            <span key={tag} className="tag-chip">{tag}</span>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="note-placeholder">
+                        {exists ? t.noteTagsEmpty : t.notePlaceholder}
+                    </div>
                 )}
             </div>
 

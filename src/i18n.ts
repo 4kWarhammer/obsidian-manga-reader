@@ -33,6 +33,9 @@ export const translations = {
         prevPage: "Пред. страница",
         notePlaceholder: "📝 Двойной клик, чтобы создать заметку",
         noteEmpty: "Заметка пуста. Двойной клик для редактирования.",
+        noteDescriptionEmpty: "Заметка есть, но заголовок «Описание» не найден",
+        noteCommentsEmpty: "Заметка есть, но заголовок «Комментарии» не найден",
+        noteTagsEmpty: "Теги не указаны",
     },
     en: {
         // Библиотека
@@ -68,6 +71,9 @@ export const translations = {
         prevPage: "Prev. page",
         notePlaceholder: "📝 Double-click to create a note",
         noteEmpty: "Note is empty. Double-click to edit.",
+        noteDescriptionEmpty: "Note exists, but «Описание» heading not found",
+        noteCommentsEmpty: "Note exists, but «Комментарии» heading not found",
+        noteTagsEmpty: "No tags specified",
     }
 };
 

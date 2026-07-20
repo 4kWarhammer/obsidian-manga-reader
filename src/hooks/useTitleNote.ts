@@ -8,18 +8,16 @@ import {
     EventRef,
     WorkspaceLeaf,
 } from "obsidian";
+import { extractMarkdownSection } from "../utils/extractMarkdownSection";
 
 // Шаблон на доработку
 const TEMPLATE = (titleName: string) => `---
 tags: [manga]
 created: {{date}}
 ---
+# Описание
 
-# ${titleName}
-
-Описание:
-
-Теги:
+# Комментарии
 `;
 
 export function useTitleNote(
@@ -29,6 +27,7 @@ export function useTitleNote(
 ) {
     const [notePath, setNotePath] = React.useState<string | null>(null);
     const [content, setContent] = React.useState<string>("");
+    const [tags, setTags] = React.useState<string[]>([]);
     const [exists, setExists] = React.useState(false);
 
     // Генерируем путь к заметке единообразно для vault/external тайтлов
@@ -39,45 +38,6 @@ export function useTitleNote(
             .replace(/[:*?"<>|]/g, "_");
         return normalizePath(`${notesFolder}/${safeName}.md`);
     }, [titlePath, notesFolder]);
-
-    // Читаем содержимое + подписываемся на изменения в vault
-    React.useEffect(() => {
-        let eventRef: EventRef
-
-        const checkAndRead = async () => {
-            const file = app.vault.getAbstractFileByPath(computedPath);
-            if (file instanceof TFile) {
-                setNotePath(file.path);
-                setExists(true);
-                const text = await app.vault.cachedRead(file);
-                setContent(text);
-            } else {
-                setNotePath(computedPath); // путь для будущего создания
-                setExists(false);
-                setContent("");
-            }
-        };
-
-        checkAndRead();
-
-        // metadataCache.on('changed') строго типизировано:
-        // (file: TFile, data: string, cache: CachedMetadata) => any
-        const handler = (_file: TFile, _data: string, _cache: CachedMetadata) => {
-            // _file содержит TFile, но нам достаточно проверить путь,
-            // чтобы не гоняться за каждым изменением в vault
-            if (_file.path === computedPath) {
-                checkAndRead();
-            }
-        };
-
-        eventRef = app.metadataCache.on("changed", handler);
-
-        return () => {
-            if (eventRef) {
-                app.metadataCache.offref(eventRef);
-            }
-        };
-    }, [app, computedPath]);
 
     // Открыть существующую или создать новую
     const openOrCreate = React.useCallback(async () => {
@@ -108,28 +68,100 @@ export function useTitleNote(
             file = await app.vault.create(computedPath, body);
         }
 
+        // Ищем уже открытую вкладку с этим файлом
         const target = file as TFile;
 
-        // Ищем уже открытую вкладку с этим файлом
-        let existingLeaf: WorkspaceLeaf | null = null;
+        // Ищем строго среди markdown-вкладок (надежнее, чем iterateAllLeaves)
+        const existing = app.workspace.getLeavesOfType("markdown").find(
+            (leaf) => (leaf.view as any)?.file?.path === target.path
+        );
 
-        // Перебираем все вкладки, группы и окна
-        app.workspace.iterateAllLeaves((leaf) => {
-            // FileView (markdown, image и др.) хранит ссылку на файл
-            if ((leaf.view as any)?.file?.path === target.path) {
-                existingLeaf = leaf;
-            }
-        });
-
-        if (existingLeaf) {
-            app.workspace.setActiveLeaf(existingLeaf, { focus: true });
-        } else {
-            // Если не открыта, то создаем окно
-            const leaf = app.workspace.getLeaf("tab");
-            await leaf.openFile(file as TFile, { active: true });
+        if (existing) {
+            // revealLeaf гарантированно переключает workspace на нужную вкладку/сплит,
+            // setActiveLeaf делает её активной
+            app.workspace.revealLeaf(existing);
+            app.workspace.setActiveLeaf(existing, { focus: true });
+            return;
         }
+
+        // Не найдена — открываем новую
+        const leaf = app.workspace.getLeaf("tab");
+        await leaf.openFile(target, { active: true });
     }, [app, computedPath, titlePath]);
 
+    const description = React.useMemo(() => {
+        if (!content) return null;
+        // Берём секцию "Описание" (регистр не важен)
+        return extractMarkdownSection(content, "Описание");
+    }, [content]);
 
-    return { content, exists, notePath, openOrCreate };
+    const comments = React.useMemo(() => {
+        if (!content) return null;
+        // Берём секцию "Описание" (регистр не важен)
+        return extractMarkdownSection(content, "Комментарии");
+    }, [content]);
+
+    // Читаем содержимое + подписываемся на изменения в vault
+    React.useEffect(() => {
+        let eventRef: EventRef
+
+        const checkAndRead = async () => {
+            const file = app.vault.getAbstractFileByPath(computedPath);
+            if (file instanceof TFile) {
+                setNotePath(file.path);
+                setExists(true);
+                const text = await app.vault.cachedRead(file);
+                setContent(text);
+                const cache = app.metadataCache.getFileCache(file);
+                const fmTags = cache?.frontmatter?.tags;
+                setTags(parseTags(fmTags));
+            } else {
+                setNotePath(computedPath); // путь для будущего создания
+                setExists(false);
+                setContent("");
+                setTags([]);
+            }
+        };
+
+        checkAndRead();
+
+        // metadataCache.on('changed') строго типизировано:
+        // (file: TFile, data: string, cache: CachedMetadata) => any
+        const handler = (_file: TFile, _data: string, _cache: CachedMetadata) => {
+            // _file содержит TFile, но нам достаточно проверить путь,
+            // чтобы не гоняться за каждым изменением в vault
+            if (_file.path === computedPath) {
+                checkAndRead();
+            }
+        };
+
+        eventRef = app.metadataCache.on("changed", handler);
+
+        return () => {
+            if (eventRef) {
+                app.metadataCache.offref(eventRef);
+            }
+        };
+    }, [app, computedPath]);
+
+    return {
+        content,
+        description,
+        comments,
+        tags,
+        exists,
+        notePath,
+        openOrCreate
+    };
+}
+
+function parseTags(raw: unknown): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+        return raw.flat().map(String).filter(Boolean);
+    }
+    if (typeof raw === "string") {
+        return raw.split(",").map((t) => t.trim()).filter(Boolean);
+    }
+    return [];
 }

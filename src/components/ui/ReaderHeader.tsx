@@ -1,4 +1,3 @@
-import { Plugin } from "obsidian";
 import * as React from "react";
 import * as Lucide from "lucide-react";
 
@@ -6,39 +5,61 @@ interface ReaderHeaderProps {
     chapterName: string;
     allChapters: string[];
     onBack: () => void;
+    onPageNavigation: (direction: "prev" | "next") => void;
     onChapterChange: (name: string) => void;
     viewMode: string;
     onToggleViewMode?: () => void;
     onOpenSettings?: () => void
+    onOpenChapterList?: () => void;
 }
 
 export const ReaderHeader = ({ 
     chapterName, 
     allChapters, 
-    onBack, 
+    onBack,
+    onPageNavigation,
     onChapterChange, 
     viewMode,
     onToggleViewMode,
     onOpenSettings,
+    onOpenChapterList,
 }: ReaderHeaderProps) => {
+    const [isTocOpen, setIsTocOpen] = React.useState(false);
+
     return (
         <div className="reader-header">
             <div className="header-left">
                 <button className="nav-btn" onClick={onBack} title="Назад">
-                    <span>🔙</span>
+                    <Lucide.ArrowLeft size={18}/>
                 </button>
             </div>
             
             <div className="header-center">
-                <select 
-                    value={chapterName} 
-                    onChange={(e) => onChapterChange(e.target.value)}
-                    className="chapter-select"
+                <button 
+                    className="nav-btn"
+                    onClick={() => onPageNavigation("prev")}
+                    title="Предыдущая страница"
                 >
-                    {allChapters.map(ch => (
-                        <option key={ch} value={ch}>{ch}</option>
-                    ))}
-                </select>
+                    <Lucide.ChevronLeft size={18}/>
+                </button>
+
+                {/* Вместо <select> */}
+                <button
+                    className="nav-btn"
+                    onClick={onOpenChapterList}
+                    title="Открыть оглавление"
+                >
+                    <span className="toc-trigger-label">Оглавление</span>
+                    <span className="toc-trigger-current">{chapterName}</span>
+                </button>
+
+                <button
+                    className="nav-btn"
+                    onClick={() => onPageNavigation("next")}
+                    title="Следующая страница"
+                    >
+                    <Lucide.ChevronRight size={18}/>
+                </button>
             </div>
 
             <div className="header-right">
@@ -47,7 +68,9 @@ export const ReaderHeader = ({
                     className="nav-btn"
                     onClick={onToggleViewMode}
                     title="Сменить режим">
-                    {viewMode === "scroll" ? "📜" : "📄"}
+                    {viewMode === "scroll" 
+                    ? <Lucide.GalleryVertical size={18}/>
+                    : <Lucide.FileText size={18}/>}
                 </button>
                 {/* Настройки */}
                 <button 
@@ -55,7 +78,7 @@ export const ReaderHeader = ({
                     onClick={onOpenSettings} 
                     title="Настройки"
                 >
-                    <span>⚙️</span>
+                    <Lucide.Settings size={18}/>
                 </button>
             </div>
         </div>

@@ -1,20 +1,20 @@
-import * as React from "react";
-import { TFolder, App, Plugin } from "obsidian";
-import { useChapterList } from "src/hooks/useChapterList";
 import { translations } from "src/i18n";
 import MangaReaderPlugin from "src/main";
 
-// Достаем Node.js модули
-const fs = (window as any).require ? (window as any).require('fs') : null;
-
 interface Props {
-    plugin: MangaReaderPlugin;
+    plugin?: MangaReaderPlugin;     // Пока сделаю опциональным чтобы не пробрасывать в ReaderHeader
     chapters: string[];
     onSelectChapter: (chapterName: string, resetPage?: boolean) => void;
+    onClose?: () => void;
 }
 
-export const ChapterListPage = ({ plugin, chapters, onSelectChapter }: Props) => {
-    const t = translations[plugin.data.settings.language || "en"];
+/**
+ * Глупый UI компонент, можно было бы напрямую вызывать в него useChapterList хук
+ * Однако пусть лучше наследует его через пропсы от родителей.
+ * Требует нормальной стилизации
+ */
+export const ChapterListPage = ({ plugin, chapters, onSelectChapter, onClose }: Props) => {
+    const t = translations[plugin?.data.settings.language || "en"];
 
     return (
         <div>

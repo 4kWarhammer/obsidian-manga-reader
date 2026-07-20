@@ -1,20 +1,25 @@
 import * as React from "react";
+import { App } from "obsidian";
+import MangaReaderPlugin from "src/main";
 import { MangaPage } from "./MangaPage";
 import { ReaderHeader } from "./ReaderHeader";
 import { VirtualImageProvider } from "src/types";
 import { ReaderLayout, ReaderPageLayout } from "src/types";
 import { VirtualScrollSurface } from "./VirtualScrollSurface";
+import { ReaderSettingsModal } from "src/modal/ReaderSettingsModal";
+import { ChapterListModal } from "src/modal/ChapterListModal";
 
 interface MangaCanvasProps {
-    containerRef: React.RefObject<HTMLDivElement | null>
+    app: App;
+    plugin: MangaReaderPlugin;
+    containerRef: React.RefObject<HTMLDivElement | null>;
     viewMode: "scroll" | "single";
     isMobile?: boolean;
     onToggleViewMode: () => void;
-    onOpenSettings?: () => void; // для окна настроек
     currentPage: number;
     chapterName: string;
-    allChapters: string[],
-    onBack:() => void,
+    allChapters: string[];
+    onBack:() => void;
     onChapterChange:(chapterName: string, resetPage?: boolean) => void,
     onPageClick: (pageIndex: number) => Promise<void>;
     virtualImageProvider: VirtualImageProvider;
@@ -24,17 +29,22 @@ interface MangaCanvasProps {
 }
 
 // Это наш "диспетчер" для отображаемых элементов
-export const MangaCanvas = React.memo(({ 
+/**
+ * Диспетчер для отображаемых компонентов, а также для 
+ * Frontend style логики
+ */
+export const MangaCanvas = React.memo(({
+    app,
+    plugin,
     containerRef,
     viewMode,
     isMobile,
     onToggleViewMode,
-    onOpenSettings,
-    currentPage, 
-    chapterName, 
-    allChapters, 
-    onBack, 
-    onChapterChange, 
+    currentPage,
+    chapterName,
+    allChapters,
+    onBack,
+    onChapterChange,
     onPageClick,
     virtualImageProvider,
     virtualReaderLayout,
@@ -47,6 +57,19 @@ export const MangaCanvas = React.memo(({
         ? `${singlePage.chapterName}:${singlePage.index}`
         : null;
 
+    /**
+     * Для обработки навигации по страницам при помощи кнопок
+     */
+    const handlePageClick = (direction: "prev" | "next") => {
+        if (!singlePage) return;
+
+        const newIndex = direction === "prev" 
+            ? singlePage.index - 1 
+            : singlePage.index + 1;
+
+        onPageClick(newIndex);
+    };
+    
     /**
      * Универсальный обработчик кликов по канвасу
      * В scroll mode - вызывает header UI
@@ -79,6 +102,25 @@ export const MangaCanvas = React.memo(({
         }
     };
 
+    /**
+     * Окно с настройками
+     */
+    const handleOpenSettings = React.useCallback(() => {
+        new ReaderSettingsModal(app, plugin).open();
+    }, [app, plugin]);
+
+    /**
+     * Окно со спискм глав
+     */
+    const handleOpenChapterList = React.useCallback(() => {
+        new ChapterListModal(
+            app,
+            plugin,
+            allChapters,
+            (name) => onChapterChange(name, true)
+        ).open();
+    }, [app, plugin, allChapters, onChapterChange]);
+
     // При монтировании (открытии читалки) добавляем класс к боди
     React.useEffect(() => {
         document.body.classList.add("is-reader-active");
@@ -103,10 +145,12 @@ export const MangaCanvas = React.memo(({
                     chapterName={chapterName}
                     allChapters={allChapters}
                     onBack={onBack}
+                    onPageNavigation ={handlePageClick}
                     onChapterChange={(name) => onChapterChange(name, true)}
                     viewMode={viewMode}
                     onToggleViewMode={onToggleViewMode}
-                    onOpenSettings={onOpenSettings} // для окна настроек
+                    onOpenSettings={handleOpenSettings} // для окна настроек
+                    onOpenChapterList={handleOpenChapterList} 
                 />
             </div>
 

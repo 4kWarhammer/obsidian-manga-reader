@@ -18,7 +18,6 @@ import { useReaderNeighborPreindex } from "src/hooks/useReaderNeighborPreindex";
 import { useTitleBackgroundPreindex } from "src/hooks/useTitleBackgroundPreindex";
 import { useChapterList } from "src/hooks/useChapterList";
 import { ReaderAnchor, PluginData } from "src/types";
-import { Anchor } from "lucide-react";
 
 interface Props {
     app: App;
@@ -170,10 +169,6 @@ export const ReaderPage = ({
         const newMode = viewMode === "scroll" ? "single" : "scroll";
         update("viewMode", newMode);
     };
-
-    const handleOpenSettings = React.useCallback(() => {
-        new ReaderSettingsModal(app, plugin).open();
-    }, [app, plugin]);
 
     // 8. Effects
     // Эффект для добавления класса к телу при монтировании/размонтировании
@@ -424,11 +419,13 @@ export const ReaderPage = ({
     return (
         <div className={`manga-reader ${showReaderLoader ? "is-reader-loading" : ""}`}>
             <MangaCanvas
+                app={app}
+                plugin={plugin}
                 containerRef={containerRef}
                 viewMode={viewMode}
                 isMobile={isMobile}
                 onToggleViewMode={ontoggleViewMode}
-                onOpenSettings={handleOpenSettings} // Для окна настроек
+                // onOpenSettings={handleOpenSettings} // Для окна настроек
                 currentPage={readerAnchor.pageIndex}
                 // Ну тут бардак
                 chapterName={

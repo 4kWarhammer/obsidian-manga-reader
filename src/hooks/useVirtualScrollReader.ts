@@ -49,6 +49,9 @@ export interface UseVirtualScrollReaderResult {
     ackPendingScroll: () => void;
 }
 
+ // тут если индекс меньше 3 - добавляем педыдущую главу
+const tresholdForPrev = 3;
+
 /**
  * Хук управления virtual DOM. Выдает Layout для отрисовки
  * Дает информацию о текущей и соседней странице 
@@ -558,7 +561,7 @@ export function useVirtualScrollReader(
             if (
                 prevChapterName &&
                 !next.includes(prevChapterName) &&
-                activePageIndex <= 3 // тут если индекс меньше 3 - вынести в верх как переменную
+                activePageIndex <= tresholdForPrev
             ) {
                 next = addSorted(next, prevChapterName, allChapters);
             }

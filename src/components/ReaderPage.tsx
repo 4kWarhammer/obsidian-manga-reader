@@ -28,6 +28,10 @@ interface Props {
     onBack: () => void;
 }
 
+// Для управления читалкой - шириной окна в частности
+const MAX_WIDTH = 1200;
+const OVERSCAN = 1000;
+
 export const ReaderPage = ({ 
     app, 
     plugin, 
@@ -84,11 +88,11 @@ export const ReaderPage = ({
         parentPath,
         anchor: readerAnchor,
         allChapters,
-        viewportWidth: viewportSize.width * (settings.readerWidthPercent / 100),
+        viewportWidth: viewportSize.width,
         viewportHeight: viewportSize.height,
         pageGap: settings.pageGap,
-        maxPageWidth: 1200,
-        overscan: 1000,
+        maxPageWidth: MAX_WIDTH * (settings.readerWidthPercent / 100),
+        overscan: OVERSCAN,
     });
 
     const {

@@ -1,20 +1,25 @@
 /* Библиотека */
 .library-main {
-    & .library-title{
+    max-width: 1200px;
+    margin: 0 auto;
+
+    .library-title{
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 10px;
         gap: 5px;
     }
-    & .title-grid{
+
+    .title-grid{
         display: grid;
         gap: 10px;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         /* display: flex;
         flex-wrap: wrap;
         gap: 10px; */
-        & .title{
+
+        .title{
             cursor: pointer;
             display: flex;
             flex-direction: column;

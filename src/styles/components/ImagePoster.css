@@ -32,9 +32,78 @@
 
 /* Переопределение для TitlePage (крупный постер в витрине) */
 .title-showcase .image-poster {
-    height: 260px;
-    min-width: 160px;
-    width: auto;
-    aspect-ratio: auto;
+    /* height: 260px; */
+    width: 200px;
+    /* min-width: 160px; */
     margin-bottom: 10px;
+}
+
+/* ======================================
+   Пагинация (остров точек)
+   ====================================== */
+.image-poster-dots {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 18px;
+    z-index: 2;
+
+    /* Полупрозрачный фон + размытие */
+    background: rgba(var(--mono-rgb-100), 0.15);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 20px;
+    border: 1px solid rgba(var(--mono-rgb-100), 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.3s ease;
+}
+
+/* Базовая точка */
+.image-poster-dot {
+    display: block;
+    border: none;
+    border-radius: 50%;
+    padding: 0;
+    margin: 0;
+    flex-shrink: 0;
+    outline: none;
+
+    /* Акцентный цвет темы Obsidian */
+    background-color: var(--text-accent);
+    opacity: 0.6;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.image-poster-dot:hover:not(.active) {
+    opacity: 1;
+    transform: scale(1.25);
+}
+
+/* Текущий слайд — не кликабелен и крупнее */
+.image-poster-dot.active {
+    opacity: 1;
+    cursor: default;
+    transform: scale(1);
+}
+
+/* Размеры: чем дальше от центра, тем меньше */
+.image-poster-dot.small {
+    width: 6px;
+    height: 6px;
+}
+
+.image-poster-dot.medium {
+    width: 10px;
+    height: 10px;
+}
+
+.image-poster-dot.large {
+    width: 14px;
+    height: 14px;
 }

@@ -1,0 +1,105 @@
+/* Модалка */
+.image-select-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 60vh;
+    min-width: 420px;
+}
+.image-select-container {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px;
+}
+.image-select-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-muted);
+}
+
+/* Папка — без рамки, просто поток */
+.image-select-folder {
+    margin-bottom: 1px;
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+    cursor: pointer;
+    user-select: none;
+    background: var(--background-primary);
+    transition: background 0.1s;
+}
+.folder-header:hover {
+    background: var(--background-modifier-hover);
+}
+
+.folder-arrow {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    font-size: 0.7em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.folder-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.folder-header input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+/* Контент папки — без фона, вложенность достигается padding-left в JS */
+.folder-content {
+    background: none;
+}
+
+.image-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px 5px 0;
+    border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+.image-item:last-child {
+    border-bottom: none;
+}
+
+.image-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.image-item img {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.image-item span {
+    font-size: 0.85em;
+    color: var(--text-normal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.image-select-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    margin-top: 8px;
+    border-top: 1px solid var(--background-modifier-border);
+}

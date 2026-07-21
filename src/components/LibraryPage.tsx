@@ -1,8 +1,11 @@
 import * as React from "react";
 import { TFolder, TFile, TAbstractFile, App } from "obsidian";
-import MangaReaderPlugin from "../main"; // Импорт для типа
+import MangaReaderPlugin from "../main";
 import { FolderSelectModal } from "../modal/FolderSelectModal";
 import { translations } from "src/i18n";
+import { ImagePoster } from "./ImagePoster";
+import { ImageSelectModal } from "../modal/ImageSelectModal";
+import { createSmartClickHandler } from "src/utils/createSmartClickHandler";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -129,6 +132,25 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
         }, "external").open();
     };
 
+    const handlePosterDoubleClick = (itemPath: string) => {
+        // убран e: React.MouseEvent и e.stopPropagation()
+        const posterImages = plugin.data.library[itemPath]?.posterImages || [];
+        const onSave = (selected: string[]) => {
+            if (!plugin.data.library[itemPath]) {
+                plugin.data.library[itemPath] = { lastChapter: "", lastPage: 1 };
+            }
+            plugin.data.library[itemPath].posterImages = selected;
+            plugin.saveProgress();
+            setItems(prev => [...prev]);
+        };
+        new ImageSelectModal(
+            app,
+            plugin.data.settings.imagesFolder,
+            posterImages,
+            onSave
+        ).open();
+    };
+
     return (
         <div className = "library-main">
             <div className = "library-title">
@@ -150,53 +172,49 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
 
             {/* Тут отображаем список манги уже добавленной */}
             <div className = "title-grid">
-                {items.length > 0 ? items.map(item => (
-                    <div 
-                        className = "title"
-                        key={item.path}
-                        onClick={() => onSelectTitle(item.path)}
-                        style={{ 
-                            cursor: "pointer",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px"
-                        }}
-                    >
-                        {/* Заготовка под обложку */}
-                        <div style={{ 
-                            aspectRatio: "2/3", 
-                            background: "var(--background-secondary)", 
-                            borderRadius: "8px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            border: "1px solid var(--background-modifier-border)",
-                            fontSize: "2em",
-                            transition: "transform 0.2s"
-                        }}>
-                            📖
-                        </div>
-                        
-                        {/* Название */}
-                        <div style={{ 
-                            fontWeight: "bold", 
-                            fontSize: "0.9em",
-                            textAlign: "center",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap"
-                        }}>
-                            {item.name}
-                        </div>
-                        
-                        {/* Метка внешнего источника (опционально, для отладки) */}
-                        {item.isExternal && (
-                            <div style={{ fontSize: "0.7em", color: "var(--text-muted)", textAlign: "center" }}>
-                                [{t.externalLabel}]
+                {items.length > 0 
+                ? items.map(item => {
+                    const handleSmartClick = createSmartClickHandler(
+                        () => onSelectTitle(item.path),          // одиночный клик
+                        () => handlePosterDoubleClick(item.path), // двойной клик
+                        200,    // задержка, уменьшил
+                    );
+
+                    return (
+                        <div 
+                            className="title"
+                            key={item.path}
+                            onClick={handleSmartClick}  // ← единый обработчик
+                            style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: "8px" }}
+                        >
+                            <ImagePoster
+                                app={app}
+                                images={plugin.data.library[item.path]?.posterImages || []}
+                                emptyPlaceholder={<span style={{ fontSize: "2em" }}>📖</span>}
+                                // убрать onDoubleClick отсюда
+                            />
+                            {/* Название */}
+                            <div style={{ 
+                                fontWeight: "bold", 
+                                fontSize: "0.9em",
+                                textAlign: "center",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                            }}>
+                                {item.name}
                             </div>
-                        )}
-                    </div>
-                )) : (
+                            
+                            {/* Метка внешнего источника (опционально, для отладки) */}
+                            {item.isExternal && (
+                                <div style={{ fontSize: "0.7em", color: "var(--text-muted)", textAlign: "center" }}>
+                                    [{t.externalLabel}]
+                                </div>
+                            )}
+                        </div>
+                    );
+                }) 
+                : (
                     <p style={{ gridColumn: "1/-1", textAlign: "center", opacity: 0.5 }}>
                         {t.emptyLibrary}
                     </p>

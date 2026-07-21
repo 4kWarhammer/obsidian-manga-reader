@@ -1,0 +1,18 @@
+:root {
+    --manga-max-width: 100%; /* Значение по умолчанию */
+}
+
+
+/* Обнуляем отступы безопасной зоны Obsidian в полноэкранном режиме */
+body.is-manga-plugin-active .is-mobile .workspace > .mod-root,
+body.is-manga-plugin-active .workspace-split.mod-root {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* убираем нижнюю панель Obsidian на мобилках */
+/* Только в моментах, когда активен ридер */
+body.is-reader-active .mobile-navbar.mod-raised {
+    display: none !important;
+}

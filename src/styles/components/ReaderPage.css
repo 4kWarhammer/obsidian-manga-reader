@@ -1,0 +1,245 @@
+/* Основной компонент читалки */
+.manga-reader {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    z-index: 9999; /* Выше всех элементов Obsidian */
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    /* Полотно для работы со всеми элементами - канвас */
+    & .manga-canvas-root {
+        height: 100%;
+        width: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        margin-top: var(--safe-area-inset-top);
+        margin-bottom: var(--safe-area-inset-bottom);
+        overflow-anchor: none;
+    }
+    /* Обертка для хедера */
+    & .header-wrapper {
+        position: sticky;
+        top: 0;
+        height: 0; /* Контент под ним "всплывает" наверх сам */
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        z-index: 1000;
+        /* Зона для ловли мыши - не понимаю как она работает */
+        &::before {
+            content: "";
+            background: transparent;
+            position: absolute;
+            top: 0;
+            width: 100%;
+            /* Высота зоны, где ловится мышь */
+            --detector-offset: 20px;
+            height: calc(var(--detector-offset) + var(--header-height) + var(--safe-area-inset-top));
+            }
+        /* Условие для мобилки (по тапу) */
+        /* Тап задается в JS, добавляется класс is-mobile-visible */
+        &.is-mobile-visible {
+            & .reader-header {
+                opacity: 1;
+                transform: translateY(0px);
+                pointer-events: all;
+            }
+        }
+        /* Сам хедер */
+        & .reader-header{
+            /* Локальная ссылка на нужный тип */
+            --reader-callout-color: var(--interactive-accent);
+            --reader-callout-color-2: var(--background-primary-alt);
+            
+
+            /* Фон: акцентный цвет на 10% поверх фона заметки */
+            background-color: color-mix(in srgb, var(--reader-callout-color-2) 90%, transparent);
+
+            /* Левая полоска */
+            border-left: var(--callout-border-width, 4px) solid rgb(var(--reader-callout-color));
+
+            /* Геометрия и общие стили callout */
+            border-radius: var(--callout-radius, 4px);
+            padding: var(--callout-padding, 8px 16px);
+
+            /* Остальное из твоей текущей структуры */
+            margin: 8px 12px 0;
+            width: calc(100% - 24px);
+            max-width: 720px;
+            height: auto;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: var(--shadow-s);
+
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+    }
+}
+
+.manga-reader.is-reader-loading .manga-canvas-root {
+    visibility: hidden;
+}
+
+/* Показываем хедер, когда мы навели на обертку-триггер */
+/* Логика для десктопа (по наведению) */
+@media (hover: hover) {
+    .header-wrapper:hover .reader-header {
+        opacity: 1;
+        transform: translateY(0px);
+        pointer-events: all;
+    }
+}
+
+
+.manga-reader .manga-reader-global-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    background: black;
+    color: white;
+
+    pointer-events: all;
+}
+
+.manga-reader .manga-reader-global-loader-text {
+    margin-top: 12px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Спиннер */
+.manga-reader .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.22);
+    border-top-color: var(--text-accent);
+    border-radius: 50%;
+    animation: manga-spinner-rotate 700ms linear infinite;
+}
+
+@keyframes manga-spinner-rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Стили элементов внутри */
+.manga-reader .chapter-select {
+    background: var(--background-primary);
+    color: var(--text-normal);
+    border: 1px solid var(--background-modifier-border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    max-width: 200px;
+}
+
+.manga-reader .nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+.manga-reader .nav-btn:hover {
+    color: var(--text-accent);
+}
+
+/* Single mode */
+.manga-reader .manga-reader-container.single-mode {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100%;
+    width: 100%;
+}
+
+/* single mode: включаем flex на wrapper, чтобы центровка и object-fit заработали */
+.manga-reader .single-mode .manga-page-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-width: 100%;  /* чтобы не вылезать за viewport, если renderedWidth > экрана */
+    height: auto;
+}
+
+/* картинка должна тянуться на размеры wrapper'а */
+.manga-reader .single-mode .manga-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* Анимация на появление */
+.manga-reader .manga-img {
+    flex-grow: 1;
+    opacity: 0;
+    animation: manga-image-fade-in 160ms ease-out forwards;
+}
+
+@keyframes manga-image-fade-in {
+    from { opacity: 0 }
+    to { opacity: 1 }
+}
+
+/* Для режима скролла */
+.manga-reader .virtual-reader-surface .manga-page-wrapper {
+    margin: 0;
+    min-height: 0;
+    width: auto;
+    overflow-anchor: none;
+}
+
+.manga-reader .virtual-reader-surface .manga-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    flex-grow: 0;
+}
+
+.page-number-overlay {
+    /* Твой стиль для номера страницы, можно сделать полупрозрачным */
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+/* Зоны для переключения страниц - навигация */
+.click-zone {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 10;
+    width: 25%;
+    z-index: 50;
+    /* cursor: pointer; */
+    /* background: rgba(255,0,0,0.1); Для отладки раскомментируй */
+}
+.click-zone.left { left: 0;}
+.click-zone.right { right: 0;}

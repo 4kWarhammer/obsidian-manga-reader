@@ -8,7 +8,14 @@ interface ImageFileInfo {
     resourcePath: string;
 }
 
-// Это важе интересно, не стал в i18n писать
+interface FolderNode {
+    folder: TFolder;
+    name: string;
+    files: ImageFileInfo[];
+    children: FolderNode[];
+}
+
+// Это ваще интересно, не стал в i18n писать
 const TEXTS: Record<string, Record<string, string>> = {
     ru: { selectImages: "Выбор изображений", save: "Сохранить", cancel: "Отмена", empty: "Изображения не найдены" },
     en: { selectImages: "Select images", save: "Save", cancel: "Cancel", empty: "No images found" },
@@ -19,6 +26,7 @@ export class ImageSelectModal extends Modal {
     private onSave: (paths: string[]) => void;
     private selectedPaths: Set<string>;
     private imageFiles: ImageFileInfo[] = [];
+    private rootNode: FolderNode | null = null;
     private folderExpanded: Map<string, boolean> = new Map();
     private lang: string;
 
@@ -50,12 +58,15 @@ export class ImageSelectModal extends Modal {
 
         const container = contentEl.createDiv({ cls: "image-select-container" });
 
-        if (this.imageFiles.length === 0) {
+        if (!this.rootNode || (this.rootNode.files.length === 0 && this.rootNode.children.length === 0)) {
             container.createDiv({ text: this.t("empty"), cls: "image-select-empty" });
         } else {
-            const grouped = this.groupByFolder();
-            for (const [folderPath, files] of grouped.entries()) {
-                this.renderFolder(container, folderPath, files);
+            // Корень не рендерим как папку — сразу его содержимое
+            for (const child of this.rootNode.children) {
+                this.renderFolderNode(container, child, 0);
+            }
+            for (const file of this.rootNode.files) {
+                this.renderFile(container, file, 0);
             }
         }
 
@@ -75,94 +86,120 @@ export class ImageSelectModal extends Modal {
         this.contentEl.empty();
     }
 
+    /**
+     * Метод сбора изображений внутри папаки
+     */
     private collectImages() {
         const folder = this.app.vault.getAbstractFileByPath(this.imagesFolder);
         if (!(folder instanceof TFolder)) return;
+        this.rootNode = this.buildNode(folder);
+    }
 
-        const walk = (f: TFolder) => {
-            for (const child of f.children) {
-                if (child instanceof TFolder) {
-                    walk(child);
-                } else if (child instanceof TFile && this.isImage(child.extension)) {
-                    this.imageFiles.push({
-                        path: child.path,
-                        name: child.name,
-                        folder: child.parent?.path || this.imagesFolder,
-                        resourcePath: this.app.vault.getResourcePath(child),
-                    });
-                }
-            }
+    /**Строим файловую структуру */
+    private buildNode(folder: TFolder): FolderNode {
+        const node: FolderNode = {
+            folder,
+            name: folder.name,
+            files: [],
+            children: [],
         };
 
-        walk(folder);
+        for (const child of folder.children) {
+            if (child instanceof TFolder) {
+                node.children.push(this.buildNode(child));
+            } else if (child instanceof TFile && this.isImage(child.extension)) {
+                // Тут пушим изображение
+                node.files.push({
+                    path: child.path,
+                    name: child.name,
+                    folder:folder.path,
+                    resourcePath: this.app.vault.getResourcePath(child),
+                });
+            }
+        }
 
-        this.imageFiles.sort((a, b) => {
-            if (a.folder !== b.folder) return a.folder.localeCompare(b.folder);
-            return a.name.localeCompare(b.name, undefined, { numeric: true });
-        });
+        node.children.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        node.files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+        return node;
     }
 
     private isImage(ext: string): boolean {
         return ["png", "jpg", "jpeg", "webp", "gif", "bmp"].includes(ext.toLowerCase());
     }
 
-    private groupByFolder(): Map<string, ImageFileInfo[]> {
-        const map = new Map<string, ImageFileInfo[]>();
-        for (const file of this.imageFiles) {
-            const list = map.get(file.folder) || [];
-            list.push(file);
-            map.set(file.folder, list);
+    /**Все файлы в поддереве (для чекбокса папки) */
+    private getSubtreeFiles(node: FolderNode): ImageFileInfo[] {
+        const result = [...node.files];
+        for (const child of node.children) {
+            result.push(...this.getSubtreeFiles(child));
         }
-        return map;
+        return result;
     }
 
-    private renderFolder(container: HTMLElement, folderPath: string, files: ImageFileInfo[]) {
-        const folderEl = container.createDiv({ cls: "image-select-folder" });
+    private renderFolderNode(container: HTMLElement, node: FolderNode, depth: number) {
+        const folderWrap = container.createDiv({ cls: "image-select-folder" });
 
-        const header = folderEl.createDiv({ cls: "folder-header" });
-        const folderCheckbox = header.createEl("input", { type: "checkbox" });
-        folderCheckbox.style.margin = "0";
+        const header = folderWrap.createDiv({ cls: "folder-header" });
+        header.style.paddingLeft = `${8 + depth * 16}px`;
 
-        const folderName = folderPath === this.imagesFolder
-            ? "Root"
-            : folderPath.replace(this.imagesFolder, "").replace(/^[\\/]/, "");
-        header.createSpan({ text: `📁 ${folderName}` });
+        // Чекбокс
+        const cb = header.createEl("input", { type: "checkbox" });
+        cb.style.margin = "0";
+        const subtreeFiles = this.getSubtreeFiles(node);
+        const allSelected = subtreeFiles.length > 0 && subtreeFiles.every(f => this.selectedPaths.has(f.path));
+        const someSelected = subtreeFiles.some(f => this.selectedPaths.has(f.path));
+        cb.checked = allSelected;
+        (cb as HTMLInputElement).indeterminate = someSelected && !allSelected;
 
-        const isFullySelected = files.every(f => this.selectedPaths.has(f.path));
-        const isPartiallySelected = files.some(f => this.selectedPaths.has(f.path));
-        folderCheckbox.checked = isFullySelected;
-        (folderCheckbox as HTMLInputElement).indeterminate = !isFullySelected && isPartiallySelected;
+        // Стрелка
+        const arrow = header.createSpan({ cls: "folder-arrow" });
+        const expanded = this.folderExpanded.get(node.folder.path) ?? false;
+        arrow.textContent = expanded ? "▼" : "▶";
 
-        const expanded = this.folderExpanded.get(folderPath) ?? true;
-        const contentEl = folderEl.createDiv({ cls: "folder-content" });
-        if (!expanded) contentEl.style.display = "none";
+        // Имя
+        header.createSpan({ text: `📁 ${node.name}`, cls: "folder-name" });
+
+        // Контент (файлы + вложенные папки)
+        const content = folderWrap.createDiv({ cls: "folder-content" });
+        if (!expanded) content.style.display = "none";
 
         header.addEventListener("click", (e) => {
-            if (e.target === folderCheckbox) return;
-            const newExpanded = contentEl.style.display === "none";
-            contentEl.style.display = newExpanded ? "block" : "none";
-            this.folderExpanded.set(folderPath, newExpanded);
+            if (e.target === cb) return;
+            const nowExpanded = content.style.display === "none";
+            content.style.display = nowExpanded ? "block" : "none";
+            this.folderExpanded.set(node.folder.path, nowExpanded);
+            arrow.textContent = nowExpanded ? "▼" : "▶";
         });
 
-        folderCheckbox.addEventListener("change", () => {
-            const checked = folderCheckbox.checked;
-            for (const file of files) {
+        cb.addEventListener("change", () => {
+            const checked = cb.checked;
+            for (const file of subtreeFiles) {
                 if (checked) this.selectedPaths.add(file.path);
                 else this.selectedPaths.delete(file.path);
             }
-            this.updateFileCheckboxes(contentEl, files);
+            this.refresh();
         });
 
-        for (const file of files) {
-            this.renderFile(contentEl, file);
+        // Подпапки внутри этой же папки
+        for (const child of node.children) {
+            this.renderFolderNode(content, child, depth + 1);
+        }
+
+        // Файлы этой папки
+        for (const file of node.files) {
+            this.renderFile(content, file, depth + 1);
         }
     }
 
-    private renderFile(container: HTMLElement, file: ImageFileInfo) {
+    private renderFile(container: HTMLElement, file: ImageFileInfo, depth: number) {
+        // Тут и стили прописаны - не хорошо скорее всего - я потом потеряю их
         const item = container.createDiv({ cls: "image-item" });
-        const checkbox = item.createEl("input", { type: "checkbox" });
-        checkbox.checked = this.selectedPaths.has(file.path);
-        checkbox.style.margin = "0";
+        item.style.paddingLeft = `${12 + depth * 16}px`;
+
+        const cb = item.createEl("input", { type: "checkbox" });
+        cb.checked = this.selectedPaths.has(file.path);
+        cb.style.margin = "0";
 
         const img = item.createEl("img");
         img.src = file.resourcePath;
@@ -170,12 +207,22 @@ export class ImageSelectModal extends Modal {
 
         item.createSpan({ text: file.name });
 
-        checkbox.addEventListener("change", () => {
-            if (checkbox.checked) this.selectedPaths.add(file.path);
+        cb.addEventListener("change", () => {
+            if (cb.checked) this.selectedPaths.add(file.path);
             else this.selectedPaths.delete(file.path);
+            this.refresh();
         });
     }
 
+    private refresh() {
+        const scroll = this.contentEl.querySelector(".image-select-container")?.scrollTop ?? 0;
+        this.contentEl.empty();
+        this.onOpen();
+        const container = this.contentEl.querySelector(".image-select-container");
+        if (container) container.scrollTop = scroll;
+    }
+
+    // Сейчас уже не нужна, но может вынести логику?
     private updateFileCheckboxes(container: HTMLElement, files: ImageFileInfo[]) {
         const items = container.querySelectorAll(".image-item");
         files.forEach((file, i) => {

@@ -1,0 +1,24 @@
+/* Библиотека */
+.library-main {
+    & .library-title{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 5px;
+    }
+    & .title-grid{
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        /* display: flex;
+        flex-wrap: wrap;
+        gap: 10px; */
+        & .title{
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+    }
+}

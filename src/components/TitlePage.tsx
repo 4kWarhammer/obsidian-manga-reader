@@ -9,6 +9,7 @@ import { ImagePoster } from "./ImagePoster";
 import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { useTitleNote } from "src/hooks/useTitleNote";
 import { MarkdownNote } from "./MarkDownNote";
+import { ReadingProgressBar } from "./ReadingProgressBar";
 
 interface Props {
     app: App;
@@ -19,7 +20,101 @@ interface Props {
     onSelectChapter: (chapter: string, resetPage?: boolean) => void;
 }
 
-export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapter }: Props) => {
+// Интерфейс для таба - пока тусть тут
+interface TabItem {
+    id: string;
+    label: string;
+    content: React.ReactNode;
+}
+
+interface ReadingProgressProps {
+    lastChapter?: string;
+    chapters: string[];
+    label: (current: number, total: number) => string;
+}
+
+
+/* ===================================================
+   Подкомпоненты
+   =================================================== */
+
+/** Для полоски прогресса будет еще использоваться в LibraryPage*/
+const ReadingProgress = ({ lastChapter, chapters, label }: ReadingProgressProps) => {
+    if (chapters.length === 0) return null;
+
+    const index = chapters.findIndex((ch) => ch === lastChapter);
+    const current = index >= 0 ? index + 1 : 0;
+    const total = chapters.length;
+    const percent = total > 0 ? (current / total) * 100 : 0;
+
+    return (
+        <div className="reading-progress">
+            <div className="progress-label">{label(current, total)}</div>
+            <div className="progress-bar-bg">
+                <div className="progress-bar-fill" style={{ width: `${percent}%` }} />
+            </div>
+        </div>
+    );
+};
+
+/** Подпись вкладки с проверкой переполнения. */
+const MarqueeText = ({ text }: { text: string }) => {
+    const ref = React.useRef<HTMLSpanElement>(null);
+    const [overflow, setOverflow] = React.useState(false);
+
+    React.useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        setOverflow(el.scrollWidth > el.clientWidth);
+    }, [text]);
+
+    return (
+        <span
+            ref={ref}
+            className={`tab-label ${overflow ? "tab-label-overflow" : ""}`}
+            title={text}
+        >
+            {text}
+        </span>
+    );
+};
+
+/** Обёртка с двумя областями: шапка вкладок + контент. */
+const TabView = ({ tabs }: { tabs: TabItem[] }) => {
+    const [activeId, setActiveId] = React.useState<string>(tabs[0]?.id ?? "");
+    const activeTab = tabs.find((t) => t.id === activeId);
+
+    return (
+        <div className="tab-view">
+            <div className="tab-header">
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.id}
+                        className={`tab-button ${activeId === tab.id ? "active" : ""}`}
+                        onClick={() => setActiveId(tab.id)}
+                    >
+                        <MarqueeText text={tab.label} />
+                    </button>
+                ))}
+            </div>
+            <div className="tab-content">
+                {activeTab?.content}
+            </div>
+        </div>
+    );
+};
+
+/* ===================================================
+   Основной компонент
+   =================================================== */
+export const TitlePage = ({
+    app,
+    plugin,
+    path,
+    onBack,
+    onContinue,
+    onSelectChapter
+}: Props) => {
     const t = translations[plugin.data.settings.language || "en"]
     const progress = plugin.data.library[path];
     
@@ -53,6 +148,19 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
         enabled: true,
     });
 
+    // Кэшируем общее число глав (LibraryPage позже прочитает это же поле)
+    // Спорный момент
+    React.useEffect(() => {
+        if (chapters.length > 0) {
+            if (!plugin.data.library[path]) {
+                plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
+            }
+            plugin.data.library[path].totalChapters = chapters.length;
+            plugin.saveProgress();
+        }
+    }, [chapters.length, path, plugin]);
+
+    /**Надо переименовать скорее всего */
     const handlePosterDoubleClick = () => {
         const onSave = (selected: string[]) => {
             setPosterImages(selected);
@@ -71,6 +179,86 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
         ).open();
     };
 
+    const chapterIndex = chapters.findIndex((ch) => ch === progress?.lastChapter);
+    const currentChapter = chapterIndex >= 0 ? chapterIndex + 1 : 0;
+    const totalChapters = chapters.length;
+
+    const tabs: TabItem[] = [
+        {
+            id: "description",
+            label: t.tabDescription,
+            content: (
+                <div className="tab-panel">
+                    {/* Описание */}
+                    <div
+                        className={`title-note-preview ${exists ? "has-note" : ""}`}
+                        onDoubleClick={openOrCreate}
+                        title="Двойной клик — открыть/создать заметку"
+                    >
+                        {exists && description ? (
+                            <MarkdownNote app={app} source={description} path={path} />
+                        ) : (
+                            <div className="note-placeholder">
+                                {exists ? t.noteDescriptionEmpty : t.notePlaceholder}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Теги */}
+                    <div
+                        className={`title-note-preview tag-preview ${exists ? "has-note" : ""}`}
+                        onDoubleClick={openOrCreate}
+                        title="Двойной клик — открыть/создать заметку"
+                    >
+                        {exists && tags.length > 0 ? (
+                            <div className="tag-cloud">
+                                {tags.map((tag) => (
+                                    <span key={tag} className="tag-chip">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="note-placeholder">
+                                {exists ? t.noteTagsEmpty : t.notePlaceholder}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            id: "chapters",
+            label: t.tabChapters,
+            content: (
+                <ChapterListPage
+                    plugin={plugin}
+                    chapters={chapters}
+                    onSelectChapter={(name) => onSelectChapter(name, true)}
+                />
+            ),
+        },
+        {
+            id: "comments",
+            label: t.tabComments,
+            content: (
+                <div
+                    className={`title-note-preview ${exists ? "has-note" : ""}`}
+                    onDoubleClick={openOrCreate}
+                    title="Двойной клик — открыть/создать заметку"
+                >
+                    {exists && comments ? (
+                        <MarkdownNote app={app} source={comments} path={path} />
+                    ) : (
+                        <div className="note-placeholder">
+                            {exists ? t.noteCommentsEmpty : t.notePlaceholder}
+                        </div>
+                    )}
+                </div>
+            ),
+        },
+    ];
+
     return (
         <div className="title-showcase">
             
@@ -79,92 +267,51 @@ export const TitlePage = ({ app, plugin, path, onBack, onContinue, onSelectChapt
                 <button onClick={onBack}>{t.back}</button>
             </div>
 
-            <div className="top-showcase">
-                {/* Постер */}
-                <ImagePoster
-                    app={app}
-                    images={posterImages}
-                    onDoubleClick={handlePosterDoubleClick}
-                />
-                <div className="title-info">
-                    {titleName}
+            <div className="title-layout-row">
+                {/* Левая колонка */}
+                {/* Постер + название + кнопка «Продолжить» */}
+                <div className="top-showcase">
+                    <ImagePoster
+                        app={app}
+                        images={posterImages}
+                        onDoubleClick={handlePosterDoubleClick}
+                    />
+                    <div className="title-info">{titleName}</div>
+
+                    {/* === Прогресс чтения === */}
+                    {/* Старый */}
+                    {/* <ReadingProgress
+                        lastChapter={progress?.lastChapter}
+                        chapters={chapters}
+                        label={t.chapterCount}
+                    /> */}
+
+                    <ReadingProgressBar
+                        current={currentChapter}
+                        total={totalChapters}
+                        label={t.chapterCount(currentChapter, totalChapters)}
+                    />
+
+                    <div className="start-button">
+                        {progress?.lastChapter ? (
+                            <button
+                                style={{
+                                    background: "var(--interactive-accent)",
+                                    color: "var(--text-on-accent)",
+                                }}
+                                onClick={() => onContinue(progress.lastChapter, false)}
+                            >
+                                {t.continue(progress.lastChapter, progress.lastPage)}
+                            </button>
+                        ) : (
+                            <p>{t.noStartReading}</p>
+                        )}
+                    </div>
                 </div>
 
-                {/* кнопка продолжить */} 
-                <div className="start-button">
-                    {progress?.lastChapter ? (
-                        <button 
-                            style={{ background: "var(--interactive-accent)", color: "var(--text-on-accent)" }}
-                            onClick={() => onContinue(progress.lastChapter, false)}
-                        >
-                            {t.continue (progress.lastChapter, progress.lastPage)}
-                            {/* Продолжить: {progress.lastChapter} (стр. {progress.lastPage}) */}
-                        </button>
-                    ) : (
-                        <p>{t.noStartReading}</p>
-                    )}
-                </div>
-            </div>
-
-            {/* === БЛОК ЗАМЕТКИ === */}
-            <div
-                className={`title-note-preview ${exists ? "has-note" : ""}`}
-                onDoubleClick={openOrCreate}
-                title="Двойной клик — открыть/создать заметку"
-            >
-                {exists && description ? (
-                    <MarkdownNote app={app} source={description} path={path} />
-                ) : (
-                    <div className="note-placeholder">
-                        {exists ? t.noteDescriptionEmpty : t.notePlaceholder}
-                    </div>
-                )}
-            </div>
-
-            {/* === БЛОК Комментариев === */}
-            <div
-                className={`title-note-preview ${exists ? "has-note" : ""}`}
-                onDoubleClick={openOrCreate}
-                title="Двойной клик — открыть/создать заметку"
-            >
-                {exists && comments ? (
-                    <MarkdownNote app={app} source={comments} path={path} />
-                ) : (
-                    <div className="note-placeholder">
-                        {exists ? t.noteDescriptionEmpty : t.noteCommentsEmpty}
-                    </div>
-                )}
-            </div>
-
-            {/* === БЛОК ТЕГОВ === */}
-            <div
-                className={`title-note-preview tag-preview ${exists ? "has-note" : ""}`}
-                onDoubleClick={openOrCreate}
-                title="Двойной клик — открыть/создать заметку"
-            >
-                {exists && tags.length > 0 ? (
-                    <div className="tag-cloud">
-                        {tags.map((tag) => (
-                            <span key={tag} className="tag-chip">{tag}</span>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="note-placeholder">
-                        {exists ? t.noteTagsEmpty : t.notePlaceholder}
-                    </div>
-                )}
-            </div>
-
-            <hr />
-
-            {/* ВЫЗЫВАЕМ НАШ КОМПОНЕНТ ГЛАВ (ChapterListPage) */}
-            <div className="bottom-showcase">
-                <h3>{t.chapterList}</h3>
-                <ChapterListPage
-                    plugin={plugin}
-                    chapters={chapters}
-                    onSelectChapter={(name) => onSelectChapter(name, true)}
-                />
+                {/* Правая колонка */}
+                
+                <TabView tabs={tabs} />
             </div>
         </div>
     );

@@ -36,6 +36,10 @@ export const translations = {
         noteDescriptionEmpty: "Заметка есть, но заголовок «Описание» не найден",
         noteCommentsEmpty: "Заметка есть, но заголовок «Комментарии» не найден",
         noteTagsEmpty: "Теги не указаны",
+        // для таба в TitlePage
+        tabDescription: "Описание",
+        tabChapters: "Главы",
+        tabComments: "Комментарии",
     },
     en: {
         // Библиотека
@@ -74,6 +78,10 @@ export const translations = {
         noteDescriptionEmpty: "Note exists, but «Описание» heading not found",
         noteCommentsEmpty: "Note exists, but «Комментарии» heading not found",
         noteTagsEmpty: "No tags specified",
+        // для таба в TitlePage
+        tabDescription: "Description",
+        tabChapters: "Chapters",
+        tabComments: "Comments",
     }
 };
 

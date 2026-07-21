@@ -1,11 +1,12 @@
 import * as React from "react";
-import { TFolder, TFile, TAbstractFile, App } from "obsidian";
+import { TFolder, TFile, App } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { FolderSelectModal } from "../modal/FolderSelectModal";
 import { translations } from "src/i18n";
 import { ImagePoster } from "./ImagePoster";
 import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { createSmartClickHandler } from "src/utils/createSmartClickHandler";
+import { ReadingProgressBar } from "./ReadingProgressBar";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -22,6 +23,8 @@ interface LibraryItem {
     name: string;
     path: string;
     isExternal: boolean;
+    chapterCount: number;
+    lastChapterIndex?: number;
 }
 
 // Страница библиотеки, тут происходит выбор пути до тайтла
@@ -35,23 +38,15 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     const [defaultPath, setDefaultPath] = React.useState (plugin.data.defaultLibraryPath)
     const [items, setItems] = React.useState<LibraryItem[]>([]); // Используем наш интерфейс
 
-    // Функция детектора манги - ВРОДЕ не нужна будет
-    const isMangaFolder = (folder: TFolder): boolean => {
-        return folder.children.some(f => 
-            f instanceof TFolder || (f instanceof TFile && ['zip', 'cbz'].includes(f.extension))
-        );
-    };
-
     // Функция для переключения языка
     const toggleLanguage = async () => {
         const newLang = currentLang === "ru" ? "en" : "ru";
         plugin.data.settings.language = newLang;
         await plugin.saveSettings();
-        // Если ты внедрил шаг №2, страница обновится сама!
     };
 
     // Загружаем ссылки манги
-    React.useEffect(() => {        
+    React.useEffect(() => {
         const loadItems = async () => {
             let allItems: LibraryItem[] = [];
 
@@ -61,11 +56,29 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                 if (folder instanceof TFolder) {
                     const vaultItems = folder.children
                         .filter(i => i instanceof TFolder)
-                        .map(i => ({
-                            name: i.name,
-                            path: i.path,
-                            isExternal: false
-                        }));
+                        .map(i => {
+                            const titleFolder = i as TFolder;
+                            const chapterNames = titleFolder.children
+                                .filter(f => 
+                                    f instanceof TFolder || 
+                                    (f instanceof TFile && ['zip', 'cbz'].includes(f.extension))
+                                )
+                                .map(f => f.name)
+                                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+                            const progress = plugin.data.library[i.path];
+                            const lastChapterIndex = progress?.lastChapter
+                                ? chapterNames.findIndex(ch => ch === progress.lastChapter)
+                                : -1;
+
+                            return {
+                                name: i.name,
+                                path: i.path,
+                                isExternal: false,
+                                chapterCount: chapterNames.length,
+                                lastChapterIndex: lastChapterIndex >= 0 ? lastChapterIndex : undefined,
+                            };
+                        });
                     allItems = [...allItems, ...vaultItems];
                 }
             }
@@ -74,22 +87,47 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
             if (externalPaths.length > 0 && fs && pathModule) {
                 for (const rootPath of externalPaths) {
                     try {
-                        // Проверяем, существует ли путь
                         if (!fs.existsSync(rootPath)) continue;
-
                         const stats = fs.statSync(rootPath);
                         
                         if (stats.isDirectory()) {
-                            // Читаем содержимое внешней КОРНЕВОЙ папки
                             const children = fs.readdirSync(rootPath, { withFileTypes: true });
                             
                             const extItems = children
                                 .filter((child: any) => child.isDirectory())
-                                .map((child: any) => ({
-                                    name: child.name,
-                                    path: pathModule.join(rootPath, child.name),
-                                    isExternal: true
-                                }));
+                                .map((child: any) => {
+                                    const titlePath = pathModule.join(rootPath, child.name);
+                                    
+                                    let chapterNames: string[] = [];
+                                    try {
+                                        const titleFiles = fs.readdirSync(titlePath, { withFileTypes: true });
+                                        chapterNames = titleFiles
+                                            .filter((f: any) => 
+                                                f.isDirectory() || 
+                                                f.name.toLowerCase().endsWith(".zip") || 
+                                                f.name.toLowerCase().endsWith(".cbz")
+                                            )
+                                            .map((f: any) => f.name)
+                                            .sort((a: string, b: string) => 
+                                                a.localeCompare(b, undefined, { numeric: true })
+                                            );
+                                    } catch {
+                                        // ignore
+                                    }
+
+                                    const progress = plugin.data.library[titlePath];
+                                    const lastChapterIndex = progress?.lastChapter
+                                        ? chapterNames.findIndex((ch: string) => ch === progress.lastChapter)
+                                        : -1;
+
+                                    return {
+                                        name: child.name,
+                                        path: titlePath,
+                                        isExternal: true,
+                                        chapterCount: chapterNames.length,
+                                        lastChapterIndex: lastChapterIndex >= 0 ? lastChapterIndex : undefined,
+                                    };
+                                });
                             
                             allItems = [...allItems, ...extItems];
                         }
@@ -133,7 +171,6 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     };
 
     const handlePosterDoubleClick = (itemPath: string) => {
-        // убран e: React.MouseEvent и e.stopPropagation()
         const posterImages = plugin.data.library[itemPath]?.posterImages || [];
         const onSave = (selected: string[]) => {
             if (!plugin.data.library[itemPath]) {
@@ -180,6 +217,8 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                         200,    // задержка, уменьшил
                     );
 
+                    const current = item.lastChapterIndex !== undefined ? item.lastChapterIndex + 1 : 0;
+
                     return (
                         <div 
                             className="title"
@@ -193,6 +232,13 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                 emptyPlaceholder={<span style={{ fontSize: "2em" }}>📖</span>}
                                 // убрать onDoubleClick отсюда
                             />
+
+                            <ReadingProgressBar
+                                current={current}
+                                total={item.chapterCount}
+                                label={t.chapterCount(current, item.chapterCount)}
+                            />
+
                             {/* Название */}
                             <div style={{ 
                                 fontWeight: "bold", 

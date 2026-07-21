@@ -1,5 +1,6 @@
 import * as React from "react";
 import { App, TFile } from "obsidian";
+import * as Lucide from "lucide-react";
 
 interface Props {
     app: App;
@@ -23,6 +24,7 @@ export const ImagePoster = ({
     // триггер для сброса таймера при ручном переключении
     const [tick, setTick] = React.useState(0);
 
+    // Может без useEffect? как будто бы он довольно тяжелый...
     React.useEffect(() => {
         if (images.length <= 1) return;
         const timer = setInterval(() => {
@@ -103,7 +105,8 @@ export const ImagePoster = ({
     return (
         <div
             className={`image-poster ${className || ""}`}
-            onDoubleClick={onDoubleClick}
+            // уже не нужен особо
+            // onDoubleClick={onDoubleClick}
             title="Двойной клик — выбрать изображения"
         >
             {images.length > 0 ? (
@@ -117,6 +120,27 @@ export const ImagePoster = ({
                 ))
             ) : (
                 emptyPlaceholder || "🖼 Постер"
+            )}
+
+            {/* Overlay, который блокирует клики по фону при наведении */}
+            {/* Пока отключу */}
+            {/* <div
+                className="image-poster-blocker"
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+            /> */}
+
+            {/* Настройки / выбор изображений */}
+            {onDoubleClick && (
+                <button
+                    type="button"
+                    className="image-poster-settings"
+                    onClick={(e) => onDoubleClick(e as any)}
+                    aria-label="Выбрать изображения"
+                    title="Выбрать изображения"
+                >
+                    <Lucide.Settings size={16} />
+                </button>
             )}
 
             {renderDots()}

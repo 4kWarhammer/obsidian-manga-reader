@@ -5,12 +5,14 @@
 export interface MangaProgress {
     lastChapter: string; // соответствует ReaderAnchor.chapterName, вроде как
     lastPage: number;    // соответствует ReaderAnchor.pageIndex, вроде бы как
-    title?: string;      // Описание
-    tags?: string[];     // Жанры
-    notes?: string;      // Личные комментарии
+    title?: string;      // Описание - в заметке
+    tags?: string[];     // Жанры - также в заметке
+    notes?: string;      // Личные комментарии - буду в заметке держать
     posterImages?: string[];    // Для постеров
-    rating?: string;
+    rating?: string;            // Рейтинг - но я буду держать его в заметках
     totalChapters?: number;     // Удобно для progressbar
+    titleName?: string;         // Читаемое название тайтла
+    noteFileName?: string;      // имя файла заметки в notesFolder
 }
 
 // Интерфейс поставщика подготовленных изображений
@@ -33,7 +35,6 @@ export interface PluginData {
         readerWidthPercent: number;
         notesFolder: string;    // Пока тут пусть, но как будто бы надо переделать путь
         imagesFolder: string;
-        rating: string;
     };
     library: { [path: string]: MangaProgress };
     defaultLibraryPath: string;
@@ -51,7 +52,6 @@ export const DEFAULT_DATA: PluginData = {
         readerWidthPercent: 100,
         notesFolder: "MangaReader/Notes",   // Также пока пусть будет
         imagesFolder: "MangaReader/Images",
-        rating: "0/10",
     },
     library: {},
     defaultLibraryPath: "",

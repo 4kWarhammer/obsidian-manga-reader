@@ -39,9 +39,21 @@ export default class MangaReaderPlugin extends Plugin {
             normalizePath(this.data.settings.notesFolder),
             normalizePath(this.data.settings.imagesFolder),
         ];
+        // Делаем проверку через адаптер, не через getAbstractFileByPath
+        // Иначе при старте системы выдаст null (индексация еще не закончилась)
+        // И попробуем создать уже имеющуюся папку
+        // У меня же еще есть ObsidianCacheStorageAdapter...
         for (const folderPath of systemFolders) {
-            if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-                await this.app.vault.createFolder(folderPath);
+            const exists = await this.app.vault.adapter.exists(folderPath);
+            if (!exists) {
+                try {
+                    await this.app.vault.createFolder(folderPath);
+                } catch (err: any) {
+                    // Игнорируем, если папка всё-таки уже есть (например, создана параллельно)
+                    if (!err?.message?.toLowerCase().includes("already exists")) {
+                        throw err;
+                    }
+                }
             }
         }
 

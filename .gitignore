@@ -1,5 +1,6 @@
 # Зависимости (их качаем через npm install, хранить их в Git не надо)
 node_modules/
+/.vscode
 
 # Результат сборки (он генерируется автоматически, в истории не нужен)
 main.js
@@ -26,4 +27,5 @@ data.json
 /plans
 /.kilo
 
-
+# Что то новое от мультиаккаунтов в vscode
+github-accounts.json

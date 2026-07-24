@@ -10,6 +10,7 @@ import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { useTitleNote } from "src/hooks/useTitleNote";
 import { MarkdownNote } from "./MarkDownNote";
 import { ReadingProgressBar } from "./ReadingProgressBar";
+import { getTitleDisplayName } from "src/utils/TitleUtils";
 
 interface Props {
     app: App;
@@ -117,8 +118,11 @@ export const TitlePage = ({
 }: Props) => {
     const t = translations[plugin.data.settings.language || "en"]
     const progress = plugin.data.library[path];
-    
-    const titleName = path.split(/[\\/]/).pop();
+
+    const [titleName, setTitleName] = React.useState(
+    plugin.data.library[path]?.titleName || getTitleDisplayName(path, progress)
+);
+    // const titleName = getTitleDisplayName(path, progress)
 
     const chapters = useChapterList(app, path);
 
@@ -128,11 +132,20 @@ export const TitlePage = ({
         comments,
         tags,
         exists,
-        openOrCreate
+        ensureNote,
+        openNote
     } = useTitleNote(
-        app,
-        path,
-        plugin.data.settings.notesFolder
+        app, 
+        titleName, 
+        plugin.data.settings.notesFolder, 
+        progress.noteFileName,
+        (newName) => {
+            if (!plugin.data.library[path]) {
+                plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
+            }
+            plugin.data.library[path].noteFileName = newName;
+            plugin.saveProgress();
+        }
     );
 
     // Для постера
@@ -148,6 +161,12 @@ export const TitlePage = ({
         enabled: true,
     });
 
+    const handleCustomTitleName = (newName: string) => {
+        plugin.data.library[path].titleName = newName;
+        plugin.saveProgress();
+        setTitleName(newName);
+    }
+
     // Кэшируем общее число глав (LibraryPage позже прочитает это же поле)
     // Спорный момент
     React.useEffect(() => {
@@ -159,6 +178,19 @@ export const TitlePage = ({
             plugin.saveProgress();
         }
     }, [chapters.length, path, plugin]);
+
+    // При монтировании и при смене titleName — создаём/переименовываем заметку.
+    // ensureNote сама зависит от titleName внутри хука, так что
+    // при смене имени она пересоздастся и эффект вызовется снова.
+    React.useEffect(() => {
+        let cancelled = false;
+        ensureNote().catch((err) => {
+            if (!cancelled) console.error("ensureNote failed:", err);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [ensureNote]);
 
     /**Надо переименовать скорее всего */
     const handlePosterDoubleClick = () => {
@@ -192,7 +224,7 @@ export const TitlePage = ({
                     {/* Описание */}
                     <div
                         className={`title-note-preview ${exists ? "has-note" : ""}`}
-                        onDoubleClick={openOrCreate}
+                        onDoubleClick={openNote}
                         title="Двойной клик — открыть/создать заметку"
                     >
                         {exists && description ? (
@@ -207,7 +239,7 @@ export const TitlePage = ({
                     {/* Теги */}
                     <div
                         className={`title-note-preview tag-preview ${exists ? "has-note" : ""}`}
-                        onDoubleClick={openOrCreate}
+                        onDoubleClick={openNote}
                         title="Двойной клик — открыть/создать заметку"
                     >
                         {exists && tags.length > 0 ? (
@@ -244,7 +276,7 @@ export const TitlePage = ({
             content: (
                 <div
                     className={`title-note-preview ${exists ? "has-note" : ""}`}
-                    onDoubleClick={openOrCreate}
+                    onDoubleClick={openNote}
                     title="Двойной клик — открыть/создать заметку"
                 >
                     {exists && comments ? (
@@ -307,6 +339,15 @@ export const TitlePage = ({
                             <p>{t.noStartReading}</p>
                         )}
                     </div>
+                    <button
+                        style={{
+                            background: "var(--interactive-accent)",
+                            color: "var(--text-on-accent)",
+                        }}
+                        onClick={() => handleCustomTitleName('магичка')}
+                    >
+                        {`тестовое имя`}
+                    </button>
                 </div>
 
                 {/* Правая колонка */}

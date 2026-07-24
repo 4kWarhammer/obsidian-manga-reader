@@ -7,6 +7,7 @@ import { ImagePoster } from "./ImagePoster";
 import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { createSmartClickHandler } from "src/utils/createSmartClickHandler";
 import { ReadingProgressBar } from "./ReadingProgressBar";
+import { getTitleDisplayName } from "src/utils/TitleUtils";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -72,7 +73,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                 : -1;
 
                             return {
-                                name: i.name,
+                                name: getTitleDisplayName(i.path, progress),
                                 path: i.path,
                                 isExternal: false,
                                 chapterCount: chapterNames.length,
@@ -121,7 +122,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                         : -1;
 
                                     return {
-                                        name: child.name,
+                                        name: getTitleDisplayName(titlePath, progress),
                                         path: titlePath,
                                         isExternal: true,
                                         chapterCount: chapterNames.length,

@@ -11,6 +11,7 @@ import { useTitleNote } from "src/hooks/useTitleNote";
 import { MarkdownNote } from "./MarkDownNote";
 import { ReadingProgressBar } from "./ReadingProgressBar";
 import { getTitleDisplayName } from "src/utils/TitleUtils";
+import { TitleNameModal } from "../modal/TitleNameModal";
 
 interface Props {
     app: App;
@@ -161,11 +162,23 @@ export const TitlePage = ({
         enabled: true,
     });
 
-    const handleCustomTitleName = (newName: string) => {
-        plugin.data.library[path].titleName = newName;
-        plugin.saveProgress();
-        setTitleName(newName);
-    }
+    const handleCustomTitleName = () => {
+        new TitleNameModal(
+            app,
+            titleName,
+            (newName: string) => {
+                const trimmed = newName.trim();
+                if (!trimmed) return;
+
+                if (!plugin.data.library[path]) {
+                    plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
+                }
+                plugin.data.library[path].titleName = trimmed;
+                plugin.saveProgress();
+                setTitleName(trimmed);
+            }
+        ).open();
+    };
 
     // Кэшируем общее число глав (LibraryPage позже прочитает это же поле)
     // Спорный момент
@@ -308,7 +321,13 @@ export const TitlePage = ({
                         images={posterImages}
                         onDoubleClick={handlePosterDoubleClick}
                     />
-                    <div className="title-info">{titleName}</div>
+                    <div 
+                        className="title-info"
+                        title="Нажмите для смены названия"
+                        onClick={handleCustomTitleName}
+                    >
+                        {titleName}
+                        </div>
 
                     {/* === Прогресс чтения === */}
                     {/* Старый */}
@@ -339,15 +358,6 @@ export const TitlePage = ({
                             <p>{t.noStartReading}</p>
                         )}
                     </div>
-                    <button
-                        style={{
-                            background: "var(--interactive-accent)",
-                            color: "var(--text-on-accent)",
-                        }}
-                        onClick={() => handleCustomTitleName('магичка')}
-                    >
-                        {`тестовое имя`}
-                    </button>
                 </div>
 
                 {/* Правая колонка */}

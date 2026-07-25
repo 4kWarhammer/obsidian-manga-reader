@@ -8,6 +8,10 @@ import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { createSmartClickHandler } from "src/utils/createSmartClickHandler";
 import { ReadingProgressBar } from "./ReadingProgressBar";
 import { getTitleDisplayName } from "src/utils/TitleUtils";
+import { TitleRating } from "./TitleRating";
+import { parseRating } from "src/hooks/useTitleNote";
+import { sanitizeFileName } from "src/utils/TitleUtils";
+import { normalizePath } from "obsidian";
 
 // Достаем Node.js модули
 const fs = (window as any).require ? (window as any).require('fs') : null;
@@ -26,6 +30,7 @@ interface LibraryItem {
     isExternal: boolean;
     chapterCount: number;
     lastChapterIndex?: number;
+    rating?: number | null;
 }
 
 // Страница библиотеки, тут происходит выбор пути до тайтла
@@ -72,12 +77,22 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                 ? chapterNames.findIndex(ch => ch === progress.lastChapter)
                                 : -1;
 
+                            // --- рейтинг из заметки ---
+                            const titleNameForNote = progress?.titleName || getTitleDisplayName(i.path, progress);
+                            const noteFileName = `${sanitizeFileName(titleNameForNote)}.md`;
+                            const noteFullPath = normalizePath(`${plugin.data.settings.notesFolder}/${noteFileName}`);
+                            const noteFile = app.vault.getAbstractFileByPath(noteFullPath);
+                            const rating = noteFile instanceof TFile
+                                ? parseRating(app.metadataCache.getFileCache(noteFile)?.frontmatter?.rating)
+                                : null;
+
                             return {
                                 name: getTitleDisplayName(i.path, progress),
                                 path: i.path,
                                 isExternal: false,
                                 chapterCount: chapterNames.length,
                                 lastChapterIndex: lastChapterIndex >= 0 ? lastChapterIndex : undefined,
+                                rating,
                             };
                         });
                     allItems = [...allItems, ...vaultItems];
@@ -115,11 +130,18 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                     } catch {
                                         // ignore
                                     }
-
                                     const progress = plugin.data.library[titlePath];
                                     const lastChapterIndex = progress?.lastChapter
                                         ? chapterNames.findIndex((ch: string) => ch === progress.lastChapter)
                                         : -1;
+
+                                    const titleNameForNote = progress?.titleName || getTitleDisplayName(titlePath, progress);
+                                    const noteFileName = `${sanitizeFileName(titleNameForNote)}.md`;
+                                    const noteFullPath = normalizePath(`${plugin.data.settings.notesFolder}/${noteFileName}`);
+                                    const noteFile = app.vault.getAbstractFileByPath(noteFullPath);
+                                    const rating = noteFile instanceof TFile
+                                        ? parseRating(app.metadataCache.getFileCache(noteFile)?.frontmatter?.rating)
+                                        : null;
 
                                     return {
                                         name: getTitleDisplayName(titlePath, progress),
@@ -127,6 +149,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                         isExternal: true,
                                         chapterCount: chapterNames.length,
                                         lastChapterIndex: lastChapterIndex >= 0 ? lastChapterIndex : undefined,
+                                        rating,
                                     };
                                 });
                             
@@ -227,12 +250,18 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                             onClick={handleSmartClick}  // ← единый обработчик
                             style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: "8px" }}
                         >
-                            <ImagePoster
-                                app={app}
-                                images={plugin.data.library[item.path]?.posterImages || []}
-                                emptyPlaceholder={<span style={{ fontSize: "2em" }}>📖</span>}
-                                // убрать onDoubleClick отсюда
-                            />
+                            <div style={{ position: "relative" }}>
+                                <ImagePoster
+                                    app={app}
+                                    images={plugin.data.library[item.path]?.posterImages || []}
+                                    emptyPlaceholder={<span style={{ fontSize: "2em" }}>📖</span>}
+                                />
+                                {item.rating !== null && item.rating !== undefined && (
+                                    <div className="card-rating-badge">
+                                        <TitleRating rating={item.rating} size="small" />
+                                    </div>
+                                )}
+                            </div>
 
                             <ReadingProgressBar
                                 current={current}

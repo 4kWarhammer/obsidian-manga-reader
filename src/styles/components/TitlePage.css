@@ -12,44 +12,51 @@
         gap: 20px;
         margin-bottom: 20px;
     }
-    .top-showcase{
+    /* ======================================
+    Раскладка: постер слева, вкладки справа
+    ====================================== */
+    .title-layout-row {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
+        flex-direction: row;
+        gap: 24px;
+        align-items: flex-start;
         margin-top: 20px;
+        
+        /* Левая колонка */
+        .title-left-column{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            width: 260px;          /* <-- задавайте нужную ширину здесь */
+            flex-shrink: 0;        /* запрещаем сжатие */
+            margin-top: 0;
 
-        & .title-info{
-            color: var(--text-normal);
-            font-size: 1.2em;
+            .title-info{
+                color: var(--text-normal);
+                font-size: 1.2em;
+            }
+        }
+
+        /* Правая колонка */
+        .title-right-column {
+            flex: 1;         /* Занимает все оставшееся пространство справа */
+            margin-top: 0;
+            min-width: 0;    /* Защищает от переполнения flex-контейнера длинным текстом */
+            display: flex;
+            flex-direction: column; /* Размещает TitleRating и TabView друг под другом */
+
+            .tab-view {
+                display: flex;
+                flex-direction: column;
+                flex: 1;               /* Растягивает вкладки по высоте, если нужно заполнить колонку */
+                margin-top: 12px;      /* Небольшой аккуратный отступ снизу от рейтинга */
+            }
         }
     }
 }
 
-/* ======================================
-   Раскладка: постер слева, вкладки справа
-   ====================================== */
-.title-layout-row {
-    display: flex;
-    flex-direction: row;
-    gap: 24px;
-    align-items: flex-start;
-    margin-top: 20px;
-}
-
-/* Левая колонка (постер + инфо + кнопка) */
-.title-layout-row .top-showcase {
-    width: 260px;          /* <-- задавайте нужную ширину здесь */
-    flex-shrink: 0;        /* запрещаем сжатие */
-    margin-top: 0;
-}
-
-/* Правая колонка (вкладки) */
-.title-layout-row .tab-view {
-    flex: 1;               /* занимает всё оставшееся пространство */
-    margin-top: 0;
-    min-width: 0;          /* обязательно, иначе flex не даст сжаться */
-}
 
 /* ======================================
 Блок заметки
@@ -166,18 +173,6 @@
 /* ======================================
    Обёртка с вкладками (TabView)
    ====================================== */
-.tab-view {
-    display: flex;
-
-    /* без этого flex-контейнер не позволит правой колонке 
-    сжиматься меньше ширины её внутреннего контента, 
-    и вёрстка может сломаться. */
-    min-width: 0;
-    
-    flex-direction: column;
-    margin-top: 20px;
-}
-
 .tab-header {
     display: flex;
     flex-direction: row;
@@ -281,4 +276,67 @@ TitlePage, но пока так
     background: var(--interactive-accent);
     border-radius: 3px;
     transition: width 0.3s ease;
+}
+
+/* ======================================
+   Рейтинг
+   ====================================== */
+.title-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1;
+}
+
+.title-rating .rating-icon {
+    font-size: 1.2em;
+}
+
+.title-rating .rating-value {
+    font-size: 2em;           /* в ~2 раза крупнее стандартного текста */
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Цветовые диапазоны */
+.title-rating.rating-gray  { color: var(--text-muted); }
+.title-rating.rating-red   { color: #ef4444; }
+.title-rating.rating-yellow{ color: #eab308; }
+.title-rating.rating-green { color: #22c55e; }
+/* .title-rating.rating-gold  { color: #f59e0b; } */
+
+.title-rating.rating-gold {
+  /* Градиент из нескольких оттенков золота */
+  background: linear-gradient(
+    45deg, 
+    #bf953f 0%, 
+    #fcf6ba 25%, 
+    #b38728 50%, 
+    #fbf5b7 75%, 
+    #aa771c 100%
+  );
+  
+  /* Обрезка фона по форме текста */
+  -webkit-background-clip: text;
+  background-clip: text;
+  
+  /* Делаем сам текст прозрачным, чтобы просвечивал фон-градиент */
+  -webkit-text-fill-color: transparent;
+  color: transparent; /* Фолбек для старых браузеров */
+  
+  /* Дополнительно: мягкое золотое свечение для объема */
+  text-shadow: 0 1px 1px rgba(255,255,255,0.2);
+}
+
+.title-rating.rating-clickable {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+.title-rating.rating-clickable:hover {
+    opacity: 0.85;
+}
+
+/* Вот это походу не тут должно быть */
+.title-rating-small .rating-value {
+    font-size: 1.5em;
 }

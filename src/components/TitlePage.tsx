@@ -12,6 +12,7 @@ import { MarkdownNote } from "./MarkDownNote";
 import { ReadingProgressBar } from "./ReadingProgressBar";
 import { getTitleDisplayName } from "src/utils/TitleUtils";
 import { TitleNameModal } from "../modal/TitleNameModal";
+import { TitleRating } from "./TitleRating";
 
 interface Props {
     app: App;
@@ -39,25 +40,6 @@ interface ReadingProgressProps {
 /* ===================================================
    Подкомпоненты
    =================================================== */
-
-/** Для полоски прогресса будет еще использоваться в LibraryPage*/
-const ReadingProgress = ({ lastChapter, chapters, label }: ReadingProgressProps) => {
-    if (chapters.length === 0) return null;
-
-    const index = chapters.findIndex((ch) => ch === lastChapter);
-    const current = index >= 0 ? index + 1 : 0;
-    const total = chapters.length;
-    const percent = total > 0 ? (current / total) * 100 : 0;
-
-    return (
-        <div className="reading-progress">
-            <div className="progress-label">{label(current, total)}</div>
-            <div className="progress-bar-bg">
-                <div className="progress-bar-fill" style={{ width: `${percent}%` }} />
-            </div>
-        </div>
-    );
-};
 
 /** Подпись вкладки с проверкой переполнения. */
 const MarqueeText = ({ text }: { text: string }) => {
@@ -132,9 +114,13 @@ export const TitlePage = ({
         description,
         comments,
         tags,
+        year,
+        rating,
+        aliases,
         exists,
         ensureNote,
-        openNote
+        openNote,
+        updateFrontmatter
     } = useTitleNote(
         app, 
         titleName, 
@@ -315,7 +301,7 @@ export const TitlePage = ({
             <div className="title-layout-row">
                 {/* Левая колонка */}
                 {/* Постер + название + кнопка «Продолжить» */}
-                <div className="top-showcase">
+                <div className="title-left-column">
                     <ImagePoster
                         app={app}
                         images={posterImages}
@@ -327,15 +313,21 @@ export const TitlePage = ({
                         onClick={handleCustomTitleName}
                     >
                         {titleName}
-                        </div>
+                    </div>
 
-                    {/* === Прогресс чтения === */}
-                    {/* Старый */}
-                    {/* <ReadingProgress
-                        lastChapter={progress?.lastChapter}
-                        chapters={chapters}
-                        label={t.chapterCount}
-                    /> */}
+                    {/* Мета-информация из frontmatter */}
+                    {(year !== null || aliases.length > 0) && (
+                        <div className="title-meta">
+                            {year !== null && (
+                                <span className="meta-item meta-year">{year}</span>
+                            )}
+                            {aliases.length > 0 && (
+                                <div className="meta-item meta-aliases">
+                                    {aliases.join(" · ")}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <ReadingProgressBar
                         current={currentChapter}
@@ -361,8 +353,16 @@ export const TitlePage = ({
                 </div>
 
                 {/* Правая колонка */}
-                
+                <div className="title-right-column">
+                <TitleRating
+                    rating={rating}
+                    app={app}
+                    onChange={(val) => updateFrontmatter({ rating: val })}
+                />
+
                 <TabView tabs={tabs} />
+                </div>
+
             </div>
         </div>
     );

@@ -103,3 +103,40 @@
     margin-top: 8px;
     border-top: 1px solid var(--background-modifier-border);
 }
+
+/* ---------- RatingModal ---------- */
+.rating-modal-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 0 16px;
+    min-width: 280px;
+}
+
+.rating-modal-value {
+    font-size: 3em;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-normal);
+}
+
+.rating-modal-slider {
+    width: 100%;
+}
+
+.rating-modal-number {
+    width: 100px;
+    text-align: center;
+    font-size: 1.2em;
+    padding: 4px;
+}
+
+.rating-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 12px;
+    margin-top: 4px;
+    border-top: 1px solid var(--background-modifier-border);
+}

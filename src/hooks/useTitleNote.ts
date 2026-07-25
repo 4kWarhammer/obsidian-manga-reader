@@ -13,12 +13,22 @@ import { sanitizeFileName } from "src/utils/TitleUtils";
 // Шаблон на доработку
 const TEMPLATE = (titleName: string) => `---
 tags: [manga]
+year: 
+rating: 
+aliases: []
 created: {{date}}
 ---
 # Описание
 
 # Комментарии
 `;
+
+export interface NoteFrontmatter {
+    tags?: string[];
+    year?: number | null;
+    rating?: number | null;
+    aliases?: string[];
+}
 
 export function useTitleNote(
     app: App,
@@ -30,6 +40,9 @@ export function useTitleNote(
     const [notePath, setNotePath] = React.useState<string | null>(null);
     const [content, setContent] = React.useState<string>("");
     const [tags, setTags] = React.useState<string[]>([]);
+    const [year, setYear] = React.useState<number | null>(null);
+    const [rating, setRating] = React.useState<number | null>(null);
+    const [aliases, setAliases] = React.useState<string[]>([]);
     const [exists, setExists] = React.useState(false);
 
     const desiredFileName = React.useMemo(() => {
@@ -57,14 +70,22 @@ export function useTitleNote(
             setExists(true);
             const text = await app.vault.cachedRead(file);
             setContent(text);
+            // Парсим frontmatter
             const cache = app.metadataCache.getFileCache(file);
-            const fmTags = cache?.frontmatter?.tags;
-            setTags(parseTags(fmTags));
+            const fm = cache?.frontmatter;
+
+            setTags(parseStringArray(fm?.tags));
+            setYear(parseNumber(fm?.year));
+            setRating(parseRating(fm?.rating));
+            setAliases(parseStringArray(fm?.aliases));
         } else {
             setNotePath(noteFullPath);
             setExists(false);
             setContent("");
             setTags([]);
+            setYear(null);
+            setRating(null);
+            setAliases([]);
         }
     }, [app, noteFullPath]);
 
@@ -163,6 +184,44 @@ export function useTitleNote(
         await leaf.openFile(target, { active: true });
     }, [app, noteFullPath]);
 
+    /**
+     * Обновляет поля frontmatter заметки.
+     * Если файла ещё нет — предварительно создаёт его через ensureNote().
+     * Переданные undefined-поля игнорируются (чтобы не затереть соседние ключи).
+     */
+    const updateFrontmatter = React.useCallback(async (updates: Partial<NoteFrontmatter>) => {
+        let file = app.vault.getAbstractFileByPath(noteFullPath);
+
+        // Если заметки нет — создаём
+        if (!(file instanceof TFile)) {
+            await ensureNote();
+            file = app.vault.getAbstractFileByPath(noteFullPath);
+            if (!(file instanceof TFile)) {
+                console.error("Failed to create note for frontmatter update");
+                return;
+            }
+        }
+
+        // Обновляем наши ранее объявленные поля (новые не будут работаь скорее всего?)
+        await app.fileManager.processFrontMatter(file, (frontmatter) => {
+            if (updates.tags !== undefined) {
+                frontmatter.tags = updates.tags;
+            }
+            if (updates.year !== undefined) {
+                frontmatter.year = updates.year;
+            }
+            if (updates.rating !== undefined) {
+                frontmatter.rating = updates.rating;
+            }
+            if (updates.aliases !== undefined) {
+                frontmatter.aliases = updates.aliases;
+            }
+        });
+        
+        // processFrontMatter вызовет metadataCache.changed → хук сам перечитает стейты.
+        // Принудительный checkAndRead() здесь не обязателен.
+    }, [app, noteFullPath, ensureNote]);
+
     const description = React.useMemo(() => {
         if (!content) return null;
         // Берём секцию "Описание" (регистр не важен)
@@ -205,20 +264,56 @@ export function useTitleNote(
         description,
         comments,
         tags,
+        year,
+        rating,
+        aliases,
         exists,
         notePath,
         ensureNote,
         openNote,
+        updateFrontmatter
     };
 }
 
-function parseTags(raw: unknown): string[] {
+function parseStringArray(raw: unknown): string[] {
     if (!raw) return [];
     if (Array.isArray(raw)) {
         return raw.flat().map(String).filter(Boolean);
     }
     if (typeof raw === "string") {
-        return raw.split(",").map((t) => t.trim()).filter(Boolean);
+        return raw.split(",").map((s) => s.trim()).filter(Boolean);
     }
     return [];
+}
+
+function parseNumber(raw: unknown): number | null {
+    if (raw === null || raw === undefined || raw === "") return null;
+    const num = Number(raw);
+    return isNaN(num) ? null : num;
+}
+
+/** Парсит значение из поля rating, можно как число, так и текст */
+export function parseRating(raw: unknown): number | null {
+    if (raw === null || raw === undefined || raw === "") return null;
+
+    // Если уже число — сразу ограничиваем
+    if (typeof raw === "number") return clampRating(raw);
+
+    // Нормализуем: запятая → точка, убираем пробелы по краям
+    let str = String(raw).trim().replace(",", ".");
+
+    // Пытаемся выхватить первое валидное число
+    // (на случай если пользователь ввёл "8/10" или "9 из 10")
+    const match = str.match(/^-?\d+(\.\d+)?/);
+    if (match) str = match[0];
+
+    const num = Number(str);
+    return isNaN(num) ? null : clampRating(num);
+}
+
+/**Ограничитель, выдает число только в диапазоне от 0 до 10 */
+function clampRating(num: number): number {
+    if (num < 0) return 0;
+    if (num > 10) return 10;
+    return num;
 }

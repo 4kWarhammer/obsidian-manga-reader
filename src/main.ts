@@ -20,6 +20,9 @@ if (process.env.NODE_ENV !== 'production') {
 export default class MangaReaderPlugin extends Plugin {
     data: PluginData = DEFAULT_DATA;
 
+    // Для правильного восстановления при запуске Obsidian
+    isRestoringLayout = true;
+
     private chapterIndexManager: ChapterIndexManager | null = null;
 
     async onload() {
@@ -62,6 +65,11 @@ export default class MangaReaderPlugin extends Plugin {
             VIEW_TYPE_MANGA,
             (leaf) => new MangaView(leaf, this)
         );
+
+        // Выполняется когда Layout будет готов, снимет флаг и навигация снова заработает
+        this.app.workspace.onLayoutReady(() => {
+            this.isRestoringLayout = false;
+        });
 
         // Добавляем иконку на левую панель
         this.addRibbonIcon('book-open', 'Manga Reader', () => {

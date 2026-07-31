@@ -39,7 +39,7 @@ export class MangaView extends ItemView {
         super(leaf);
         this.plugin = plugin; // Сохраняем плагин в класс
 
-        // Так типа навигация включается
+        // Так типа навигация включается - из-за этого не работало
         this.navigation = true;
     }
 
@@ -91,7 +91,12 @@ export class MangaView extends ItemView {
     // Не понимаю тут логики, скрытая, но !!!!
     // Это стандартный lifecycle-метод ItemView.
     async setState(state: Partial<MangaViewState>, result: ViewStateResult) {
-        const nextState = this.normalizeState(state);
+        // Проверяем флаг из main и устанавливаем state
+        const isInitialRestore = this.plugin.isRestoringLayout;
+
+        const nextState = isInitialRestore
+            ? { ...DEFAULT_MANGA_VIEW_STATE }
+            : this.normalizeState(state);
 
         const changed =
             nextState.selectedTitle !== this.viewState.selectedTitle ||
@@ -99,7 +104,7 @@ export class MangaView extends ItemView {
 
         this.viewState = nextState;
 
-        if (changed && this.shouldRecordHistory) {
+        if (changed && this.shouldRecordHistory && !isInitialRestore) {
             result.history = true;
         }
 

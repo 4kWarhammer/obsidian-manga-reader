@@ -18,7 +18,6 @@ interface Props {
     app: App;
     plugin: MangaReaderPlugin;
     path: string;
-    onBack: () => void;
     onContinue: (chapter: string, resetPage?: boolean) => void; // Для кнопки "Продолжить"
     onSelectChapter: (chapter: string, resetPage?: boolean) => void;
 }
@@ -95,7 +94,6 @@ export const TitlePage = ({
     app,
     plugin,
     path,
-    onBack,
     onContinue,
     onSelectChapter
 }: Props) => {
@@ -295,7 +293,7 @@ export const TitlePage = ({
             
             {/* [хедер страницы тайтла] */}
             <div className="title-header">
-                <button onClick={onBack}>{t.back}</button>
+                {/* <button onClick={onBack}>{t.back}</button> */}
             </div>
 
             <div className="title-layout-row">

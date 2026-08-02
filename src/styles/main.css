@@ -1,11 +1,10 @@
-/* Legacy-base: весь старый styles.css пока целиком */
-/* Пока полностью от него не избавлюсь */
-/* @import "../../styles.css"; */
+/* Общее */
+@import "./components/general.css";
 
 /* Компонентные стили */
-@import "./components/general.css";
 @import "./components/LibraryPage.css";
 @import "./components/TitlePage.css";
 @import "./components/ReaderPage.css";
 @import "./components/ModalWindow.css";
 @import "./components/ImagePoster.css";
+@import "./components/ChapterListPage.css";

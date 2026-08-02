@@ -39,11 +39,17 @@ export function useTitleNote(
 ) {
     const [notePath, setNotePath] = React.useState<string | null>(null);
     const [content, setContent] = React.useState<string>("");
-    const [tags, setTags] = React.useState<string[]>([]);
-    const [year, setYear] = React.useState<number | null>(null);
-    const [rating, setRating] = React.useState<number | null>(null);
-    const [aliases, setAliases] = React.useState<string[]>([]);
     const [exists, setExists] = React.useState(false);
+    const [rating, setRating] = React.useState<number | null>(null);
+    const [tags, setTags] = React.useState<string[]>([]);
+    // Остальные метаданные
+    const [year, setYear] = React.useState<number | null>(null);
+    const [aliases, setAliases] = React.useState<string[]>([]);
+    const [artist, setArtist] = React.useState<string[]>([]);
+    const [author, setAuthor] = React.useState<string[]>([]);
+    const [franchise, setFranchise] = React.useState<string[]>([]);
+    const [journal, setJournal] = React.useState<string[]>([]);
+    const [publisher, setPublisher] = React.useState<string[]>([]);
 
     const desiredFileName = React.useMemo(() => {
         return `${sanitizeFileName(titleName)}.md`;
@@ -78,6 +84,11 @@ export function useTitleNote(
             setYear(parseNumber(fm?.year));
             setRating(parseRating(fm?.rating));
             setAliases(parseStringArray(fm?.aliases));
+            setArtist(parseStringArray(fm?.artist));
+            setAuthor(parseStringArray(fm?.author));
+            setFranchise(parseStringArray(fm?.franchise));
+            setJournal(parseStringArray(fm?.journal));
+            setPublisher(parseStringArray(fm?.publisher));
         } else {
             setNotePath(noteFullPath);
             setExists(false);
@@ -86,6 +97,11 @@ export function useTitleNote(
             setYear(null);
             setRating(null);
             setAliases([]);
+            setArtist([]);
+            setAuthor([]);
+            setFranchise([]);
+            setJournal([]);
+            setPublisher([]);
         }
     }, [app, noteFullPath]);
 
@@ -264,9 +280,8 @@ export function useTitleNote(
         description,
         comments,
         tags,
-        year,
         rating,
-        aliases,
+        otherMetaData: {year, aliases, artist, author, journal, franchise, publisher},
         exists,
         notePath,
         ensureNote,

@@ -1,7 +1,39 @@
-:root {
-    --manga-max-width: 100%; /* Значение по умолчанию */
-}
+body {
+    /* Не помню точно где использую, возможно нигде */
+    --manga-max-width: 100%;
 
+    /* === Базовый маппинг на Obsidian токены === */
+    --manga-bg-primary: var(--background-primary);
+    --manga-bg-primary-alt: var(--background-primary-alt);
+    --manga-bg-secondary: var(--background-secondary);
+    --manga-bg-secondary-alt: var(--background-secondary-alt);
+    --manga-bg-modifier: var(--background-modifier-border);
+    
+    --manga-text-normal: var(--text-normal);
+    --manga-text-muted: var(--text-muted);
+    --manga-text-link: var(--text-link);
+    
+    --manga-interactive-accent: var(--interactive-accent);
+    --manga-interactive-accent-hover: var(--interactive-accent-hover);
+    
+    --manga-border: var(--background-modifier-border);
+
+    --manga-border-radius-1: 3px;
+    --manga-border-radius-2: 7px;
+    --manga-button-radius: var(--button-radius);
+
+    --manga-h1-color: var(--h1-color)
+    
+    /* === Семантические для ваших компонентов === */
+    /* --manga-card-bg: var(--manga-bg-secondary);
+    --manga-card-border: var(--manga-border);
+    --manga-title-color: var(--manga-text-primary);
+    --manga-chapter-text: var(--manga-text-muted);
+    --manga-progress-bar: var(--manga-accent);
+    --manga-modal-bg: var(--manga-bg-primary);
+    --manga-input-bg: var(--manga-bg-primary);
+    --manga-input-border: var(--manga-border); */
+}
 
 /* Обнуляем отступы безопасной зоны Obsidian в полноэкранном режиме */
 body.is-manga-plugin-active .is-mobile .workspace > .mod-root,

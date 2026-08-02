@@ -13,6 +13,7 @@ import { ReadingProgressBar } from "./ReadingProgressBar";
 import { getTitleDisplayName } from "src/utils/TitleUtils";
 import { TitleNameModal } from "../modal/TitleNameModal";
 import { TitleRating } from "./TitleRating";
+import * as Lucide from "lucide-react";
 
 interface Props {
     app: App;
@@ -29,6 +30,14 @@ interface TabItem {
     content: React.ReactNode;
 }
 
+interface MetaItems {
+    id: string;
+    isValid: boolean;
+    className: string;
+    label: string;
+    content: any;
+}
+
 interface ReadingProgressProps {
     lastChapter?: string;
     chapters: string[];
@@ -42,22 +51,35 @@ interface ReadingProgressProps {
 
 /** Подпись вкладки с проверкой переполнения. */
 const MarqueeText = ({ text }: { text: string }) => {
-    const ref = React.useRef<HTMLSpanElement>(null);
+    const viewportRef = React.useRef<HTMLSpanElement>(null);
+    const contentRef = React.useRef<HTMLSpanElement>(null);
     const [overflow, setOverflow] = React.useState(false);
+    const [distance, setDistance] = React.useState(0);
 
     React.useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        setOverflow(el.scrollWidth > el.clientWidth);
+        const viewport = viewportRef.current;
+        const content = contentRef.current;
+        if (!viewport || !content) return;
+
+        const overflowAmount = content.scrollWidth - viewport.clientWidth;
+
+        setOverflow(overflowAmount > 0);
+        setDistance(overflowAmount);
     }, [text]);
 
     return (
         <span
-            ref={ref}
-            className={`tab-label ${overflow ? "tab-label-overflow" : ""}`}
+            ref={viewportRef}
+            className="marquee-viewport"
             title={text}
         >
-            {text}
+            <span
+                ref={contentRef}
+                className={`marquee-content ${overflow ? "marquee-content-overflow" : ""}`}
+                style={{ "--marquee-distance": `${distance}px` } as React.CSSProperties}
+            >
+                {text}
+            </span>
         </span>
     );
 };
@@ -112,9 +134,8 @@ export const TitlePage = ({
         description,
         comments,
         tags,
-        year,
         rating,
-        aliases,
+        otherMetaData: info,
         exists,
         ensureNote,
         openNote,
@@ -215,7 +236,8 @@ export const TitlePage = ({
     const tabs: TabItem[] = [
         {
             id: "description",
-            label: t.tabDescription,
+            // label: t.tabDescription,
+            label: "Опииииисаншваыфтпщвыфашптфрш",
             content: (
                 <div className="tab-panel">
                     {/* Описание */}
@@ -235,9 +257,9 @@ export const TitlePage = ({
 
                     {/* Теги */}
                     <div
-                        className={`title-note-preview tag-preview ${exists ? "has-note" : ""}`}
-                        onDoubleClick={openNote}
-                        title="Двойной клик — открыть/создать заметку"
+                        className={`title-tag-preview ${exists ? "has-note" : ""}`}
+                        // onDoubleClick={openNote}
+                        // title="Двойной клик — открыть/создать заметку"
                     >
                         {exists && tags.length > 0 ? (
                             <div className="tag-cloud">
@@ -288,6 +310,71 @@ export const TitlePage = ({
         },
     ];
 
+    // Для общей информации создадим массив
+    // лучше задать типизацию, если потом буду добавлять
+    const metaItems = [
+        {
+            id: 'year',
+            isValid: info.year !== null,
+            className: 'meta-year',
+            label: 'Год',
+            content: info.year,
+        },
+        {
+            id: 'aliases',
+            isValid: info.aliases && info.aliases.length > 0,
+            className: 'meta-aliases',
+            label: 'Альтернативные названия',
+            // Если это массив — джойним, если строка — оставляем как есть
+            content: Array.isArray(info.aliases) ? info.aliases.join(" / ") : info.aliases,
+        },
+        {
+            id: 'artist',
+            isValid: info.artist && info.artist.length > 0,
+            className: 'meta-artist',
+            label: 'Артист',
+            content: Array.isArray(info.artist) ? info.artist.join(" / ") : info.artist,
+        },
+        {
+            id: 'author',
+            isValid: info.author && info.author.length > 0,
+            className: 'meta-author',
+            label: 'Автор',
+            content: Array.isArray(info.author) ? info.author.join(" / ") : info.author,
+        },
+        {
+            id: 'journal',
+            isValid: info.journal && info.journal.length > 0,
+            className: 'meta-journal',
+            label: 'Журнал',
+            content: Array.isArray(info.journal) ? info.journal.join(" / ") : info.journal,
+        },
+        {
+            id: 'franchise',
+            isValid: info.franchise && info.franchise.length > 0,
+            className: 'meta-franchise',
+            label: 'Франшиза',
+            content: Array.isArray(info.franchise) ? info.franchise.join(" / ") : info.franchise,
+        },
+        {
+            id: 'publisher',
+            isValid: info.publisher && info.publisher.length > 0,
+            className: 'meta-publisher',
+            label: 'Издательство',
+            content: Array.isArray(info.publisher) ? info.publisher.join(" / ") : info.publisher,
+        },
+    ];
+
+    // Фильтруем: оставляем только валидные элементы и исключаем 'aliases'
+    const activeMetaItems = metaItems.filter(item => item.isValid && item.id !== 'aliases');
+
+    // Для использования отдельно находим конкретно 'aliases' (он уже проверен на isValid)
+    // const aliasesItem = metaItems.find(item => item.id === 'aliases' && item.isValid && item.content ===);
+
+    const aliasesItem = info.aliases
+        ? info.aliases.join (" / ")
+        : ""
+
     return (
         <div className="title-showcase">
             
@@ -300,65 +387,76 @@ export const TitlePage = ({
                 {/* Левая колонка */}
                 {/* Постер + название + кнопка «Продолжить» */}
                 <div className="title-left-column">
+                    {/* Постер */}
                     <ImagePoster
                         app={app}
                         images={posterImages}
                         onDoubleClick={handlePosterDoubleClick}
                     />
-                    <div 
-                        className="title-info"
-                        title="Нажмите для смены названия"
-                        onClick={handleCustomTitleName}
-                    >
-                        {titleName}
-                    </div>
 
-                    {/* Мета-информация из frontmatter */}
-                    {(year !== null || aliases.length > 0) && (
-                        <div className="title-meta">
-                            {year !== null && (
-                                <span className="meta-item meta-year">{year}</span>
-                            )}
-                            {aliases.length > 0 && (
-                                <div className="meta-item meta-aliases">
-                                    {aliases.join(" · ")}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
+                    {/* Прогресс бар */}
                     <ReadingProgressBar
                         current={currentChapter}
                         total={totalChapters}
                         label={t.chapterCount(currentChapter, totalChapters)}
+                        display={false}
                     />
-
-                    <div className="start-button">
-                        {progress?.lastChapter ? (
-                            <button
-                                style={{
-                                    background: "var(--interactive-accent)",
-                                    color: "var(--text-on-accent)",
-                                }}
-                                onClick={() => onContinue(progress.lastChapter, false)}
-                            >
-                                {t.continue(progress.lastChapter, progress.lastPage)}
-                            </button>
-                        ) : (
-                            <p>{t.noStartReading}</p>
-                        )}
-                    </div>
                 </div>
 
                 {/* Правая колонка */}
                 <div className="title-right-column">
-                <TitleRating
-                    rating={rating}
-                    app={app}
-                    onChange={(val) => updateFrontmatter({ rating: val })}
-                />
+                    {/* Локальный хэдер для правой колонки */}
+                    <div className="right-column-header">
+                        {/* Название */}
+                        <div className="title-info">
+                            <div 
+                                className="title-name"
+                                title="Нажмите для смены названия"
+                                onClick={handleCustomTitleName}
+                            >
+                                <MarqueeText text={titleName}/>
+                            </div>
 
-                <TabView tabs={tabs} />
+                            <div className="title-aliases">
+                                <MarqueeText text={aliasesItem}/>
+
+                            </div>
+                            
+                        </div>
+
+                        {/* Рейтинг */}
+                        <TitleRating
+                            rating={rating}
+                            app={app}
+                            onChange={(val) => updateFrontmatter({ rating: val })}
+                        />
+                    </div>
+
+                    {/* Снопка старт/продолжить */}
+                    <div
+                    className="buttons-line">
+                        <button
+                            className="start-button"
+                            title={`${t.continue} ${progress.lastChapter}, ${progress.lastPage}`}
+                            onClick={() => onContinue(progress.lastChapter, false)}
+                        >
+                            <MarqueeText text={progress?.lastChapter 
+                                ? t.continue
+                                : t.noStartReading
+                            }/>
+                        </button>
+
+                        <button
+                            className="note-button"
+                            title="Создать или открыть заметку"
+                            onClick={openNote}
+                        >
+                            <Lucide.NotebookPen size={16} />
+                        </button>
+                    </div>
+
+                    {/* Побласть с закладками */}
+                    <TabView tabs={tabs} />
                 </div>
 
             </div>

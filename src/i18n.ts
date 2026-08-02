@@ -16,8 +16,8 @@ export const translations = {
         explorerchoose: "✅ Выбрать:",
         explorerroot: "Корень",
         // Витрина
-        continue: (lastchapter: string, lastpage: number) => `Продолжить: ${lastchapter} стр. ${lastpage}`,
-        noStartReading: "Вы еще не начали чтение",
+        continue: "Продолжить чтение",
+        noStartReading: "Начать чтение",
         chapterList: "Список глав",
         // Главы
         nochapters: "Главы не найдены",
@@ -58,8 +58,8 @@ export const translations = {
         explorerchoose: "✅ Choose:",
         explorerroot: "Root",
         // Витрина
-        continue: (lastchapter: string, lastpage: number) => `Continue: ${lastchapter} p. ${lastpage}`,
-        noStartReading: "You haven't start reading yet",
+        continue: "Continue reading",
+        noStartReading: "Start reading",
         chapterList: "Chapter list",
         // Главы
         nochapters: "Chapters not found",

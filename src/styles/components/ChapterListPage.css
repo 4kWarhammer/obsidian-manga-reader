@@ -1,0 +1,15 @@
+.manga-chapter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.manga-chapter-list .chapter {
+    padding: 8px 12px;
+    background-color: var(--manga-bg-secondary);
+    border-radius: var(--manga-button-radius);
+    border-left: 4px solid var(--manga-interactive-accent);
+    cursor: pointer
+}

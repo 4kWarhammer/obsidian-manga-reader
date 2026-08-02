@@ -17,28 +17,23 @@ export const ChapterListPage = ({ plugin, chapters, onSelectChapter, onClose }: 
     const t = translations[plugin?.data.settings.language || "en"];
 
     return (
-        <div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {chapters.length > 0 ? (
-                    chapters.map(name => (
-                        <div
-                            key={name}
-                            onClick={() => onSelectChapter(name, true)}
-                            style={{
-                                padding: "12px",
-                                background: "var(--background-secondary)",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                borderLeft: "4px solid var(--interactive-accent)"
-                            }}
-                        >
-                            {name}
-                        </div>
-                    ))
-                ) : (
-                    <p>{t.nochapters}</p>
-                )}
-            </div>
+        <div 
+            className="manga-chapter-list"
+        >
+            {chapters.length > 0 ? (
+                chapters.map(name => (
+                    <div
+                        key={name}
+                        onClick={() => onSelectChapter(name, true)}
+                        className={`chapter ${name}`}
+                    >
+                        {name}
+                    </div>
+                ))
+            ) : (
+                <p>{t.nochapters}</p>
+            )}
         </div>
+
     );
 };

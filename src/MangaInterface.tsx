@@ -5,6 +5,8 @@ import { LibraryPage } from "./components/LibraryPage";
 import MangaReaderPlugin from "./main"; // Импорт для типизации
 import { TitlePage } from "./components/TitlePage";
 import type { MangaViewState } from "./MangaView";
+import { I18nProvider } from "./i18n/I18nContext";
+import { usePluginSettings } from "./hooks/usePluginSettings";
 
 // Обновляем описание того, что принимает интерфейс
 interface InterfaceProps {
@@ -29,6 +31,7 @@ export const MangaInterface = ({
     navigate,
     goBackFromReader,
 }: InterfaceProps) => {
+    const { settings } = usePluginSettings(plugin);
     // Функция для сохранения прогресса выбора главы
     const handleChapterChange = async (chapterName: string, resetPage: boolean = true) => {
         const titlePath = selectedTitle;
@@ -57,17 +60,16 @@ export const MangaInterface = ({
         });
     };
 
-    // Логика "Назад". Пока только для TitlePage
-    // const handleBack = () => {
-    //     if (selectedChapter) {
-    //         goBackFromReader();
-    //     }
-    // };
-
     // Диспетчер - что выбрали, туда и направит
     // Ридер с выбранной главой
+
+    // ОВытащим оидельно каждую страницу
+     let page: React.ReactNode;
+
+    // Сделаем типовую проверку на сраницу
     if (selectedChapter && selectedTitle) {
-        return (
+        // Читалка манги
+        page = (
             <ReaderPage 
                 key={selectedChapter}
                 app={app} 
@@ -79,11 +81,9 @@ export const MangaInterface = ({
                 onChapterChange={(name) => handleChapterChange(name, true)}
             />
         );
-    }
-
-    // Витрина (TitlePage) со списком глав
-    if (selectedTitle) {
-        return (
+    } else if (selectedTitle) {
+        // Витрина (TitlePage) со списком глав
+        page = (
             <TitlePage 
                 app={app}
                 plugin={plugin}
@@ -94,19 +94,26 @@ export const MangaInterface = ({
                 onSelectChapter={(name) => handleChapterChange(name, true)}
             />
         );
-    }
+    } else {
+        page = (
+            // Если библиотека(LibraryPage)
+            <LibraryPage 
+                app={app} 
+                plugin={plugin}
+                onSelectTitle={(path) =>
+                    navigate({
+                        selectedTitle: path,
+                        selectedChapter: null,
+                    })
+                }
+            />
+        );
+    };
 
-    // Если библиотека(LibraryPage)
+    // Пеперь возвращаем нужную страницу, обернутую в I18nProvider
     return (
-        <LibraryPage 
-            app={app} 
-            plugin={plugin}
-            onSelectTitle={(path) =>
-                navigate({
-                    selectedTitle: path,
-                    selectedChapter: null,
-                })
-            }
-        />
+        <I18nProvider language={settings.language}>
+        {page}
+        </I18nProvider>
     );
 };

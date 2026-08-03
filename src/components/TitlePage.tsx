@@ -237,7 +237,7 @@ export const TitlePage = ({
         {
             id: "description",
             // label: t.tabDescription,
-            label: "Опииииисаншваыфтпщвыфашптфрш",
+            label: t.tabDescription,
             content: (
                 <div className="tab-panel">
                     {/* Описание */}

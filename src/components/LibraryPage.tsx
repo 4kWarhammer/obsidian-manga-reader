@@ -3,6 +3,7 @@ import { TFolder, TFile, App } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { FolderSelectModal } from "../modal/FolderSelectModal";
 import { translations } from "src/i18n";
+import { useI18n } from "src/i18n/I18nContext";
 import { ImagePoster } from "./ImagePoster";
 import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { createSmartClickHandler } from "src/utils/createSmartClickHandler";
@@ -36,7 +37,8 @@ interface LibraryItem {
 // Страница библиотеки, тут происходит выбор пути до тайтла
 export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     const currentLang = plugin.data.settings.language;
-    const t = translations[currentLang || "en"];
+    // const t = translations[currentLang || "en"];
+    const { t } = useI18n();
     // const isDesktop = (window as any).require !== undefined; // уже не нужно
     // Создаем стейт для массива внешних путей
     const [externalPaths, setExternalPaths] = React.useState<string[]>(plugin.data.externalSources || []);
@@ -215,7 +217,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
     return (
         <div className = "library-main">
             <div className = "library-title">
-                <h2>{t.libraryTitle}</h2>
+                <h2>{t.library.title}</h2>
 
                 {/* Кнопка быстрого переключения языка */}
                 <button onClick={toggleLanguage}>
@@ -224,9 +226,9 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
 
                 {/* Кнопка добавления источника */}
                 <div style={{ display: "flex", gap: "10px" }}>
-                    <button onClick={addDefaultFolderModal}>{t.addVaultFolder}</button>
+                    <button onClick={addDefaultFolderModal}>{t.library.addVaultFolder}</button>
                     {(window as any).require && (
-                        <button onClick={addExternalFolderModal}>{t.addExternalFolder}</button>
+                        <button onClick={addExternalFolderModal}>{t.library.addExternalFolder}</button>
                     )}
                 </div>
             </div>
@@ -266,7 +268,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                             <ReadingProgressBar
                                 current={current}
                                 total={item.chapterCount}
-                                label={t.chapterCount(current, item.chapterCount)}
+                                label={t.reader.chapterCount(current, item.chapterCount)}
                             />
 
                             {/* Название */}
@@ -284,7 +286,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                             {/* Метка внешнего источника (опционально, для отладки) */}
                             {item.isExternal && (
                                 <div style={{ fontSize: "0.7em", color: "var(--text-muted)", textAlign: "center" }}>
-                                    [{t.externalLabel}]
+                                    [{t.library.externalLabel}]
                                 </div>
                             )}
                         </div>
@@ -292,7 +294,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                 }) 
                 : (
                     <p style={{ gridColumn: "1/-1", textAlign: "center", opacity: 0.5 }}>
-                        {t.emptyLibrary}
+                        {t.library.empty}
                     </p>
                 )}
             </div>

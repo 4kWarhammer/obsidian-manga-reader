@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as Lucide from "lucide-react";
 import { TFolder, TFile, App } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { FolderSelectModal } from "../modal/FolderSelectModal";
@@ -196,73 +197,53 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
         }, "external").open();
     };
 
-    const handlePosterDoubleClick = (itemPath: string) => {
-        const posterImages = plugin.data.library[itemPath]?.posterImages || [];
-        const onSave = (selected: string[]) => {
-            if (!plugin.data.library[itemPath]) {
-                plugin.data.library[itemPath] = { lastChapter: "", lastPage: 1 };
-            }
-            plugin.data.library[itemPath].posterImages = selected;
-            plugin.saveProgress();
-            setItems(prev => [...prev]);
-        };
-        new ImageSelectModal(
-            app,
-            plugin.data.settings.imagesFolder,
-            posterImages,
-            onSave
-        ).open();
-    };
-
     return (
-        <div className = "library-main">
-            <div className = "library-title">
-                <h2>{t.library.title}</h2>
+        <div className="library-main">
+            <div className="library-title">
+                <h1 className="title-header"> 
+                    <Lucide.LibraryBig size={30} /> 
+                    <span>{t.library.title}</span>
+                </h1>
 
-                {/* Кнопка быстрого переключения языка */}
-                <button onClick={toggleLanguage}>
-                    {currentLang === "ru" ? "EN" : "RU"}
-                </button>
-
-                {/* Кнопка добавления источника */}
                 <div style={{ display: "flex", gap: "10px" }}>
-                    <button onClick={addDefaultFolderModal}>{t.library.addVaultFolder}</button>
-                    {(window as any).require && (
-                        <button onClick={addExternalFolderModal}>{t.library.addExternalFolder}</button>
-                    )}
+                    {/* Кнопка добавления источника */}
+                    <div style={{ display: "flex", gap: "10px" }}>
+                        <button onClick={addDefaultFolderModal}>{t.library.addVaultFolder}</button>
+                        {(window as any).require && (
+                            <button onClick={addExternalFolderModal}>{t.library.addExternalFolder}</button>
+                        )}
+                    </div>
+
+                    {/* Кнопка быстрого переключения языка */}
+                    <button onClick={toggleLanguage}>
+                        {currentLang === "ru" ? "RU" : "EN"}
+                    </button>
                 </div>
             </div>
 
             {/* Тут отображаем список манги уже добавленной */}
-            <div className = "title-grid">
+            <div className="title-grid">
                 {items.length > 0 
                 ? items.map(item => {
-                    const handleSmartClick = createSmartClickHandler(
-                        () => onSelectTitle(item.path),          // одиночный клик
-                        () => handlePosterDoubleClick(item.path), // двойной клик
-                        200,    // задержка, уменьшил
-                    );
-
                     const current = item.lastChapterIndex !== undefined ? item.lastChapterIndex + 1 : 0;
 
                     return (
                         <div 
                             className="title"
                             key={item.path}
-                            onClick={handleSmartClick}  // ← единый обработчик
-                            style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: "8px" }}
+                            onClick={() => onSelectTitle(item.path)}
                         >
                             <div style={{ position: "relative" }}>
                                 <ImagePoster
                                     app={app}
-                                    images={plugin.data.library[item.path]?.posterImages || []}
-                                    emptyPlaceholder={<span style={{ fontSize: "2em" }}>📖</span>}
+                                    images={plugin.data.library[item.path]?.posterImages || []}                                    
                                 />
-                                {item.rating !== null && item.rating !== undefined && (
+                                {/* Как то не смотрится пока */}
+                                {/* {item.rating !== null && item.rating !== undefined && (
                                     <div className="card-rating-badge">
                                         <TitleRating rating={item.rating} size="small" />
                                     </div>
-                                )}
+                                )} */}
                             </div>
 
                             <ReadingProgressBar
@@ -272,20 +253,13 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                             />
 
                             {/* Название */}
-                            <div style={{ 
-                                fontWeight: "bold", 
-                                fontSize: "0.9em",
-                                textAlign: "center",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap"
-                            }}>
+                            <div className="title-name">
                                 {item.name}
                             </div>
                             
                             {/* Метка внешнего источника (опционально, для отладки) */}
                             {item.isExternal && (
-                                <div style={{ fontSize: "0.7em", color: "var(--text-muted)", textAlign: "center" }}>
+                                <div className="is-external">
                                     [{t.library.externalLabel}]
                                 </div>
                             )}
@@ -293,7 +267,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                     );
                 }) 
                 : (
-                    <p style={{ gridColumn: "1/-1", textAlign: "center", opacity: 0.5 }}>
+                    <p className="empty-library">
                         {t.library.empty}
                     </p>
                 )}

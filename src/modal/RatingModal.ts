@@ -1,43 +1,29 @@
 import { App, Modal } from "obsidian";
-
-const TEXTS: Record<string, Record<string, string>> = {
-    ru: {
-        modalTitle: "Выставить рейтинг",
-        save: "Сохранить",
-        cancel: "Отмена",
-    },
-    en: {
-        modalTitle: "Rate this title",
-        save: "Save",
-        cancel: "Cancel",
-    },
-};
+import { getTranslation } from "../i18n";
+import type { Language, Translation } from "../i18n";
 
 export class RatingModal extends Modal {
     private initialRating: number;
     private onSave: (rating: number) => void;
-    private lang: string;
+    private t: Translation;
 
     constructor(
         app: App,
         initialRating: number | null | undefined,
-        onSave: (rating: number) => void
+        onSave: (rating: number) => void,
+        language: Language
     ) {
         super(app);
         this.initialRating = initialRating ?? 0;
         this.onSave = onSave;
-        this.lang = (app.vault as any).getConfig?.("interfaceLanguage") || "en";
-    }
-
-    private t(key: string): string {
-        return TEXTS[this.lang]?.[key] || TEXTS.en[key] || key;
+        this.t = getTranslation(language);
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
 
-        this.titleEl.setText(this.t("modalTitle"));
+        this.titleEl.setText(this.t.rating.modalTitle);
 
         const container = contentEl.createDiv({ cls: "rating-modal-container" });
 
@@ -102,10 +88,10 @@ export class RatingModal extends Modal {
         // Футер
         const footer = contentEl.createDiv({ cls: "rating-modal-footer" });
 
-        const cancelBtn = footer.createEl("button", { text: this.t("cancel") });
+        const cancelBtn = footer.createEl("button", { text: this.t.common.cancel });
         cancelBtn.addEventListener("click", () => this.close());
 
-        const saveBtn = footer.createEl("button", { text: this.t("save"), cls: "mod-cta" });
+        const saveBtn = footer.createEl("button", { text: this.t.common.save, cls: "mod-cta" });
         saveBtn.addEventListener("click", () => {
             const raw = numInput.value.trim().replace(",", ".");
             const val = parseFloat(raw);

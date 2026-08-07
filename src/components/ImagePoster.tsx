@@ -1,12 +1,14 @@
 import * as React from "react";
 import { App, TFile } from "obsidian";
 import * as Lucide from "lucide-react";
+import { useI18n } from "src/i18n/I18nContext";
 
 interface Props {
     app: App;
     images: string[];
     emptyPlaceholder?: React.ReactNode;
     coolDown?: number;
+    onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
     onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
     className?: string;
 }
@@ -17,9 +19,12 @@ export const ImagePoster = ({
     images,
     emptyPlaceholder,
     coolDown = 4000,
+    onClick,
+    // На него потом сделаем открытие предпросмотра с листанием.
     onDoubleClick,
     className,
 }: Props) => {
+    const { t } = useI18n();
     const [currentSlide, setCurrentSlide] = React.useState(0);
     // триггер для сброса таймера при ручном переключении
     const [tick, setTick] = React.useState(0);
@@ -94,7 +99,8 @@ export const ImagePoster = ({
                                 }
                             }}
                             aria-current={isActive ? "true" : undefined}
-                            aria-label={`Слайд ${dotIndex + 1}`}
+                            // Текст при наведении
+                            aria-label={`${t.poster.image} ${dotIndex + 1}`}
                         />
                     );
                 })}
@@ -105,9 +111,9 @@ export const ImagePoster = ({
     return (
         <div
             className={`image-poster ${className || ""}`}
-            // уже не нужен особо
-            // onDoubleClick={onDoubleClick}
-            title="Двойной клик — выбрать изображения"
+            // Название при наведении
+            title={t.poster.title}
+            aria-label={t.poster.title}
         >
             {images.length > 0 ? (
                 images.map((imgPath, i) => (
@@ -119,25 +125,19 @@ export const ImagePoster = ({
                     />
                 ))
             ) : (
-                emptyPlaceholder || "🖼 Постер"
+                emptyPlaceholder || <Lucide.ImageMinus size={48}/>
             )}
 
-            {/* Overlay, который блокирует клики по фону при наведении */}
-            {/* Пока отключу */}
-            {/* <div
-                className="image-poster-blocker"
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-            /> */}
-
             {/* Настройки / выбор изображений */}
-            {onDoubleClick && (
+            {onClick && (
                 <button
                     type="button"
                     className="image-poster-settings"
-                    onClick={(e) => onDoubleClick(e as any)}
-                    aria-label="Выбрать изображения"
-                    title="Выбрать изображения"
+                    onClick={(e) => onClick(e as any)}
+                    // Название
+                    title={t.poster.settings}
+                    // Для экранного диктора
+                    aria-label={t.poster.settings}
                 >
                     <Lucide.Settings size={16} />
                 </button>

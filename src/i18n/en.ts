@@ -1,70 +1,87 @@
 import type { TranslationSchema } from "./types";
 
 export const en: TranslationSchema = {
-  common: {
-    back: "⬅ Back",
-    loading: "Loading...",
-    save: "Save",
-    cancel: "Cancel",
-  },
-
-  library: {
-    title: "📚 My Library",
-    addVaultFolder: "Select Vault Folder",
-    addExternalFolder: "+ External Folder",
-    empty: "Library is empty. Add folders in settings above.",
-    externalLabel: "[External]",
-  },
-
-  explorer: {
-    mode: "Mode:",
-    vaultMode: "Obsidian's Vault",
-    externalMode: "Disk (Desktop)",
-    back: "📁 .. (up)",
-    choose: "✅ Choose:",
-    root: "Root",
-  },
-
-  titlePage: {
-    continueReading: "Continue reading",
-    startReading: "Start reading",
-    chapterList: "Chapter list",
-
-    tabs: {
-      description: "Description",
-      chapters: "Chapters",
-      comments: "Comments",
+    common: {
+        back: "⬅ Back",
+        loading: "Loading...",
+        save: "Save",
+        cancel: "Cancel",
+        doubleClick: "Double click",
     },
-  },
 
-  chapterList: {
-    empty: "Chapters not found",
-  },
+    library: {
+        title: "My Library",
+        addVaultFolder: "Select Vault Folder",
+        addExternalFolder: "+ External Folder",
+        empty: "Library is empty. Add folders in settings above.",
+        externalLabel: "[External]",
+    },
 
-  reader: {
-    nextChapter: "Next Chapter ➡",
-    prevChapter: "⬅ Previous Chapter",
-    noImages: "No images in this chapter",
-    scrollMode: "Feed",
-    singlePageMode: "Page-by-page",
-    nextPage: "Next page",
-    prevPage: "Prev. page",
-    chapterCount: (current: number, total: number) =>
-      `Chapter ${current} of ${total}`,
-  },
+    poster: {
+        title: "Poster",
+        image: "Image",
+        settings: "Settings",
+        doubleClick: "Double click - view",
+    },
 
-  note: {
-    placeholder: "📝 Double-click to create a note",
-    empty: "Note is empty. Double-click to edit.",
-    descriptionEmpty: "Note exists, but description heading was not found",
-    commentsEmpty: "Note exists, but comments heading was not found",
-    tagsEmpty: "No tags specified",
-  },
+    rating: {
+        title: "Rating",
+        modalTitle: "Set rating",
+    },
 
-  modal: {
-    save: "Save",
-    cancel: "Cancel",
-    selectImages: "Select images",
-    empty: "No images",
-  },
+    explorer: {
+        mode: "Mode:",
+        vaultMode: "Obsidian's Vault",
+        externalMode: "Disk (Desktop)",
+        back: "📁 .. (up)",
+        choose: "✅ Choose:",
+        root: "Root",
+    },
+
+    title: {
+        continueReading: "Continue reading",
+        startReading: "Start reading",
+        chapterList: "Chapter list",
+        nameChange: "Press to change Name",
+        openNote: "Create or open note",
+
+        tabs: {
+        description: "Description",
+        chapters: "Chapters",
+        comments: "Comments",
+        },
+    },
+
+    chapterList: {
+        empty: "Chapters not found",
+    },
+
+    reader: {
+        nextChapter: "Next Chapter ➡",
+        prevChapter: "⬅ Previous Chapter",
+        noImages: "No images in this chapter",
+        scrollMode: "Feed",
+        singlePageMode: "Page-by-page",
+        nextPage: "Next page",
+        prevPage: "Prev. page",
+        chapterCount: (current: number, total: number) =>
+        `Chapter ${current} of ${total}`,
+    },
+
+    note: {
+        placeholder: "📝 Double-click to create or open a note",
+        empty: "Note is empty. Double-click to edit.",
+        descriptionEmpty: "Note exists, but description heading was not found",
+        commentsEmpty: "Note exists, but comments heading was not found",
+        tagsEmpty: "No tags specified",
+    },
+
+    modal: {
+        titleName: "Title name",
+
+        imageSelect: {
+        headerName: "Select images",
+        empty: "No images"
+        },
+    },
 };

@@ -1,4 +1,6 @@
 import { App, Modal, TFolder, TFile } from "obsidian";
+import { getTranslation } from "../i18n";
+import type { Language, Translation } from "../i18n";
 
 // Пока тут типы
 interface ImageFileInfo {
@@ -17,8 +19,17 @@ interface FolderNode {
 
 // Это ваще интересно, не стал в i18n писать
 const TEXTS: Record<string, Record<string, string>> = {
-    ru: { selectImages: "Выбор изображений", save: "Сохранить", cancel: "Отмена", empty: "Изображения не найдены" },
-    en: { selectImages: "Select images", save: "Save", cancel: "Cancel", empty: "No images found" },
+    ru: { 
+        selectImages: "Выбор изображений", 
+        save: "Сохранить", 
+        cancel: "Отмена", 
+        empty: "Изображения не найдены" 
+    },
+    en: { 
+        selectImages: "Select images", 
+        save: "Save", 
+        cancel: "Cancel", 
+        empty: "No images found" },
 };
 
 export class ImageSelectModal extends Modal {
@@ -28,38 +39,36 @@ export class ImageSelectModal extends Modal {
     private imageFiles: ImageFileInfo[] = [];
     private rootNode: FolderNode | null = null;
     private folderExpanded: Map<string, boolean> = new Map();
-    private lang: string;
+    private t: Translation;
 
     constructor(
         app: App,
         imagesFolder: string,
         selectedPaths: string[],
-        onSave: (paths: string[]) => void
+        onSave: (paths: string[]) => void,
+        language: Language
     ) {
         super(app);
         this.imagesFolder = imagesFolder;
         this.selectedPaths = new Set(selectedPaths);
         this.onSave = onSave;
-        this.lang = (app.vault as any).getConfig?.("interfaceLanguage") || "en";
+        this.t = getTranslation(language);
     }
 
-    private t(key: string): string {
-        return TEXTS[this.lang]?.[key] || TEXTS.en[key] || key;
-    }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
         contentEl.addClass("image-select-modal");
 
-        this.titleEl.setText(this.t("selectImages"));
+        this.titleEl.setText(this.t.modal.imageSelect.headerName);
 
         this.collectImages();
 
         const container = contentEl.createDiv({ cls: "image-select-container" });
 
         if (!this.rootNode || (this.rootNode.files.length === 0 && this.rootNode.children.length === 0)) {
-            container.createDiv({ text: this.t("empty"), cls: "image-select-empty" });
+            container.createDiv({ text: this.t.modal.imageSelect.empty, cls: "image-select-empty" });
         } else {
             // Корень не рендерим как папку — сразу его содержимое
             for (const child of this.rootNode.children) {
@@ -72,13 +81,13 @@ export class ImageSelectModal extends Modal {
 
         const footer = contentEl.createDiv({ cls: "image-select-footer" });
 
-        const saveBtn = footer.createEl("button", { text: this.t("save"), cls: "mod-cta" });
+        const saveBtn = footer.createEl("button", { text: this.t.common.save, cls: "mod-cta" });
         saveBtn.addEventListener("click", () => {
             this.onSave(Array.from(this.selectedPaths));
             this.close();
         });
 
-        const cancelBtn = footer.createEl("button", { text: this.t("cancel") });
+        const cancelBtn = footer.createEl("button", { text: this.t.common.cancel });
         cancelBtn.addEventListener("click", () => this.close());
     }
 

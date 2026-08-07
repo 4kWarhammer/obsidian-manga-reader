@@ -1,6 +1,6 @@
-import * as React from "react";
 import { App } from "obsidian";
 import { RatingModal } from "../modal/RatingModal";
+import { useI18n } from "src/i18n/I18nContext";
 
 interface Props {
     /** Значение из useTitleNote (number | null | undefined) */
@@ -15,6 +15,8 @@ export const TitleRating = ({ rating, app, onChange, size = "default" }: Props) 
     const value = rating ?? 0;
     const clamped = Math.max(0, Math.min(10, value));
     const formatted = clamped.toFixed(1);
+
+    const { t, language } = useI18n();
 
     // Выставляем по умолчанию
     let colorClass = "rating-gray";
@@ -31,7 +33,7 @@ export const TitleRating = ({ rating, app, onChange, size = "default" }: Props) 
 
     const handleClick = () => {
         if (!app || !onChange) return;
-        new RatingModal(app, rating, onChange).open();
+        new RatingModal(app, rating, onChange, language).open();
     };
 
     return (
@@ -41,7 +43,7 @@ export const TitleRating = ({ rating, app, onChange, size = "default" }: Props) 
             ${colorClass} ${onChange ? "rating-clickable" : ""} 
             ${size === "small" ? "title-rating-small" : ""}
         `}
-        title={`Рейтинг ${formatted}`} 
+        title={`${t.rating.title} ${formatted}`} 
         onClick={handleClick}
         >
             <span className="rating-icon">★</span>

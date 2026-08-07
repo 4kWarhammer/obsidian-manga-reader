@@ -66,6 +66,7 @@
     font-size: 2.2em;
     font-weight: 700;
     margin-bottom: 6px;
+    cursor: pointer;
 }
 
 .title-info .title-aliases{
@@ -305,10 +306,7 @@ TitlePage, но пока так
 .reading-progress {
     width: 100%;
     max-width: 320px;
-    display: flex;
-    flex-direction: column;
     gap: 6px;
-    margin-top: 8px;
 }
 
 .reading-progress .progress-label {

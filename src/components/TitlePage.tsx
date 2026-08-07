@@ -3,6 +3,7 @@ import { App } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { ChapterListPage } from "./ChapterListPage";
 import { translations } from "src/i18n";
+import { useI18n } from "src/i18n/I18nContext";
 import { useChapterList } from "src/hooks/useChapterList";
 import { useTitleBackgroundPreindex } from "src/hooks/useTitleBackgroundPreindex";
 import { ImagePoster } from "./ImagePoster";
@@ -49,12 +50,18 @@ interface ReadingProgressProps {
    Подкомпоненты
    =================================================== */
 
-/** Подпись вкладки с проверкой переполнения. */
-const MarqueeText = ({ text }: { text: string }) => {
+/** 
+ * Подпись вкладки с проверкой переполнения. 
+ * 
+ * Если хочешь убрать title - передай ""
+*/
+const MarqueeText = ({ text, title }: { text: string, title?: string }) => {
     const viewportRef = React.useRef<HTMLSpanElement>(null);
     const contentRef = React.useRef<HTMLSpanElement>(null);
     const [overflow, setOverflow] = React.useState(false);
     const [distance, setDistance] = React.useState(0);
+
+    const tooltipText = title === "" ? undefined : (title ?? text);
 
     React.useEffect(() => {
         const viewport = viewportRef.current;
@@ -71,7 +78,7 @@ const MarqueeText = ({ text }: { text: string }) => {
         <span
             ref={viewportRef}
             className="marquee-viewport"
-            title={text}
+            title={tooltipText}
         >
             <span
                 ref={contentRef}
@@ -119,7 +126,8 @@ export const TitlePage = ({
     onContinue,
     onSelectChapter
 }: Props) => {
-    const t = translations[plugin.data.settings.language || "en"]
+    // const t = translations[plugin.data.settings.language || "en"]
+    const { t, language } = useI18n();
     const progress = plugin.data.library[path];
 
     const [titleName, setTitleName] = React.useState(
@@ -181,7 +189,8 @@ export const TitlePage = ({
                 plugin.data.library[path].titleName = trimmed;
                 plugin.saveProgress();
                 setTitleName(trimmed);
-            }
+            },
+            plugin.data.settings.language,
         ).open();
     };
 
@@ -210,8 +219,7 @@ export const TitlePage = ({
         };
     }, [ensureNote]);
 
-    /**Надо переименовать скорее всего */
-    const handlePosterDoubleClick = () => {
+    const handleChoosePosterImages = () => {
         const onSave = (selected: string[]) => {
             setPosterImages(selected);
             if (!plugin.data.library[path]) {
@@ -225,9 +233,12 @@ export const TitlePage = ({
             app,
             plugin.data.settings.imagesFolder,
             posterImages,
-            onSave
+            onSave,
+            language
         ).open();
     };
+
+    // тут потом функцию для вызова просмотра изображений
 
     const chapterIndex = chapters.findIndex((ch) => ch === progress?.lastChapter);
     const currentChapter = chapterIndex >= 0 ? chapterIndex + 1 : 0;
@@ -237,20 +248,20 @@ export const TitlePage = ({
         {
             id: "description",
             // label: t.tabDescription,
-            label: t.tabDescription,
+            label: t.title.tabs.description,
             content: (
                 <div className="tab-panel">
                     {/* Описание */}
                     <div
                         className={`title-note-preview ${exists ? "has-note" : ""}`}
                         onDoubleClick={openNote}
-                        title="Двойной клик — открыть/создать заметку"
+                        title={t.note.placeholder}
                     >
                         {exists && description ? (
                             <MarkdownNote app={app} source={description} path={path} />
                         ) : (
                             <div className="note-placeholder">
-                                {exists ? t.noteDescriptionEmpty : t.notePlaceholder}
+                                {exists ? t.note.descriptionEmpty : t.note.placeholder}
                             </div>
                         )}
                     </div>
@@ -271,7 +282,7 @@ export const TitlePage = ({
                             </div>
                         ) : (
                             <div className="note-placeholder">
-                                {exists ? t.noteTagsEmpty : t.notePlaceholder}
+                                {exists ? t.note.tagsEmpty : t.note.placeholder}
                             </div>
                         )}
                     </div>
@@ -280,7 +291,7 @@ export const TitlePage = ({
         },
         {
             id: "chapters",
-            label: t.tabChapters,
+            label: t.title.tabs.chapters,
             content: (
                 <ChapterListPage
                     plugin={plugin}
@@ -291,18 +302,18 @@ export const TitlePage = ({
         },
         {
             id: "comments",
-            label: t.tabComments,
+            label: t.title.tabs.comments,
             content: (
                 <div
                     className={`title-note-preview ${exists ? "has-note" : ""}`}
                     onDoubleClick={openNote}
-                    title="Двойной клик — открыть/создать заметку"
+                    title={t.note.placeholder}
                 >
                     {exists && comments ? (
                         <MarkdownNote app={app} source={comments} path={path} />
                     ) : (
                         <div className="note-placeholder">
-                            {exists ? t.noteCommentsEmpty : t.notePlaceholder}
+                            {exists ? t.note.commentsEmpty : t.note.placeholder}
                         </div>
                     )}
                 </div>
@@ -312,6 +323,7 @@ export const TitlePage = ({
 
     // Для общей информации создадим массив
     // лучше задать типизацию, если потом буду добавлять
+    // Но пока не нужно уже
     const metaItems = [
         {
             id: 'year',
@@ -391,14 +403,14 @@ export const TitlePage = ({
                     <ImagePoster
                         app={app}
                         images={posterImages}
-                        onDoubleClick={handlePosterDoubleClick}
+                        onClick={handleChoosePosterImages}
                     />
 
                     {/* Прогресс бар */}
                     <ReadingProgressBar
                         current={currentChapter}
                         total={totalChapters}
-                        label={t.chapterCount(currentChapter, totalChapters)}
+                        label={t.reader.chapterCount(currentChapter, totalChapters)}
                         display={false}
                     />
                 </div>
@@ -411,10 +423,13 @@ export const TitlePage = ({
                         <div className="title-info">
                             <div 
                                 className="title-name"
-                                title="Нажмите для смены названия"
+                                title={t.title.nameChange}
                                 onClick={handleCustomTitleName}
                             >
-                                <MarqueeText text={titleName}/>
+                                <MarqueeText 
+                                    title=""
+                                    text={titleName}
+                                />
                             </div>
 
                             <div className="title-aliases">
@@ -437,18 +452,18 @@ export const TitlePage = ({
                     className="buttons-line">
                         <button
                             className="start-button"
-                            title={`${t.continue} ${progress.lastChapter}, ${progress.lastPage}`}
+                            title={`${t.title.continueReading}: ${progress.lastChapter}, ${progress.lastPage}`}
                             onClick={() => onContinue(progress.lastChapter, false)}
                         >
                             <MarqueeText text={progress?.lastChapter 
-                                ? t.continue
-                                : t.noStartReading
+                                ? t.title.continueReading
+                                : t.title.startReading
                             }/>
                         </button>
 
                         <button
                             className="note-button"
-                            title="Создать или открыть заметку"
+                            title={t.title.openNote}
                             onClick={openNote}
                         >
                             <Lucide.NotebookPen size={16} />

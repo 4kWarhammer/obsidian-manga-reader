@@ -1,6 +1,6 @@
 /* Библиотека */
 .library-main {
-    max-width: 1200px;
+    max-width: 900px;
     margin: 0 auto;
 
     .library-title{
@@ -9,6 +9,12 @@
         align-items: center;
         margin-bottom: 10px;
         gap: 5px;
+    }
+
+    .title-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .title-grid{
@@ -25,6 +31,13 @@
             flex-direction: column;
             gap: 8px;
         }
+
+        .empty-library {
+            /* в inline было: gridColumn: "1/-1" */
+            grid-column: 1 / -1;
+            text-align: center;
+            opacity: 0.5;
+        }
     }
 }
 
@@ -34,3 +47,21 @@
     right: 6px;
     z-index: 2;
 }
+
+.title .title-name  {
+    font-weight: bold;
+    font-size: 0.9em;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.title .is-external {
+    /* Прижму, чтобы со всего родителя не менять gap */
+    margin-top: -6px;
+    font-size: 0.7em;
+    color: var(--manga-text-muted);
+    text-align: center;
+}
+

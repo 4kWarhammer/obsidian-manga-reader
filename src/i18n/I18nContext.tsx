@@ -1,5 +1,9 @@
 import * as React from "react";
-import { translations } from "./index";
+import {
+  fallbackLanguage,
+  getTranslation,
+  normalizeLanguage,
+} from "./index";
 import type { Language, Translation } from "./index";
 
 type I18nContextValue = {
@@ -7,24 +11,9 @@ type I18nContextValue = {
   t: Translation;
 };
 
-const fallbackLanguage: Language = "ru";
-
-function isSupportedLanguage(language: unknown): language is Language {
-  return (
-    typeof language === "string" &&
-    language in translations
-  );
-}
-
-function normalizeLanguage(language: unknown): Language {
-  return isSupportedLanguage(language)
-    ? language
-    : fallbackLanguage;
-}
-
 const I18nContext = React.createContext<I18nContextValue>({
   language: fallbackLanguage,
-  t: translations[fallbackLanguage],
+  t: getTranslation(fallbackLanguage),
 });
 
 type I18nProviderProps = {
@@ -38,7 +27,7 @@ export function I18nProvider({ language, children }: I18nProviderProps) {
 
     return {
       language: normalizedLanguage,
-      t: translations[normalizedLanguage],
+      t: getTranslation(normalizedLanguage),
     };
   }, [language]);
 
@@ -49,7 +38,6 @@ export function I18nProvider({ language, children }: I18nProviderProps) {
   );
 }
 
-// Что то хитро, не понял как
 export function useI18n(): I18nContextValue {
   return React.useContext(I18nContext);
 }

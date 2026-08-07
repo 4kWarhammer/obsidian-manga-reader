@@ -45,7 +45,7 @@ export interface PluginData {
 export const DEFAULT_DATA: PluginData = {
     settings: {
         viewMode: 'scroll',
-        language: "ru",
+        language: "en",
         indexWarmerMode: 'adjacent',
         readerBackgroundIndexing: false,
         pageGap: 5,

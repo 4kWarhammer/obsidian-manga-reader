@@ -1,43 +1,29 @@
 import { App, Modal } from "obsidian";
-
-const TEXTS: Record<string, Record<string, string>> = {
-    ru: {
-        modalTitle: "Название тайтла",
-        save: "Сохранить",
-        cancel: "Отмена",
-    },
-    en: {
-        modalTitle: "Title name",
-        save: "Save",
-        cancel: "Cancel",
-    },
-};
+import { getTranslation } from "../i18n";
+import type { Language, Translation } from "../i18n";
 
 export class TitleNameModal extends Modal {
     private initialName: string;
     private onSave: (newName: string) => void;
-    private lang: string;
+    private t: Translation;
 
     constructor(
         app: App,
         initialName: string,
-        onSave: (newName: string) => void
+        onSave: (newName: string) => void,
+        language: Language
     ) {
         super(app);
         this.initialName = initialName;
         this.onSave = onSave;
-        this.lang = (app.vault as any).getConfig?.("interfaceLanguage") || "en";
-    }
-
-    private t(key: string): string {
-        return TEXTS[this.lang]?.[key] || TEXTS.en[key] || key;
+        this.t = getTranslation(language);
     }
 
     onOpen() {
         const { contentEl } = this;
         contentEl.empty();
 
-        this.titleEl.setText(this.t("modalTitle"));
+        this.titleEl.setText(this.t.modal.titleName);
 
         const container = contentEl.createDiv({ cls: "title-name-modal-container" });
 
@@ -54,10 +40,10 @@ export class TitleNameModal extends Modal {
         footer.style.justifyContent = "flex-end";
         footer.style.gap = "0.5rem";
 
-        const cancelBtn = footer.createEl("button", { text: this.t("cancel") });
+        const cancelBtn = footer.createEl("button", { text: this.t.common.cancel });
         cancelBtn.addEventListener("click", () => this.close());
 
-        const saveBtn = footer.createEl("button", { text: this.t("save"), cls: "mod-cta" });
+        const saveBtn = footer.createEl("button", { text: this.t.common.save, cls: "mod-cta" });
         saveBtn.addEventListener("click", () => {
             this.onSave(input.value);
             this.close();

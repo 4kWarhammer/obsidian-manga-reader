@@ -1,9 +1,10 @@
 import * as React from "react";
 import * as Lucide from "lucide-react";
+import { useI18n } from "src/i18n/I18nContext";
 
 interface ReaderHeaderProps {
     chapterName: string;
-    allChapters: string[];
+    chapterIndex: number;
     onBack: () => void;
     onPageNavigation: (direction: "prev" | "next") => void;
     onChapterChange: (name: string) => void;
@@ -15,51 +16,53 @@ interface ReaderHeaderProps {
 
 export const ReaderHeader = ({ 
     chapterName, 
-    allChapters, 
-    onBack,
-    onPageNavigation,
-    onChapterChange, 
-    viewMode,
-    onToggleViewMode,
-    onOpenSettings,
-    onOpenChapterList,
+    chapterIndex, 
+    onBack, 
+    viewMode, 
+    onToggleViewMode, 
+    onOpenSettings, 
+    onOpenChapterList, 
 }: ReaderHeaderProps) => {
-    const [isTocOpen, setIsTocOpen] = React.useState(false);
+    const { t } = useI18n();
 
     return (
         <div className="reader-header">
             <div className="header-left">
-                <button className="nav-btn" onClick={onBack} title="Назад">
-                    <Lucide.ArrowLeft size={18}/>
+                <button 
+                    className="nav-btn" 
+                    onClick={onBack} 
+                    title={t.common.back}>
+                    <Lucide.ArrowLeft size={20}/>
                 </button>
             </div>
             
             <div className="header-center">
-                <button 
+                {/* Эти кнопки не нужны, если и делать, то как перемещение по главам */}
+                {/* <button 
                     className="nav-btn"
                     onClick={() => onPageNavigation("prev")}
                     title="Предыдущая страница"
                 >
-                    <Lucide.ChevronLeft size={18}/>
-                </button>
+                    <Lucide.ChevronLeft size={25}/>
+                </button> */}
 
                 {/* Вместо <select> */}
                 <button
                     className="nav-btn"
                     onClick={onOpenChapterList}
-                    title="Открыть оглавление"
+                    title={t.reader.header.content}
                 >
-                    <span className="toc-trigger-label">Оглавление</span>
-                    <span className="toc-trigger-current">{chapterName}</span>
+                    {/* <span className="toc-trigger-label">Оглавление</span> */}
+                    <span className="header-chaptername">{t.reader.header.chapter} {chapterIndex + 1}</span>
                 </button>
 
-                <button
+                {/* <button
                     className="nav-btn"
                     onClick={() => onPageNavigation("next")}
                     title="Следующая страница"
                     >
-                    <Lucide.ChevronRight size={18}/>
-                </button>
+                    <Lucide.ChevronRight size={25}/>
+                </button> */}
             </div>
 
             <div className="header-right">
@@ -67,18 +70,22 @@ export const ReaderHeader = ({
                 <button 
                     className="nav-btn"
                     onClick={onToggleViewMode}
-                    title="Сменить режим">
+                    title={viewMode === "scroll"
+                        ? `${t.settings.viewMode}: ${t.settings.scroll}`
+                        : `${t.settings.viewMode}: ${t.settings.singlePage}`
+                    }
+                >
                     {viewMode === "scroll" 
-                    ? <Lucide.GalleryVertical size={18}/>
-                    : <Lucide.FileText size={18}/>}
+                    ? <Lucide.GalleryVertical size={20}/>
+                    : <Lucide.FileText size={20}/>}
                 </button>
                 {/* Настройки */}
                 <button 
                     className="nav-btn" 
                     onClick={onOpenSettings} 
-                    title="Настройки"
+                    title={t.reader.header.settings}
                 >
-                    <Lucide.Settings size={18}/>
+                    <Lucide.Settings size={20}/>
                 </button>
             </div>
         </div>

@@ -22,7 +22,9 @@ body {
     --manga-border-radius-2: 7px;
     --manga-button-radius: var(--button-radius);
 
-    --manga-h1-color: var(--h1-color)
+    --manga-h1-color: var(--h1-color);
+
+    --manga-modal-footer-padding: var(--size-4-4)
     
     /* === Семантические для ваших компонентов === */
     /* --manga-card-bg: var(--manga-bg-secondary);

@@ -64,9 +64,16 @@ export const FolderBrowser = ({ app, mode, plugin, onSelect, onClose }: Props) =
 
     return (
         <div style={{ padding: "10px" }}>
-            <div style={{ marginBottom: "15px", display: "flex", flexDirection: "column", gap: "5px" }}>
-                <div style={{ fontSize: "0.8em", color: "var(--text-muted)" }}>                    
-                    {t.explorermode} {mode === "vault" ? t.vaultmode : t.extmode}                    
+            <div 
+                style={{ 
+                    marginBottom: "15px", 
+                    display: "flex", 
+                    flexDirection: "column", 
+                    gap: "5px" 
+                    }}
+            >
+                <div style={{ fontSize: "0.8em", color: "var(--text-muted)" }}>
+                    {t.explorer.mode} {mode === "vault" ? t.explorer.vaultMode : t.explorer.externalMode}
                 </div>
                 <strong style={{ wordBreak: "break-all" }}>
                     {mode === "vault" ? "Vault/" : ""}{currentPath || "/"}
@@ -82,7 +89,7 @@ export const FolderBrowser = ({ app, mode, plugin, onSelect, onClose }: Props) =
                         }}
                         style={{ padding: "8px", cursor: "pointer", color: "var(--text-accent)" }}
                     >
-                        {t.explorerback}
+                        {t.explorer.back}
                     </div>
                 )}
 
@@ -103,7 +110,7 @@ export const FolderBrowser = ({ app, mode, plugin, onSelect, onClose }: Props) =
             style={{ marginTop: "15px", width: "100%" }} 
             onClick={() => onSelect(currentPath)}
         >
-            {t.explorerchoose} {currentPath.split(/[\\/]/).pop() || t.explorerroot}
+            {t.explorer.choose} {currentPath.split(/[\\/]/).pop() || t.explorer.root}
         </button>
 
         </div>

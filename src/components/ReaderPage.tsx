@@ -412,7 +412,7 @@ export const ReaderPage = ({
     if (virtualReader.error) {
         return (
             <div className="reader-error">
-                <button onClick={onBack}>{t.back}</button>
+                <button onClick={onBack}>{t.common.back}</button>
                 <p>Failed to index chapter metadata.</p>
                 <pre>{virtualReader.error}</pre>
             </div>
@@ -453,7 +453,7 @@ export const ReaderPage = ({
                     <div className="manga-reader-global-loader-text">
                         {virtualReader.indexingProgress
                             ? `Indexing ${virtualReader.indexingProgress.loaded}/${virtualReader.indexingProgress.total}`
-                            : t.isloading}
+                            : t.common.loading}
                     </div>
                 </div>
             )}

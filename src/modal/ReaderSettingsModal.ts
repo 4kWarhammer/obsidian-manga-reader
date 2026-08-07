@@ -3,6 +3,7 @@ import * as React from "react";
 import { createRoot, Root } from "react-dom/client";
 import MangaReaderPlugin from "src/main";
 import { ReaderSettings } from "src/components/ReaderSettings";
+import { renderWithI18n } from "src/i18n/renderWithI18n";
 
 export class ReaderSettingsModal extends Modal {
     root: Root | null = null;
@@ -18,10 +19,14 @@ export class ReaderSettingsModal extends Modal {
         contentEl.empty();
         this.root = createRoot(contentEl);
         this.root.render(
-            React.createElement(ReaderSettings, {
-                plugin: this.plugin,
-                onClose: () => this.close(),
-            })
+            renderWithI18n(
+                React.createElement(ReaderSettings, {
+                    plugin: this.plugin,
+                    onClose: () => this.close(),
+                }),
+                this.plugin.data.settings.language
+            )
+
         );
     }
 

@@ -13,7 +13,7 @@ import { MarkdownNote } from "./MarkDownNote";
 import { ReadingProgressBar } from "./ReadingProgressBar";
 import { getTitleDisplayName } from "src/utils/TitleUtils";
 import { TitleNameModal } from "../modal/TitleNameModal";
-import { TitleRating } from "./TitleRating";
+import { TitleRatingWidget } from "./TitleRatingWidget";
 import * as Lucide from "lucide-react";
 
 interface Props {
@@ -294,7 +294,7 @@ export const TitlePage = ({
             label: t.title.tabs.chapters,
             content: (
                 <ChapterListPage
-                    plugin={plugin}
+                    // plugin={plugin}
                     chapters={chapters}
                     onSelectChapter={(name) => onSelectChapter(name, true)}
                 />
@@ -440,7 +440,7 @@ export const TitlePage = ({
                         </div>
 
                         {/* Рейтинг */}
-                        <TitleRating
+                        <TitleRatingWidget
                             rating={rating}
                             app={app}
                             onChange={(val) => updateFrontmatter({ rating: val })}

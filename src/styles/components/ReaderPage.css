@@ -55,26 +55,16 @@
         /* Сам хедер */
         & .reader-header{
             /* Локальная ссылка на нужный тип */
-            --reader-callout-color: var(--interactive-accent);
-            --reader-callout-color-2: var(--background-primary-alt);
-            
+            background-color: color-mix(in srgb, var(--manga-bg-primary) 90%, transparent);
 
-            /* Фон: акцентный цвет на 10% поверх фона заметки */
-            background-color: color-mix(in srgb, var(--reader-callout-color-2) 90%, transparent);
+            border-radius: var(--manga-border-radius-1);
+            padding:  8px 16px;
 
-            /* Левая полоска */
-            border-left: var(--callout-border-width, 4px) solid rgb(var(--reader-callout-color));
-
-            /* Геометрия и общие стили callout */
-            border-radius: var(--callout-radius, 4px);
-            padding: var(--callout-padding, 8px 16px);
-
-            /* Остальное из твоей текущей структуры */
             margin: 8px 12px 0;
             width: calc(100% - 24px);
             max-width: 720px;
             height: auto;
-            min-height: 48px;
+            min-height: 40px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -152,6 +142,7 @@
 }
 
 .manga-reader .nav-btn {
+    all: unset;
     background: none;
     border: none;
     color: var(--text-muted);
@@ -160,7 +151,7 @@
 }
 
 .manga-reader .nav-btn:hover {
-    color: var(--text-accent);
+    color: var(--manga-interactive-accent);
 }
 
 /* Single mode */
@@ -243,3 +234,31 @@
 }
 .click-zone.left { left: 0;}
 .click-zone.right { right: 0;}
+
+
+.reader-header {
+    .header-left{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .header-center{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .header-right{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+}
+
+.reader-header .nav-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

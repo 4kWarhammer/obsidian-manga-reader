@@ -1,53 +1,110 @@
-import { App } from "obsidian";
-import { RatingModal } from "../modal/RatingModal";
+import * as React from "react";
+import { useState } from "react";
 import { useI18n } from "src/i18n/I18nContext";
 
 interface Props {
-    /** Значение из useTitleNote (number | null | undefined) */
-    rating: number | null | undefined;
-    app?: App;
-    onChange?: (rating: number) => void;
-    size?: "default" | "small";
+    initialRating: number;
+    onSave: (rating: number) => void;
+    onClose: () => void;
 }
 
-export const TitleRating = ({ rating, app, onChange, size = "default" }: Props) => {
-    // fallback: null / undefined / пустое поле → 0.0
-    const value = rating ?? 0;
-    const clamped = Math.max(0, Math.min(10, value));
-    const formatted = clamped.toFixed(1);
+export const TitleRating = ({ initialRating, onSave, onClose }: Props) => {
+    const { t } = useI18n();
+    const [rating, setRating] = useState(initialRating);
+    const [inputValue, setInputValue] = useState(initialRating.toFixed(1));
 
-    const { t, language } = useI18n();
+    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseFloat(e.target.value);
+        const clamped = Math.max(0, Math.min(10, val));
+        setRating(clamped);
+        setInputValue(clamped.toFixed(1));
+    };
 
-    // Выставляем по умолчанию
-    let colorClass = "rating-gray";
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const raw = e.target.value.trim().replace(",", ".");
+        setInputValue(raw);
+        
+        const val = parseFloat(raw);
+        if (!isNaN(val)) {
+            const clamped = Math.max(0, Math.min(10, val));
+            setRating(clamped);
+        }
+    };
 
-    if (clamped > 9) {
-        colorClass = "rating-gold";
-    } else if (clamped > 7) {
-        colorClass = "rating-green";
-    } else if (clamped > 4) {
-        colorClass = "rating-yellow";
-    } else if (clamped > 0) {
-        colorClass = "rating-red";
-    }
+    const handleInputBlur = () => {
+        const raw = inputValue.trim().replace(",", ".");
+        let val = parseFloat(raw);
+        if (isNaN(val)) val = initialRating;
+        const clamped = Math.max(0, Math.min(10, val));
+        setRating(clamped);
+        setInputValue(clamped.toFixed(1));
+    };
 
-    const handleClick = () => {
-        if (!app || !onChange) return;
-        new RatingModal(app, rating, onChange, language).open();
+    const handleSave = () => {
+        const raw = inputValue.trim().replace(",", ".");
+        const val = parseFloat(raw);
+        const clamped = isNaN(val) ? 0 : Math.max(0, Math.min(10, val));
+        onSave(clamped);
+        onClose();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            handleSave();
+        }
     };
 
     return (
-        <span 
-        className={`
-            title-rating 
-            ${colorClass} ${onChange ? "rating-clickable" : ""} 
-            ${size === "small" ? "title-rating-small" : ""}
-        `}
-        title={`${t.rating.title} ${formatted}`} 
-        onClick={handleClick}
-        >
-            <span className="rating-icon">★</span>
-            <span className="rating-value">{formatted}</span>
-        </span>
+        <div className="custom-modal-container">
+            {/* Заголовок */}
+            <h3>{t.rating.modalTitle} {isNaN(parseFloat(inputValue)) ? "—" : rating.toFixed(1)}</h3>
+
+            {/* Крупное число текущего значения */}
+            {/* <div className="rating-modal-value">
+                {isNaN(parseFloat(inputValue)) ? "—" : rating.toFixed(1)}
+            </div> */}
+
+            <div className="setting-item">
+                <div className="setting-item-info">
+                    {t.rating.ratingInfo}
+                </div>
+                <div className="setting-item-control multi-elements">
+                    {/* Числовое поле для ручного ввода */}
+                    <input
+                        type="number"
+                        className="rating-modal-number"
+                        min={0}
+                        max={10}
+                        step={0.1}
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        onBlur={handleInputBlur}
+                        onKeyDown={handleKeyDown}
+                    />
+
+                    {/* Ползунок 0…10, шаг 0.1 */}
+                    <input
+                        type="range"
+                        className="rating-modal-slider"
+                        min={0}
+                        max={10}
+                        step={0.1}
+                        value={rating}
+                        onChange={handleSliderChange}
+                    />
+
+                </div>
+            </div>
+
+
+            {/* Футер */}
+            <div className="modal-footer">
+                <button className="mod-cta" onClick={onClose}>{t.common.cancel}</button>
+                <button className="mod-cta" onClick={handleSave}>
+                    {t.common.save}
+                </button>
+            </div>
+        </div>
     );
 };

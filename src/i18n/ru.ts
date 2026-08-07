@@ -2,10 +2,11 @@
 
 export const ru = {
     common: {
-        back: "⬅ Назад",
+        back: "Назад",
         loading: "Загрузка...",
         save: "Сохранить",
         cancel: "Отмена",
+        close: "Закрыть",
         doubleClick: "Двойной клик",
     },
 
@@ -26,7 +27,8 @@ export const ru = {
 
     rating: {
         title: "Рейтинг",
-        modalTitle: "Выставить рейтинг",
+        modalTitle: "Выставить рейтинг на:",
+        ratingInfo: "Впишите или выставите рейтинг тайтла",
     },
 
     explorer: {
@@ -54,18 +56,38 @@ export const ru = {
 
     chapterList: {
         empty: "Главы не найдены",
+        chapter: "Глава",
+        header: "Выберите главу",
     },
 
     reader: {
         nextChapter: "Следующая глава ➡",
         prevChapter: "⬅ Предыдущая глава",
         noImages: "Глава не содержит изображений",
-        scrollMode: "Лента",
-        singlePageMode: "Постранично",
         nextPage: "След. страница",
         prevPage: "Пред. страница",
         chapterCount: (current: number, total: number) =>
         `Глава ${current} из ${total}`,
+        headerName: "Настройки читалки",
+        header: {
+            content: "Открыть оглавление",
+            chapter: "Глава",
+            settings: "Настройки",
+        },
+    },
+
+    settings: {
+        viewMode: "Режим чтения",
+        scroll: "Лента",
+        singlePage: "Страница",
+        indexWarmer: "Предзагрузка глав",
+        indexWarmerDescription: "Соседние = ±1 главы, Расширенный = ±2 главы",
+        adjacent: "Соседние",
+        extended: "Расширенный",
+        backgroundIndexing: "Фоновая индексация",
+        backgroundIndexingDescription: "Индексировать все главы тайтла при открытии",
+        gapBetweenPage: "Отступ между страницами",
+        readerWidth: "Ширина читалки",
     },
 
     note: {

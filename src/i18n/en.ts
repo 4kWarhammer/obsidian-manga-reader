@@ -2,10 +2,11 @@ import type { TranslationSchema } from "./types";
 
 export const en: TranslationSchema = {
     common: {
-        back: "⬅ Back",
+        back: "Back",
         loading: "Loading...",
         save: "Save",
         cancel: "Cancel",
+        close: "Close",
         doubleClick: "Double click",
     },
 
@@ -26,7 +27,8 @@ export const en: TranslationSchema = {
 
     rating: {
         title: "Rating",
-        modalTitle: "Set rating",
+        modalTitle: "Set rating to:",
+        ratingInfo: "Enter or set a title rating",
     },
 
     explorer: {
@@ -54,18 +56,38 @@ export const en: TranslationSchema = {
 
     chapterList: {
         empty: "Chapters not found",
+        chapter: "Chapter",
+        header: "Choose chapter",
     },
 
     reader: {
         nextChapter: "Next Chapter ➡",
         prevChapter: "⬅ Previous Chapter",
         noImages: "No images in this chapter",
-        scrollMode: "Feed",
-        singlePageMode: "Page-by-page",
         nextPage: "Next page",
         prevPage: "Prev. page",
         chapterCount: (current: number, total: number) =>
         `Chapter ${current} of ${total}`,
+        headerName: "Reader settings",
+        header: {
+            content: "Open table of contents",
+            chapter: "Chapter",
+            settings: "Settings",
+        }
+    },
+
+    settings: {
+        viewMode: "View mode",
+        scroll: "Feed",
+        singlePage: "Single page",
+        indexWarmer: "Chapter preload",
+        indexWarmerDescription: "Adjacent = ±1 chapters, Extended = ±2 chapters",
+        adjacent: "Adjacent",
+        extended: "Extended",
+        backgroundIndexing: "Backgroung indexing",
+        backgroundIndexingDescription: "Index all chapters of a title when opened",
+        gapBetweenPage: "Gap between pages",
+        readerWidth: "Reader width",
     },
 
     note: {

@@ -10,7 +10,6 @@ import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { createSmartClickHandler } from "src/utils/createSmartClickHandler";
 import { ReadingProgressBar } from "./ReadingProgressBar";
 import { getTitleDisplayName } from "src/utils/TitleUtils";
-import { TitleRating } from "./TitleRating";
 import { parseRating } from "src/hooks/useTitleNote";
 import { sanitizeFileName } from "src/utils/TitleUtils";
 import { normalizePath } from "obsidian";

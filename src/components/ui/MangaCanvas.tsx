@@ -57,6 +57,7 @@ export const MangaCanvas = React.memo(({
         ? `${singlePage.chapterName}:${singlePage.index}`
         : null;
 
+    const chapterIndex = allChapters.indexOf(chapterName);
     /**
      * Для обработки навигации по страницам при помощи кнопок
      */
@@ -143,7 +144,8 @@ export const MangaCanvas = React.memo(({
             <div className={`header-wrapper ${isMobile && showUI ? "is-mobile-visible" : ""}`}>
                 <ReaderHeader 
                     chapterName={chapterName}
-                    allChapters={allChapters}
+                    chapterIndex = {chapterIndex}
+                    // allChapters={allChapters}
                     onBack={onBack}
                     onPageNavigation ={handlePageClick}
                     onChapterChange={(name) => onChapterChange(name, true)}

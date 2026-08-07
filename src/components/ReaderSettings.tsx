@@ -1,6 +1,7 @@
 import * as React from "react";
 import MangaReaderPlugin from "src/main";
 import { usePluginSettings } from "src/hooks/usePluginSettings";
+import { useI18n } from "src/i18n/I18nContext";
 
 interface Props {
     plugin: MangaReaderPlugin;
@@ -10,14 +11,16 @@ interface Props {
 export const ReaderSettings = ({ plugin, onClose }: Props) => {
     // Подключаем хук для настроек
     const { settings, update } = usePluginSettings(plugin);
+    const { t } = useI18n();
 
     return (
-        <div className="reader-settings-content">
-            <h3>Настройки читалки</h3>
+        <>
+            {/* Заголовок */}
+            <h3>{t.reader.headerName}</h3>
 
             <div className="setting-item">
                 <div className="setting-item-info">
-                    <div className="setting-item-name">Режим чтения</div>
+                    <div className="setting-item-name">{t.settings.viewMode}</div>
                 </div>
                 <div className="setting-item-control">
                     <select
@@ -25,17 +28,17 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
                         value={settings.viewMode}
                         onChange={e => update("viewMode", e.target.value as "scroll" | "single")}
                     >
-                        <option value="scroll">Скролл</option>
-                        <option value="single">Постраничный</option>
+                        <option value="scroll">{t.settings.scroll}</option>
+                        <option value="single">{t.settings.singlePage}</option>
                     </select>
                 </div>
             </div>
 
             <div className="setting-item">
                 <div className="setting-item-info">
-                    <div className="setting-item-name">Index Warmer</div>
+                    <div className="setting-item-name">{t.settings.indexWarmer}</div>
                     <div className="setting-item-description">
-                        adjacent = соседние главы, extended = ±2 главы
+                        {t.settings.indexWarmerDescription}
                     </div>
                 </div>
                 <div className="setting-item-control">
@@ -44,17 +47,19 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
                         value={settings.indexWarmerMode}
                         onChange={e => update("indexWarmerMode", e.target.value as "adjacent" | "extended")}
                     >
-                        <option value="adjacent">Соседние</option>
-                        <option value="extended">Расширенный</option>
+                        <option value="adjacent">{t.settings.adjacent}</option>
+                        <option value="extended">{t.settings.extended}</option>
                     </select>
                 </div>
             </div>
 
             <div className="setting-item">
                 <div className="setting-item-info">
-                    <div className="setting-item-name">Фоновая индексация</div>
+                    <div className="setting-item-name">
+                        {t.settings.backgroundIndexing}
+                    </div>
                     <div className="setting-item-description">
-                        Индексировать все главы тайтла при открытии
+                        {t.settings.backgroundIndexingDescription}
                     </div>
                 </div>
                 <div className="setting-item-control">
@@ -68,7 +73,7 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
 
             <div className="setting-item">
                 <div className="setting-item-info">
-                    <div className="setting-item-name">Отступ между страницами</div>
+                    <div className="setting-item-name">{t.settings.gapBetweenPage}</div>
                     <div className="setting-item-description">{settings.pageGap}px</div>
                 </div>
                 <div className="setting-item-control">
@@ -84,7 +89,7 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
 
             <div className="setting-item">
                 <div className="setting-item-info">
-                    <div className="setting-item-name">Ширина читалки</div>
+                    <div className="setting-item-name">{t.settings.readerWidth}</div>
                     <div className="setting-item-description">{settings.readerWidthPercent}%</div>
                 </div>
                 <div className="setting-item-control">
@@ -99,9 +104,10 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
                 </div>
             </div>
 
-            <div style={{ marginTop: "1rem", textAlign: "right" }}>
-                <button className="mod-cta" onClick={onClose}>Закрыть</button>
+            {/* Футер */}
+            <div className="modal-footer">
+                <button className="mod-cta" onClick={onClose}>{t.common.close}</button>
             </div>
-        </div>
+        </>
     );
 };

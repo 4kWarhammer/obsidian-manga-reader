@@ -3,6 +3,7 @@ import * as React from "react";
 import { createRoot, Root } from "react-dom/client";
 import MangaReaderPlugin from "src/main";
 import { ChapterListPage } from "src/components/ChapterListPage";
+import { renderWithI18n } from "src/i18n/renderWithI18n";
 
 export class ChapterListModal extends Modal {
     root: Root | null = null;
@@ -28,19 +29,26 @@ export class ChapterListModal extends Modal {
         this.root = createRoot(contentEl);
 
         this.root.render(
-            React.createElement(ChapterListPage, {
-                plugin: this.plugin,
-                chapters: this.chapters,
-                onSelectChapter: (name: string) => {
-                    this.onSelectChapter(name);
-                    this.close();   // Закрываем после выбора главы
-                },
-            })
+            renderWithI18n(
+                React.createElement(ChapterListPage, {
+                    chapters: this.chapters,
+                    onSelectChapter: (name: string) => {
+                        this.onSelectChapter(name);
+                        this.close();
+                    },
+                    header: true,
+                    onClose: () => this.close(),
+                }),
+                this.plugin.data.settings.language
+            )
+
+
         );
     }
 
     onClose() {
         this.root?.unmount();
+        this.root = null;
         this.contentEl.empty();
     }
 }

@@ -42,9 +42,11 @@ export const ChapterListPage = ({
                 <p>{t.chapterList.empty}</p>
             )}
 
-            <div className="modal-footer">
-                <button className="mod-cta" onClick={onClose}>{t.common.close}</button>
-            </div>
+            {header && (
+                <div className="modal-footer">
+                    <button className="mod-cta" onClick={onClose}>{t.common.close}</button>
+                </div>
+            )}
         </div>
 
     );

@@ -77,7 +77,9 @@ export const en: TranslationSchema = {
     },
 
     settings: {
+        viewModeTitle: "View mode settings",
         viewMode: "View mode",
+        viewModeDesc: "Choose view mode settings",
         scroll: "Feed",
         singlePage: "Single page",
         indexWarmer: "Chapter preload",
@@ -88,6 +90,26 @@ export const en: TranslationSchema = {
         backgroundIndexingDescription: "Index all chapters of a title when opened",
         gapBetweenPage: "Gap between pages",
         readerWidth: "Reader width",
+
+        settingsTitle: "Manga Reader settings",
+        language: "Language",
+        languageNotice: "Current language changed",
+        lanDescription: "Choose interface language",
+        sourcesTitle: "Library sources",
+        defaultPath: "Default library folder",
+        currentDefaultPath: "Current:",
+        noCurrent: "No folder selected",
+        selectDefaultFolder: "Select folder",
+        defaultFolderNotice: "Default folder set to:",
+        externalPath: "External sources",
+        currentExternalPath: "Added external sources:",
+        noExternalPath: "No external sources added",
+        selectExternalFolder: "Add external folder",
+        alreadyHas: "This path is already added",
+        remove: "Remove external source",
+        selectRemove: "Select a source to remove",
+        removeButton: "Remove",
+        removeNotice: "Removed:",
     },
 
     note: {

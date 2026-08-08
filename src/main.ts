@@ -5,6 +5,9 @@ import { PluginData, DEFAULT_DATA } from './types';
 import { ChapterIndexManager } from './utils/ChapterIndexManager';
 import { ChapterIndexCache } from './utils/ChapterIndexCache';
 import { ObsidianCacheStorageAdapter } from './utils/ObsidianCacheStorageAdapter';
+import { MangaReaderSettingTab } from './settings/MangaReaderSettingTab';
+import { getTranslation } from "./i18n";
+import type { Language, Translation } from "./i18n";
 
 // Только для development
 if (process.env.NODE_ENV !== 'production') {
@@ -142,42 +145,5 @@ export default class MangaReaderPlugin extends Plugin {
         }
 
         return this.chapterIndexManager;
-    }
-
-}
-
-// Тут настройки встроенной панели для плагина
-class MangaReaderSettingTab extends PluginSettingTab{
-    plugin: MangaReaderPlugin
-
-    constructor(app:any, plugin: MangaReaderPlugin) {
-        super(app, plugin);
-        this.plugin = plugin
-
-    }
-
-    display(): void {
-        const { containerEl } = this;
-        containerEl.empty();
-
-        // Заголовок настроек
-        containerEl.createEl('h2', { text: 'Manga Reader Settings' });
-
-        // Настройка языка
-        new Setting(containerEl)
-            .setName('Language / Язык')
-            .setDesc('Выберите язык интерфейса плагина')
-            .addDropdown(dropdown => dropdown
-                .addOption('ru', 'Русский')
-                .addOption('en', 'English')
-                .setValue(this.plugin.data.settings.language)
-                .onChange(async (value) => {
-                    this.plugin.data.settings.language = value as 'ru' | 'en';
-                    await this.plugin.saveSettings();
-                    new Notice("Language changed! / Язык изменен!");
-                })
-            );
-        
-        // ... тут могут быть другие настройки, например viewMode
     }
 }

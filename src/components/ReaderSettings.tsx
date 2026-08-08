@@ -14,7 +14,9 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
     const { t } = useI18n();
 
     return (
-        <>
+        <div
+            className="custom-modal-container"
+        >
             {/* Заголовок */}
             <h3>{t.reader.headerName}</h3>
 
@@ -63,11 +65,16 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
                     </div>
                 </div>
                 <div className="setting-item-control">
-                    <input
-                        type="checkbox"
-                        checked={settings.readerBackgroundIndexing}
-                        onChange={e => update("readerBackgroundIndexing", e.target.checked)}
-                    />
+                    <div className="checkbox-container">
+                        <input
+                            type="checkbox"
+                            checked={settings.readerBackgroundIndexing}
+                            onChange={e => update("readerBackgroundIndexing", e.target.checked)}
+                            ref={el => {
+                                if (el) el.checked = settings.readerBackgroundIndexing;
+                            }}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -108,6 +115,6 @@ export const ReaderSettings = ({ plugin, onClose }: Props) => {
             <div className="modal-footer">
                 <button className="mod-cta" onClick={onClose}>{t.common.close}</button>
             </div>
-        </>
+        </div>
     );
 };

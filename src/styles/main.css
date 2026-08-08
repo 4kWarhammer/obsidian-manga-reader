@@ -1,5 +1,6 @@
 /* Общее */
 @import "./components/general.css";
+@import "./components/Settings.css";
 
 /* Компонентные стили */
 @import "./components/LibraryPage.css";

@@ -1,9 +1,10 @@
 
 /* =============================
-Общие настройки
+Общие настройки модальных окон
 ============================= */
 
 /* Используй для стандартный настроек: */
+/* в TSX компонентах */
 /* setting-item */
 /* setting-item-info */
 /* setting-item-control */
@@ -17,11 +18,10 @@
 }
 
 /* Для классического вида настроек от самого Obsidian */
-/* Используй где просто ключ значение */
+/* Используй, если тебе просто надо выдать ключ - значение */
 .custom-modal-container .setting-item {
     align-items: center;
 }
-
 
 .modal-footer {
     display: flex;
@@ -38,8 +38,7 @@
     align-items: flex-end;
 }
 
-
-/* Модалка */
+/* Для выбора изображений */
 .image-select-modal .modal-content {
     display: flex;
     flex-direction: column;

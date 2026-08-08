@@ -1,0 +1,24 @@
+/* Стили для Панели настроек
+Это для родной панели, там все сделано не на TSX
+А на встроенных методах - посмотри MangaReaderSettingTab */
+
+.manga-reader-settings .setting-item {
+    margin-bottom: 0;
+}
+
+.manga-settings-header-h1 {
+    color: var(--h1-color) !important;
+    font-size: 1.4em !important;
+}
+.manga-settings-header-h2 {
+    color: var(--h2-color) !important;
+    font-size: 1.3em !important;
+}
+.manga-settings-header-h3 {
+    color: var(--h3-color) !important;
+    font-size: 1.15em !important;
+}
+.manga-settings-header-h4 {
+    color: var(--h4-color) !important;
+    font-size: 1em !important;
+}

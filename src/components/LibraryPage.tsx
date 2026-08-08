@@ -170,32 +170,6 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
         loadItems();
     }, [defaultPath, externalPaths, app]);
 
-    // Открываем модальное окно для пути по умолчанию
-    const addDefaultFolderModal = () => {
-        new FolderSelectModal(app, plugin ,async (path) => {
-            plugin.data.defaultLibraryPath = path;
-            await plugin.saveSettings();
-            // Чтобы React увидел изменения plugin.data, нам нужно либо состояние, 
-            // либо просто перезагрузить этот компонент. Для простоты:
-            setDefaultPath(path)
-        }, "vault").open();
-    };
-
-    // открываем модальное окно для внешних источников
-    const addExternalFolderModal = () => {
-        new FolderSelectModal(app, plugin, async (path) => {
-            // Добавляем новый путь в массив, если его там еще нет
-            if (!plugin.data.externalSources.includes(path)) {
-                const newSources = [...plugin.data.externalSources, path];
-                plugin.data.externalSources = newSources;
-                await plugin.saveSettings();
-                
-                // Обновляем стейт, чтобы React перерисовал список
-                setExternalPaths(newSources);
-            }
-        }, "external").open();
-    };
-
     return (
         <div className="library-main">
             <div className="library-title">
@@ -205,14 +179,6 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                 </h1>
 
                 <div style={{ display: "flex", gap: "10px" }}>
-                    {/* Кнопка добавления источника */}
-                    <div style={{ display: "flex", gap: "10px" }}>
-                        <button onClick={addDefaultFolderModal}>{t.library.addVaultFolder}</button>
-                        {(window as any).require && (
-                            <button onClick={addExternalFolderModal}>{t.library.addExternalFolder}</button>
-                        )}
-                    </div>
-
                     {/* Кнопка быстрого переключения языка */}
                     <button onClick={toggleLanguage}>
                         {currentLang === "ru" ? "RU" : "EN"}

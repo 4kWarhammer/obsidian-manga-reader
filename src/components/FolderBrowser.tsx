@@ -57,7 +57,6 @@ export const FolderBrowser = ({ app, mode, plugin, onSelect, onClose }: Props) =
                 setFolders(subFolders);
             } catch (err) {
                 console.error("Ошибка чтения папки:", err);
-                // setFolders([]); // Как будто не надо, ведь если ошибка - setFolders обнулит данные
             }
         }
     }, [currentPath, app, mode]);
@@ -104,7 +103,8 @@ export const FolderBrowser = ({ app, mode, plugin, onSelect, onClose }: Props) =
                     </div>
                 ))}
             </div>
-            
+
+        {/* Кнопка выбора */}
         <button 
             className="mod-cta" // Класс Obsidian для акцентной кнопки
             style={{ marginTop: "15px", width: "100%" }} 

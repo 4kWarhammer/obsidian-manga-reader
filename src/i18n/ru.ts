@@ -77,7 +77,9 @@ export const ru = {
     },
 
     settings: {
+        viewModeTitle: "Настройка режимов чтения",
         viewMode: "Режим чтения",
+        viewModeDesc: "Выберите режим чтения",
         scroll: "Лента",
         singlePage: "Страница",
         indexWarmer: "Предзагрузка глав",
@@ -88,6 +90,28 @@ export const ru = {
         backgroundIndexingDescription: "Индексировать все главы тайтла при открытии",
         gapBetweenPage: "Отступ между страницами",
         readerWidth: "Ширина читалки",
+
+        settingsTitle: "Настройки читалки",
+        language: "Язык",
+        languageNotice: "Текущий язык изменен",
+        lanDescription: "Выберите язык интерфейса",
+        sourcesTitle: "Источники библиотеки",
+        defaultPath: "Папка библиотеки по умолчанию",
+        currentDefaultPath: "Текущая:",
+        noCurrent: "Папка не выбрана",
+        selectDefaultFolder: "Выбрать папку",
+        defaultFolderNotice: "Папка по умолчанию установлена на:",
+        externalPath: "Внешние источники",
+        currentExternalPath: "Добавлено внешних источников:",
+        noExternalPath: "Внешние источники не добавлены",
+        selectExternalFolder: "Добавить внешнюю папку",
+        alreadyHas: "Этот путь уже добавлен",
+        remove: "Удалить внешний источник",
+        selectRemove: "Выберите источник для удаления",
+        removeButton: "Удалить",
+        removeNotice: "Удалено:",
+        
+
     },
 
     note: {

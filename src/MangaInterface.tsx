@@ -33,7 +33,11 @@ export const MangaInterface = ({
 }: InterfaceProps) => {
     const { settings } = usePluginSettings(plugin);
     // Функция для сохранения прогресса выбора главы
-    const handleChapterChange = async (chapterName: string, resetPage: boolean = true) => {
+    const handleChapterChange = async (
+        chapterName: string, 
+        resetPage: boolean = true,
+        recordHistory: boolean = true
+    ) => {
         const titlePath = selectedTitle;
         if (!titlePath) return;
 
@@ -55,9 +59,14 @@ export const MangaInterface = ({
         await plugin.saveSettings();
 
         // 4. И только потом меняем состояние, чтобы переключить экран
-        await navigate({
-            selectedChapter: chapterName,
-        });
+        await navigate(
+            {
+                selectedChapter: chapterName,
+            },
+            {
+                recordHistory: recordHistory
+            }
+        );
     };
 
     // Диспетчер - что выбрали, туда и направит
@@ -78,7 +87,7 @@ export const MangaInterface = ({
                 chapterName={selectedChapter} 
                 onBack={goBackFromReader} 
                 // Внутри ридера при переключении глав ВСЕГДА сбрасываем на стр. 1
-                onChapterChange={(name) => handleChapterChange(name, true)}
+                onChapterChange={(name) => handleChapterChange(name, true, false)}
             />
         );
     } else if (selectedTitle) {

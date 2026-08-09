@@ -1,0 +1,90 @@
+/* ======================================
+   Рейтинг
+   ====================================== */
+.title-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1;
+
+    height: fit-content;
+    box-shadow: var(--input-shadow);
+    border-radius: var(--manga-button-radius);
+    padding: 6px 12px;
+    margin-top: 4px;
+}
+
+/* Звезда */
+.title-rating .rating-icon {
+    font-size: 1.2em;
+}
+
+/* Значение */
+.title-rating .rating-value {
+    font-size: 2em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+/* Вот это походу не тут должно быть */
+.title-rating-small .rating-value {
+    font-size: 1.5em;
+}
+
+
+/* Цветовые диапазоны */
+.title-rating.rating-gray  { color: var(--text-muted); }
+.title-rating.rating-red   { color: #ef4444; }
+.title-rating.rating-yellow{ color: #eab308; }
+.title-rating.rating-green { color: #22c55e; }
+
+.title-rating.rating-gold {
+    /* Градиент из нескольких оттенков золота */
+    background: linear-gradient(
+        45deg, 
+        #bf953f 0%, 
+        #fcf6ba 25%, 
+        #b38728 50%, 
+        #fbf5b7 75%, 
+        #aa771c 100%
+    );
+    
+    /* Обрезка фона по форме текста */
+    -webkit-background-clip: text;
+    background-clip: text;
+    
+    /* Делаем сам текст прозрачным, чтобы просвечивал фон-градиент */
+    -webkit-text-fill-color: transparent;
+    color: transparent; /* Фолбек для старых браузеров */
+    
+    /* Дополнительно: мягкое золотое свечение для объема */
+    text-shadow: 0 1px 1px rgba(255,255,255,0.2);
+}
+
+.title-rating.rating-clickable {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+.title-rating.rating-clickable:hover {
+    opacity: 0.85;
+}
+
+/* ======================================
+   Рейтинг в постере (левый верхний угол)
+   ====================================== */
+
+/* Важный момент, мы тут не управляем отображением 
+- это делает JS у себя в коде */
+
+.image-poster-header .title-rating {
+    backdrop-filter: blur(6px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* На мобильных (если передан rating) всегда видим */
+/* @media (max-width: 768px) {
+    .image-poster-rating {
+        opacity: 1;
+        transform: scale(1);
+    }
+} */

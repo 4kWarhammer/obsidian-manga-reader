@@ -2,6 +2,7 @@ import * as React from "react";
 import { App, TFile } from "obsidian";
 import * as Lucide from "lucide-react";
 import { useI18n } from "src/i18n/I18nContext";
+import { TitleRatingWidget } from "./TitleRatingWidget";
 
 interface Props {
     app: App;
@@ -11,6 +12,10 @@ interface Props {
     onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
     onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
     className?: string;
+
+    // Опциональные пропсы для рейтинга
+    rating?: number | null;
+    onRatingChange?: (rating: number) => void;
 }
 
 /**Работает только с внутренними путями */
@@ -23,6 +28,8 @@ export const ImagePoster = ({
     // На него потом сделаем открытие предпросмотра с листанием.
     onDoubleClick,
     className,
+    rating,
+    onRatingChange,
 }: Props) => {
     const { t } = useI18n();
     const [currentSlide, setCurrentSlide] = React.useState(0);
@@ -110,6 +117,7 @@ export const ImagePoster = ({
 
     return (
         <div
+            // Не помню зачем, но можно дополнять класс извне
             className={`image-poster ${className || ""}`}
             // Название при наведении
             title={t.poster.title}
@@ -128,20 +136,33 @@ export const ImagePoster = ({
                 emptyPlaceholder || <Lucide.ImageMinus size={48}/>
             )}
 
-            {/* Настройки / выбор изображений */}
-            {onClick && (
-                <button
-                    type="button"
-                    className="image-poster-settings"
-                    onClick={(e) => onClick(e as any)}
-                    // Название
-                    title={t.poster.settings}
-                    // Для экранного диктора
-                    aria-label={t.poster.settings}
-                >
-                    <Lucide.Settings size={16} />
-                </button>
-            )}
+            {/* Рейтинг в левом верхнем углу (если передан) */}            
+            <div className="image-poster-header">
+                {rating ? (
+                <TitleRatingWidget
+                    rating={rating}
+                    app={app}
+                    onChange={onRatingChange}
+                />
+                ) : (
+                    // Заглушка
+                    <span></span>
+                )
+            }
+
+                {/* Настройки / выбор изображений */}
+                {onClick && (
+                    <button
+                        type="button"
+                        className="image-poster-settings"
+                        onClick={(e) => onClick(e as any)}
+                        title={t.poster.settings}
+                        aria-label={t.poster.settings}
+                    >
+                        <Lucide.Settings/>
+                    </button>
+                )}
+            </div>
 
             {renderDots()}
         </div>

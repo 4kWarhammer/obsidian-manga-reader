@@ -12,36 +12,29 @@
     display: flex;
     align-items: center;
     justify-content: center;
-}
 
-.image-poster img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 8px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    opacity: 0;
-    transition: opacity 0.6s ease;
-    /* зачем, не понял */
-    z-index: 0;
+    /* Сейчас сделано так, что все изображения попадают в компонент,
+    А СSS уже управляет показом */
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+        /* зачем, не понял */
+        z-index: 0;
+    }
+    img.active {
+        opacity: 1;
+    }
 }
-
-.image-poster img.active {
-    opacity: 1;
-}
-
-/* Переопределение для TitlePage (крупный постер в витрине) */
-/* .title-showcase .image-poster { */
-    /* height: 260px; */
-    /* width: 200px; */
-    /* min-width: 160px; */
-    /* margin-bottom: 10px; */
-/* } */
 
 /* ======================================
-   Блокировщик кликов (при наведении)
+   Блокировщик кликов (при наведении) пока в компоненте отключен
    ====================================== */
 .image-poster-blocker {
     position: absolute;
@@ -63,22 +56,19 @@
    Кнопка настроек (правый верхний угол)
    ====================================== */
 .image-poster-settings {
-    position: absolute;
-    top: 8px;
-    right: 8px;
     z-index: 3;
 
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
+    height: 30px;
+    aspect-ratio: 1 / 1;
+    padding: 4px;
     border: none;
     border-radius: 50%;
     cursor: pointer;
 
-    color: var(--text-accent);
+    /* color: var(--text-accent); кнопкой перебивается */
     background: rgba(var(--mono-rgb-100), 0.2);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
@@ -87,6 +77,10 @@
     opacity: 0;
     transform: scale(0.85);
     transition: all 0.2s ease;
+
+    @media (max-width: 768px) {
+        height: 40px;
+    }
 }
 
 .image-poster:hover .image-poster-settings {
@@ -111,7 +105,7 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 8px 18px;
+    padding: 6px 12px;
     z-index: 2;
 
     /* Полупрозрачный фон + размытие */
@@ -119,13 +113,11 @@
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     border-radius: 20px;
-    border: 1px solid rgba(var(--mono-rgb-100), 0.08);
+    /* border: 1px solid rgba(var(--mono-rgb-100), 0.08); */
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 
-    /* Тут смотреть будет */
     transition: opacity 0.3s ease;
     opacity: 0;
-    /* transition: opacity 0.2s ease; */
 }
 
 /* тоже по умолчанию не видны */
@@ -144,7 +136,7 @@
     outline: none;
 
     /* Акцентный цвет темы Obsidian */
-    background-color: var(--text-accent);
+    background-color: var(--manga-interactive-accent);
     opacity: 0.6;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -164,16 +156,29 @@
 
 /* Размеры: чем дальше от центра, тем меньше */
 .image-poster-dot.small {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
 }
 
 .image-poster-dot.medium {
-    width: 10px;
-    height: 10px;
+    width: 12px;
+    height: 12px;
 }
 
 .image-poster-dot.large {
     width: 14px;
     height: 14px;
+}
+
+
+.image-poster-header {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 3;
+    width: 100%;
+    padding: 8px;
 }

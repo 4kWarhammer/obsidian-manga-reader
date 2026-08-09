@@ -32,7 +32,7 @@ export const ReaderHeader = ({
                     className="nav-btn" 
                     onClick={onBack} 
                     title={t.common.back}>
-                    <Lucide.ArrowLeft size={20}/>
+                    <Lucide.ArrowLeft/>
                 </button>
             </div>
             
@@ -76,8 +76,8 @@ export const ReaderHeader = ({
                     }
                 >
                     {viewMode === "scroll" 
-                    ? <Lucide.GalleryVertical size={20}/>
-                    : <Lucide.FileText size={20}/>}
+                    ? <Lucide.GalleryVertical/>
+                    : <Lucide.FileText/>}
                 </button>
                 {/* Настройки */}
                 <button 
@@ -85,7 +85,7 @@ export const ReaderHeader = ({
                     onClick={onOpenSettings} 
                     title={t.reader.header.settings}
                 >
-                    <Lucide.Settings size={20}/>
+                    <Lucide.Settings/>
                 </button>
             </div>
         </div>

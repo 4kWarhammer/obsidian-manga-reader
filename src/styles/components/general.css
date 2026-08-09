@@ -19,22 +19,23 @@ body {
     --manga-border: var(--background-modifier-border);
 
     --manga-border-radius-1: 3px;
-    --manga-border-radius-2: 7px;
-    --manga-button-radius: var(--button-radius);
+    --manga-border-radius-2: 5px;
+    --manga-border-radius-3: 7px;
+    --manga-border-radius-4: 9px;
+
+    /* Что то в мобильном мне не нравятся супер скругления */
+    /* Поэтому будет делать на своих значениях */
+    --manga-button-radius: var(--manga-border-radius-2);
+    /* --manga-button-radius: var(--input-radius);  */
+
+    @media (max-width: 768px) {
+        --manga-button-radius: var(--manga-border-radius-4);
+    }
+    
 
     --manga-h1-color: var(--h1-color);
 
-    --manga-modal-footer-padding: var(--size-4-4)
-    
-    /* === Семантические для ваших компонентов === */
-    /* --manga-card-bg: var(--manga-bg-secondary);
-    --manga-card-border: var(--manga-border);
-    --manga-title-color: var(--manga-text-primary);
-    --manga-chapter-text: var(--manga-text-muted);
-    --manga-progress-bar: var(--manga-accent);
-    --manga-modal-bg: var(--manga-bg-primary);
-    --manga-input-bg: var(--manga-bg-primary);
-    --manga-input-border: var(--manga-border); */
+    --manga-modal-footer-padding: var(--size-4-4);
 }
 
 /* Обнуляем отступы безопасной зоны Obsidian в полноэкранном режиме */

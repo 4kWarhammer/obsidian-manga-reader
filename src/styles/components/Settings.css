@@ -2,9 +2,10 @@
 Это для родной панели, там все сделано не на TSX
 А на встроенных методах - посмотри MangaReaderSettingTab */
 
-.manga-reader-settings .setting-item {
+/* На мобилках смотрится фигово */
+/* .manga-reader-settings .setting-item {
     margin-bottom: 0;
-}
+} */
 
 .manga-settings-header-h1 {
     color: var(--h1-color) !important;

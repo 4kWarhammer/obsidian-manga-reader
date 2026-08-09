@@ -8,7 +8,7 @@
 
 .manga-chapter-list .chapter {
     padding: 8px 12px;
-    background-color: var(--manga-bg-secondary);
+    background-color: var(--manga-bg-secondary-alt);
     border-radius: var(--manga-button-radius);
     border-left: 4px solid var(--manga-interactive-accent);
     cursor: pointer

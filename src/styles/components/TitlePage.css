@@ -5,6 +5,10 @@
     max-width: 900px;
     margin: 0 auto;
 
+    @media (max-width: 768px) {
+        margin-bottom: 70px;
+    }
+
     .title-header{
         display: flex;
         flex-direction: row;
@@ -12,6 +16,7 @@
         gap: 0px;
         margin-bottom: 0px;
     }
+
     /* ======================================
     Раскладка: постер слева, вкладки справа
     ====================================== */
@@ -21,96 +26,129 @@
         gap: 20px;
         align-items: flex-start;
 
-        /* Левая колонка */
-        .title-left-column{
-            display: flex;
+        @media (max-width: 768px) {
             flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            margin-top: 20px;
-            width: 260px;          /* <-- задавайте нужную ширину здесь */
-            flex-shrink: 0;        /* запрещаем сжатие */
-            margin-top: 0;
-        }
-
-        /* Правая колонка */
-        .title-right-column {
-            flex: 1;         /* Занимает все оставшееся пространство справа */
-            margin-top: 0;
-            min-width: 0;    /* Защищает от переполнения flex-контейнера длинным текстом */
-            display: flex;
-            flex-direction: column; /* Размещает TitleRating и TabView друг под другом */
-            gap: 18px;
-
-            .right-column-header {
-                display: flex;
-                justify-content: space-between;
-
-                .title-info{
-                    max-width: 320px;
-                }
-            }
-
-            .tab-view {
-                display: flex;
-                flex-direction: column;
-                flex: 1;               /* Растягивает вкладки по высоте, если нужно заполнить колонку */
-                gap: 10px;
-            }
+            /* gap: 15px; */
         }
     }
-}
 
-.title-info .title-name{
-    color: var(--manga-h1-color);
-    font-size: 2.2em;
-    font-weight: 700;
-    margin-bottom: 6px;
-    cursor: pointer;
-}
+    /* Левая колонка */
+    .title-left-column{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        width: 260px;          /* <-- задавайте нужную ширину здесь */
+        flex-shrink: 0;        /* запрещаем сжатие */
+        margin-top: 0;
 
-.title-info .title-aliases{
-    color: var(--text-muted);
-    font-size: 1.2em;
-}
+        @media (max-width: 768px) {
+            width: 80%;  /* Изменяем с фиксированных 260px на 80% */
+            max-width: none;
+            margin: 0 auto;
+        }
+    }
 
+    /* Правая колонка */
+    .title-right-column {
+        flex: 1;         /* Занимает все оставшееся пространство справа */
+        margin-top: 0;
+        min-width: 0;    /* Защищает от переполнения flex-контейнера длинным текстом */
+        display: flex;
+        flex-direction: column; /* Размещает TitleRating и TabView друг под другом */
+        gap: 18px;
+
+        @media (max-width: 768px) {
+            width: 100%;
+        }
+    }
+
+    .right-column-header {
+        display: flex;
+        justify-content: space-between;
+
+        @media (max-width: 768px) {
+            align-items: center;
+            justify-content: center;
+        }
+    }
+
+    .title-info{
+        max-width: 320px;
+
+        @media (max-width: 768px) {
+            max-width: 100%;
+        }
+    }
+
+    .title-name{
+        color: var(--manga-h1-color);
+        font-size: 2.2em;
+        font-weight: 700;
+        margin-bottom: 6px;
+        cursor: pointer;
+
+        @media (max-width: 768px) {
+            font-size: 2em;
+        }
+    }
+    .title-aliases{
+        color: var(--text-muted);
+        font-size: 1.2em;
+    }
+
+    .tab-view {
+        display: flex;
+        flex-direction: column;
+        flex: 1;               /* Растягивает вкладки по высоте, если нужно заполнить колонку */
+        gap: 10px;
+    }
+}
 
 /* ======================================
-Обертка кнопки
+Кнопки старт, открыть заметку
 ====================================== */
-.title-showcase .buttons-line {
-    height: 40px;
-    display: flex;
-    gap: 10px;
-}
+.title-showcase {
+    .buttons-line {
+        height: 40px;
+        display: flex;
+        gap: 10px;
 
-.buttons-line .start-button {
-    width: 100%; /* Гарантирует, что сам div займет всю ширину родителя */
-    /* display: flex; Делаем flex-контейнером, чтобы легко управлять кнопкой */
-    max-width: 320px;
-    background-color: var(--manga-interactive-accent);
-    cursor: pointer;
-    border: none;
-    height: auto;
-    font-size: 1.3em;
-    font-weight: 400;
-}
-
-/* Стили для текста, если прогресса нет (на случай, если его тоже нужно выровнять) */
-.buttons-line .start-button p {
-    width: 100%;
-    text-align: center; /* Центрирует текст-заглушку по ширине */
-    margin: 0;
-}
-
-@media (hover: hover) {
-    .buttons-line .start-button:hover {
-        filter: brightness(1.12);
+        @media (max-width: 768px) {
+            height: 50px;
+        }
     }
-}
 
-.buttons-line .note-button {
-    height: auto;
+    .start-button {
+        width: 100%;
+        max-width: 320px;
+        border-radius: var(--manga-button-radius);
+        background-color: var(--manga-interactive-accent);
+        cursor: pointer;
+        border: none;
+        height: auto;
+        font-size: 1.3em;
+        font-weight: 400;
+
+        @media (hover: hover) {
+            &:hover {
+                filter: brightness(1.12);
+            }
+        }
+    }
+    p {
+        width: 100%;
+        text-align: center; /* Центрирует текст-заглушку по ширине */
+        margin: 0;
+    }
+
+    .note-button {
+        border-radius: var(--manga-button-radius);
+        height: auto;
+        aspect-ratio: 1 / 1;
+    }
+
 }
 
 /* ======================================
@@ -127,12 +165,13 @@
     transition: border-color 0.2s ease, background 0.2s ease;
 }
 
-.title-note-preview.has-note {
+.title-note-preview .has-note {
     border-style: solid;
 }
-
-.title-note-preview:hover {
-    background: var(--background-modifier-hover);
+@media (hover: hover) {
+    .title-note-preview:hover {
+        background: var(--background-modifier-hover);
+    }
 }
 
 .title-note-preview .note-placeholder {
@@ -244,6 +283,7 @@
     padding: 8px 12px;
     background: none;
     border: none;
+    border-radius: var(--manga-button-radius);
     border-bottom: 2px solid transparent;
     /* margin-bottom: -2px;            совмещаем с border-bottom шапки */
     color: var(--text-muted);
@@ -272,6 +312,10 @@
     max-width: 100%;
     overflow: hidden;
     white-space: nowrap;
+
+    @media (max-width: 768px) {
+        text-align: center;
+    }
 }
 
 .marquee-content {
@@ -305,8 +349,6 @@ TitlePage, но пока так
 ====================================== */
 .reading-progress {
     width: 100%;
-    max-width: 320px;
-    gap: 6px;
 }
 
 .reading-progress .progress-label {
@@ -329,86 +371,3 @@ TitlePage, но пока так
     border-radius: 3px;
     transition: width 0.3s ease;
 }
-
-/* ======================================
-   Рейтинг
-   ====================================== */
-.title-rating {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    line-height: 1;
-
-    height: fit-content;
-    box-shadow: var(--input-shadow);
-    border-radius: var(--manga-button-radius);
-    padding: 6px 12px;
-    margin-top: 4px;
-}
-
-.title-rating .rating-icon {
-    font-size: 1.2em;
-}
-
-.title-rating .rating-value {
-    font-size: 2em;           /* в ~2 раза крупнее стандартного текста */
-    font-weight: 700;
-    letter-spacing: -0.02em;
-}
-
-/* Цветовые диапазоны */
-.title-rating.rating-gray  { color: var(--text-muted); }
-.title-rating.rating-red   { color: #ef4444; }
-.title-rating.rating-yellow{ color: #eab308; }
-.title-rating.rating-green { color: #22c55e; }
-/* .title-rating.rating-gold  { color: #f59e0b; } */
-
-.title-rating.rating-gold {
-  /* Градиент из нескольких оттенков золота */
-  background: linear-gradient(
-    45deg, 
-    #bf953f 0%, 
-    #fcf6ba 25%, 
-    #b38728 50%, 
-    #fbf5b7 75%, 
-    #aa771c 100%
-  );
-  
-  /* Обрезка фона по форме текста */
-  -webkit-background-clip: text;
-  background-clip: text;
-  
-  /* Делаем сам текст прозрачным, чтобы просвечивал фон-градиент */
-  -webkit-text-fill-color: transparent;
-  color: transparent; /* Фолбек для старых браузеров */
-  
-  /* Дополнительно: мягкое золотое свечение для объема */
-  text-shadow: 0 1px 1px rgba(255,255,255,0.2);
-}
-
-.title-rating.rating-clickable {
-    cursor: pointer;
-    transition: opacity 0.15s ease;
-}
-.title-rating.rating-clickable:hover {
-    opacity: 0.85;
-}
-
-/* Вот это походу не тут должно быть */
-.title-rating-small .rating-value {
-    font-size: 1.5em;
-}
-
-/* Уже не надо */
-/* .title-left-column .title-meta {
-    width: 100%;
-    padding: 10px;
-    background-color: var(--manga-bg-secondary);
-    border-radius: 6px;
-}
-
-.title-meta .meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-} */

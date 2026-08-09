@@ -13,7 +13,7 @@
     margin: 0;
     padding: 0;
     /* Полотно для работы со всеми элементами - канвас */
-    & .manga-canvas-root {
+    .manga-canvas-root {
         height: 100%;
         width: 100%;
         overflow-y: auto;
@@ -24,7 +24,7 @@
         overflow-anchor: none;
     }
     /* Обертка для хедера */
-    & .header-wrapper {
+    .header-wrapper {
         position: sticky;
         top: 0;
         height: 0; /* Контент под ним "всплывает" наверх сам */
@@ -43,40 +43,73 @@
             --detector-offset: 20px;
             height: calc(var(--detector-offset) + var(--header-height) + var(--safe-area-inset-top));
             }
-        /* Условие для мобилки (по тапу) */
-        /* Тап задается в JS, добавляется класс is-mobile-visible */
-        &.is-mobile-visible {
-            & .reader-header {
-                opacity: 1;
-                transform: translateY(0px);
-                pointer-events: all;
-            }
-        }
-        /* Сам хедер */
-        & .reader-header{
-            /* Локальная ссылка на нужный тип */
-            background-color: color-mix(in srgb, var(--manga-bg-primary) 90%, transparent);
-
-            border-radius: var(--manga-border-radius-1);
-            padding:  8px 16px;
-
-            margin: 8px 12px 0;
-            width: calc(100% - 24px);
-            max-width: 720px;
-            height: auto;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            box-shadow: var(--shadow-s);
-
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-        }
-
     }
+    /* Условие для мобилки (по тапу) */
+    /* Тап задается в JS, добавляется класс is-mobile-visible */
+    .is-mobile-visible {
+        & .reader-header {
+            opacity: 1;
+            transform: translateY(0px);
+            pointer-events: all;
+        }
+    }
+    /* Сам хедер */
+    .reader-header{
+        /* Локальная ссылка на нужный тип */
+        background-color: color-mix(in srgb, var(--manga-bg-primary) 90%, transparent);
+
+        border-radius: var(--manga-border-radius-1);
+        padding:  8px 16px;
+
+        margin: 8px 12px 0;
+        width: calc(100% - 24px);
+        max-width: 720px;
+        height: auto;
+        min-height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: var(--shadow-s);
+
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+
+        @media (max-width: 768) {
+            min-height: 55px;
+        }
+    }
+
+}
+
+.reader-header {
+    .header-left{
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex: 1;
+    }
+
+    .header-center{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .header-right{
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        flex: 1;
+    }
+}
+
+.reader-header .nav-btn{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .manga-reader.is-reader-loading .manga-canvas-root {
@@ -92,7 +125,6 @@
         pointer-events: all;
     }
 }
-
 
 .manga-reader .manga-reader-global-loader {
     position: fixed;
@@ -148,6 +180,9 @@
     color: var(--text-muted);
     cursor: pointer;
     font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    justify-content: center;
 }
 
 .manga-reader .nav-btn:hover {
@@ -234,31 +269,3 @@
 }
 .click-zone.left { left: 0;}
 .click-zone.right { right: 0;}
-
-
-.reader-header {
-    .header-left{
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .header-center{
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .header-right{
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-}
-
-.reader-header .nav-btn{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}

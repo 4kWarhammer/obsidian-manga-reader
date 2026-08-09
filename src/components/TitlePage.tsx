@@ -128,6 +128,7 @@ export const TitlePage = ({
 }: Props) => {
     // const t = translations[plugin.data.settings.language || "en"]
     const { t, language } = useI18n();
+    const isMobile = (app as any).isMobile;
     const progress = plugin.data.library[path];
 
     const [titleName, setTitleName] = React.useState(
@@ -404,6 +405,9 @@ export const TitlePage = ({
                         app={app}
                         images={posterImages}
                         onClick={handleChoosePosterImages}
+                        // Передаем рейтинг только на мобильных
+                        rating={isMobile ? rating : undefined}
+                        onRatingChange={isMobile ? (val) => updateFrontmatter({ rating: val }) : undefined}
                     />
 
                     {/* Прогресс бар */}
@@ -439,12 +443,14 @@ export const TitlePage = ({
                             
                         </div>
 
-                        {/* Рейтинг */}
-                        <TitleRatingWidget
-                            rating={rating}
-                            app={app}
-                            onChange={(val) => updateFrontmatter({ rating: val })}
-                        />
+                        {/* Рейтинг, только на десктопе*/}
+                        {!isMobile && (
+                            <TitleRatingWidget
+                                rating={rating}
+                                app={app}
+                                onChange={(val) => updateFrontmatter({ rating: val })}
+                            />
+                        )}
                     </div>
 
                     {/* Снопка старт/продолжить */}

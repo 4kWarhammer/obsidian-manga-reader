@@ -61,19 +61,19 @@ export class MangaView extends ItemView {
         await super.onOpen();
         
         // Проверяем, что скрытый объект history существует у текущей вкладки
-        console.log("=== ОТЛАДКА ИСТОРИИ MANGA PLUGIN ===");
-        console.log("Leaf object:", this.leaf);
-        console.log("History object:", (this.leaf as any).history);
+        // console.log("=== ОТЛАДКА ИСТОРИИ MANGA PLUGIN ===");
+        // console.log("Leaf object:", this.leaf);
+        // console.log("History object:", (this.leaf as any).history);
         
-        if ((this.leaf as any).history) {
-            console.log("Методы доступны:", {
-                goBack: typeof (this.leaf as any).history.goBack,
-                goForward: typeof (this.leaf as any).history.goForward,
-                backHistory: (this.leaf as any).history.backHistory
-            });
-        } else {
-            console.error("ВНИМАНИЕ: Obsidian заблокировал доступ к .history!");
-        }
+        // if ((this.leaf as any).history) {
+        //     console.log("Методы доступны:", {
+        //         goBack: typeof (this.leaf as any).history.goBack,
+        //         goForward: typeof (this.leaf as any).history.goForward,
+        //         backHistory: (this.leaf as any).history.backHistory
+        //     });
+        // } else {
+        //     console.error("ВНИМАНИЕ: Obsidian заблокировал доступ к .history!");
+        // }
     }
 
     async onClose() {

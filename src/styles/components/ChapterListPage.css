@@ -11,5 +11,9 @@
     background-color: var(--manga-bg-secondary-alt);
     border-radius: var(--manga-button-radius);
     border-left: 4px solid var(--manga-interactive-accent);
-    cursor: pointer
+    cursor: pointer;
+
+    @media (max-width: 768px) {
+        padding: 12px 12px;
+    }
 }

@@ -44,6 +44,7 @@ export default class MangaReaderPlugin extends Plugin {
         const systemFolders = [
             normalizePath(this.data.settings.notesFolder),
             normalizePath(this.data.settings.imagesFolder),
+            normalizePath(`${this.manifest.dir}/cache`), // Создаем папку для кэшей
         ];
         // Делаем проверку через адаптер, не через getAbstractFileByPath
         // Иначе при старте системы выдаст null (индексация еще не закончилась)
@@ -131,15 +132,15 @@ export default class MangaReaderPlugin extends Plugin {
     // Будет использоваться как singleton для всего плагина
     getChapterIndexManager(): ChapterIndexManager {
         if (!this.chapterIndexManager) {
-            const cachePath = normalizePath(
-                `${this.manifest.dir}/image-index-cache.json`
+            const cacheBasePath = normalizePath(
+                `${this.manifest.dir}/cache`
             );
 
             const storageAdapter = new ObsidianCacheStorageAdapter(
                 this.app.vault.adapter
             );
 
-            const cache = new ChapterIndexCache(cachePath, storageAdapter);
+            const cache = new ChapterIndexCache(cacheBasePath, storageAdapter);
 
             this.chapterIndexManager = new ChapterIndexManager(cache);
         }

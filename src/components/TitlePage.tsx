@@ -173,7 +173,7 @@ export const TitlePage = ({
         plugin,
         parentPath: path,
         chapters,
-        enabled: true,
+        enabled: plugin.data.settings.readerBackgroundIndexing,
     });
 
     const handleCustomTitleName = () => {

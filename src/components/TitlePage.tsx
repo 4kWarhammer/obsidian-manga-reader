@@ -1,5 +1,5 @@
 import * as React from "react";
-import { App } from "obsidian";
+import { App, Platform } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { ChapterListPage } from "./ChapterListPage";
 import { translations } from "src/i18n";
@@ -128,7 +128,9 @@ export const TitlePage = ({
 }: Props) => {
     // const t = translations[plugin.data.settings.language || "en"]
     const { t, language } = useI18n();
-    const isMobile = (app as any).isMobile;
+    // const isMobile = Platform.isMobile;
+    const isMobile = Platform.isMobile;
+
     const progress = plugin.data.library[path];
 
     const [titleName, setTitleName] = React.useState(
@@ -408,6 +410,7 @@ export const TitlePage = ({
                         // Передаем рейтинг только на мобильных
                         rating={isMobile ? rating : undefined}
                         onRatingChange={isMobile ? (val) => updateFrontmatter({ rating: val }) : undefined}
+                        showWidget={isMobile}
                     />
 
                     {/* Прогресс бар */}
@@ -436,11 +439,12 @@ export const TitlePage = ({
                                 />
                             </div>
 
-                            <div className="title-aliases">
-                                <MarqueeText text={aliasesItem}/>
+                            {aliasesItem && (
+                                <div className="title-aliases">
+                                    <MarqueeText text={aliasesItem}/>
 
-                            </div>
-                            
+                                </div>
+                            )}
                         </div>
 
                         {/* Рейтинг, только на десктопе*/}

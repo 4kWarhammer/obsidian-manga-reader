@@ -178,12 +178,13 @@ export const ImageSelectComponent = ({
                         📁 {node.name}
                     </span>
                 </div>
-                {expanded && (
-                    <div className="folder-content">
+
+                <div className={`folder-content ${expanded ? 'expanded' : ''}`}>
+                    <div className="folder-content-inner">
                         {node.children.map(child => renderFolderNode(child, depth + 1))}
                         {node.files.map(file => renderFile(file, depth + 1))}
                     </div>
-                )}
+                </div>
             </div>
         );
     };

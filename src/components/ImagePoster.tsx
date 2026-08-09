@@ -3,6 +3,8 @@ import { App, TFile } from "obsidian";
 import * as Lucide from "lucide-react";
 import { useI18n } from "src/i18n/I18nContext";
 import { TitleRatingWidget } from "./TitleRatingWidget";
+import { Platform } from 'obsidian';
+import { platform } from "node:os";
 
 interface Props {
     app: App;
@@ -14,6 +16,7 @@ interface Props {
     className?: string;
 
     // Опциональные пропсы для рейтинга
+    showWidget?: boolean;
     rating?: number | null;
     onRatingChange?: (rating: number) => void;
 }
@@ -23,11 +26,12 @@ export const ImagePoster = ({
     app,
     images,
     emptyPlaceholder,
-    coolDown = 4000,
+    coolDown = 5000,
     onClick,
     // На него потом сделаем открытие предпросмотра с листанием.
     onDoubleClick,
     className,
+    showWidget = true,
     rating,
     onRatingChange,
 }: Props) => {
@@ -138,17 +142,17 @@ export const ImagePoster = ({
 
             {/* Рейтинг в левом верхнем углу (если передан) */}            
             <div className="image-poster-header">
-                {rating ? (
-                <TitleRatingWidget
-                    rating={rating}
-                    app={app}
-                    onChange={onRatingChange}
-                />
-                ) : (
-                    // Заглушка
-                    <span></span>
-                )
-            }
+                {showWidget ? (
+                    <TitleRatingWidget
+                        rating={rating}
+                        app={app}
+                        onChange={onRatingChange}
+                    />
+                    ) : (
+                        // Заглушка
+                        <span></span>
+                    )
+                }
 
                 {/* Настройки / выбор изображений */}
                 {onClick && (

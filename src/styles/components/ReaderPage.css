@@ -76,12 +76,20 @@
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         pointer-events: none;
 
-        @media (max-width: 768) {
+        @media (max-width: 768px) {
             min-height: 55px;
         }
     }
 
 }
+/* 
+@media (max-width: 768px) {
+
+@media (max-width: 768) {
+    .manga-reader .reader-header{
+        min-height: 55px;
+    }    
+} */
 
 .reader-header {
     .header-left{

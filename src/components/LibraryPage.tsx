@@ -202,6 +202,7 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                                 <ImagePoster
                                     app={app}
                                     images={plugin.data.library[item.path]?.posterImages || []}                                    
+                                    showWidget={false}
                                 />
                                 {/* Как то не смотрится пока */}
                                 {/* {item.rating !== null && item.rating !== undefined && (

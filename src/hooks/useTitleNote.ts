@@ -9,19 +9,7 @@ import {
 } from "obsidian";
 import { extractMarkdownSection } from "../utils/extractMarkdownSection";
 import { sanitizeFileName } from "src/utils/TitleUtils";
-
-// Шаблон на доработку
-const TEMPLATE = (titleName: string) => `---
-tags: [manga]
-year: 
-rating: 
-aliases: []
-created: {{date}}
----
-# Описание
-
-# Комментарии
-`;
+import { useI18n } from "src/i18n/I18nContext";
 
 export interface NoteFrontmatter {
     tags?: string[];
@@ -37,6 +25,9 @@ export function useTitleNote(
     noteFileName?: string,       // текущее имя файла из MangaProgress
     onNoteFileNameChange?: (newName: string) => void
 ) {
+    // Получаем переводы для текущего языка
+    const { t } = useI18n()
+
     const [notePath, setNotePath] = React.useState<string | null>(null);
     const [content, setContent] = React.useState<string>("");
     const [exists, setExists] = React.useState(false);
@@ -50,6 +41,21 @@ export function useTitleNote(
     const [franchise, setFranchise] = React.useState<string[]>([]);
     const [journal, setJournal] = React.useState<string[]>([]);
     const [publisher, setPublisher] = React.useState<string[]>([]);
+
+    // Создаем локализованный шаблон
+    const createTemplate = React.useCallback((titleName: string) => {
+        return `---
+tags: [manga]
+year: 
+rating: 
+aliases: []
+created: {{date}}
+---
+# ${t.note.headings.description}
+
+# ${t.note.headings.comments}
+`;
+    }, [t]);
 
     const desiredFileName = React.useMemo(() => {
         return `${sanitizeFileName(titleName)}.md`;
@@ -144,7 +150,7 @@ export function useTitleNote(
                 }
             }
 
-            const body = TEMPLATE(titleName).replace(
+            const body = createTemplate(titleName).replace(
                 "{{date}}",
                 window.moment().format("YYYY-MM-DD")
             );
@@ -168,6 +174,7 @@ export function useTitleNote(
         noteFileName,
         titleName,
         checkAndRead,
+        createTemplate,
     ]);
 
     /** Только открывает файл по актуальному noteFullPath */
@@ -238,17 +245,16 @@ export function useTitleNote(
         // Принудительный checkAndRead() здесь не обязателен.
     }, [app, noteFullPath, ensureNote]);
 
+    // Вытаскиваем информацию из заголовков заметки
     const description = React.useMemo(() => {
         if (!content) return null;
-        // Берём секцию "Описание" (регистр не важен)
-        return extractMarkdownSection(content, "Описание");
-    }, [content]);
+        return extractMarkdownSection(content, t.note.headings.description);
+    }, [content, t.note.headings.description]);
 
     const comments = React.useMemo(() => {
         if (!content) return null;
-        // Берём секцию "Описание" (регистр не важен)
-        return extractMarkdownSection(content, "Комментарии");
-    }, [content]);
+        return extractMarkdownSection(content, t.note.headings.comments);
+    }, [content, t.note.headings.comments]);
 
     // Читаем содержимое + подписываемся на изменения в vault
     React.useEffect(() => {
@@ -286,7 +292,12 @@ export function useTitleNote(
         notePath,
         ensureNote,
         openNote,
-        updateFrontmatter
+        updateFrontmatter,
+        // В целом можно и без этого
+        expectedHeadings: {
+            description: t.note.headings.description,
+            comments: t.note.headings.comments
+        }
     };
 }
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { App } from "obsidian";
+import { App, Platform } from "obsidian";
 import MangaReaderPlugin from "../main";
 import { usePluginSettings } from "src/hooks/usePluginSettings";
 import { useReaderInitialPage } from "src/hooks/useReaderInitialPage";
@@ -42,7 +42,7 @@ export const ReaderPage = ({
 }: Props) => {
     // 1. Props / basic constants
     const t = translations[plugin.data.settings.language || "en"]
-    const isMobile = (app as any).isMobile;
+    const isMobile = Platform.isMobile;
 
     // 2. Refs
     const containerRef = React.useRef<HTMLDivElement>(null);

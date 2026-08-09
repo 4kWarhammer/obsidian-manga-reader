@@ -36,6 +36,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    gap: 12px;
 }
 
 /* Для выбора изображений */
@@ -99,7 +100,18 @@
 
 /* Контент папки — без фона, вложенность достигается padding-left в JS */
 .folder-content {
-    background: none;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s ease-out;
+    overflow: hidden;
+}
+
+.folder-content.expanded {
+    grid-template-rows: 1fr;
+}
+
+.folder-content-inner {
+    min-height: 0;
 }
 
 .image-item {

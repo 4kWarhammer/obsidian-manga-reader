@@ -115,9 +115,13 @@ export const en: TranslationSchema = {
     note: {
         placeholder: "📝 Double-click to create or open a note",
         empty: "Note is empty. Double-click to edit.",
-        descriptionEmpty: "Note exists, but description heading was not found",
-        commentsEmpty: "Note exists, but comments heading was not found",
+        descriptionEmpty: `Note exists, but "Description" heading was not found`,
+        commentsEmpty: `Note exists, but "Comments" heading was not found`,
         tagsEmpty: "No tags specified",
+        headings: {
+            description: "Description",
+            comments: "Comments"
+        },
     },
 
     modal: {

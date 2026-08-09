@@ -29,7 +29,7 @@ export class MangaReaderSettingTab extends PluginSettingTab {
 
         // Настройка языка
         new Setting(containerEl)
-            .setName(t.settings.language)            
+            .setName(t.settings.language)
             .setDesc(t.settings.lanDescription)
             .addDropdown(dropdown => dropdown
                 .addOption('ru', 'Русский')
@@ -135,6 +135,52 @@ export class MangaReaderSettingTab extends PluginSettingTab {
                     );
             }
         }
+
+        // Настройка пути для изображений
+        new Setting(containerEl)
+            .setName(t.settings.imageFolderTitle)
+            .setDesc(this.plugin.data.settings.imagesFolder 
+                ? `${t.settings.currentDefaultPath} ${this.plugin.data.settings.imagesFolder}` 
+                : t.settings.noCurrent)
+            .addButton(button => button
+                .setButtonText(t.settings.selectDefaultFolder)
+                .onClick(() => {
+                    new FolderSelectModal(
+                        this.app, 
+                        this.plugin, 
+                        async (path: string) => {
+                            this.plugin.data.settings.imagesFolder = path;
+                            await this.plugin.saveSettings();
+                            this.display(); // Перерисовываем настройки, чтобы показать новый путь
+                            new Notice(`${t.settings.imageFolderNotice} ${path}`);
+                        }, 
+                        "vault"
+                    ).open();
+                })
+            );
+
+        // настройка пути для заметок тайтлов
+        new Setting(containerEl)
+            .setName(t.settings.notesFolderTitle)
+            .setDesc(this.plugin.data.settings.notesFolder 
+                ? `${t.settings.currentDefaultPath} ${this.plugin.data.settings.notesFolder}` 
+                : t.settings.noCurrent)
+            .addButton(button => button
+                .setButtonText(t.settings.selectDefaultFolder)
+                .onClick(() => {
+                    new FolderSelectModal(
+                        this.app, 
+                        this.plugin, 
+                        async (path: string) => {
+                            this.plugin.data.settings.notesFolder = path;
+                            await this.plugin.saveSettings();
+                            this.display(); // Перерисовываем настройки, чтобы показать новый путь
+                            new Notice(`${t.settings.notesFolderNotice} ${path}`);
+                        }, 
+                        "vault"
+                    ).open();
+                })
+            );
 
         containerEl.createEl('h3', { 
             text: t.settings.viewModeTitle,

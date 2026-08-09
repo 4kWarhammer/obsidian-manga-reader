@@ -110,6 +110,16 @@ export const en: TranslationSchema = {
         selectRemove: "Select a source to remove",
         removeButton: "Remove",
         removeNotice: "Removed:",
+
+        notesFolderTitle: "Manga notes folder",
+        notesFolderDesc: "",
+        notesButtonText: "",
+        notesFolderNotice: "Manga notes folder set to:",
+        
+        imageFolderTitle: "Manga images folder",
+        imageFolderDesc: "",
+        imageButtonText: "",
+        imageFolderNotice: "Manga images folder set to:",
     },
 
     note: {

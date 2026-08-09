@@ -95,7 +95,7 @@ export const ru = {
         languageNotice: "Текущий язык изменен",
         lanDescription: "Выберите язык интерфейса",
         sourcesTitle: "Источники библиотеки",
-        defaultPath: "Папка библиотеки по умолчанию",
+        defaultPath: "Библиотека по умолчанию",
         currentDefaultPath: "Текущая:",
         noCurrent: "Папка не выбрана",
         selectDefaultFolder: "Выбрать папку",
@@ -109,8 +109,16 @@ export const ru = {
         selectRemove: "Выберите источник для удаления",
         removeButton: "Удалить",
         removeNotice: "Удалено:",
-        
 
+        notesFolderTitle: "Папка для заметок по манге",
+        notesFolderDesc: "",
+        notesButtonText: "",
+        notesFolderNotice: "Папка для заметок установлена на:",
+        
+        imageFolderTitle: "Папка для изображений по манге",
+        imageFolderDesc: "",
+        imageButtonText: "",
+        imageFolderNotice: "Папка для изображений установлена на:",
     },
 
     note: {

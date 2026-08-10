@@ -2,7 +2,6 @@ import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import MangaReaderPlugin from '../main';
 import { FolderSelectModal } from '../modal/FolderSelectModal';
 import { getTranslation } from '../i18n';
-import { uptime } from 'node:process';
 
 export class MangaReaderSettingTab extends PluginSettingTab {
     plugin: MangaReaderPlugin;

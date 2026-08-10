@@ -1,13 +1,11 @@
 import React from 'react';
-import { Plugin, WorkspaceLeaf, PluginSettingTab, Setting, Notice, normalizePath } from 'obsidian';
+import { Plugin, WorkspaceLeaf, normalizePath } from 'obsidian';
 import { MangaView, VIEW_TYPE_MANGA } from './MangaView';
 import { PluginData, DEFAULT_DATA } from './types';
 import { ChapterIndexManager } from './utils/ChapterIndexManager';
 import { ChapterIndexCache } from './utils/ChapterIndexCache';
 import { ObsidianCacheStorageAdapter } from './utils/ObsidianCacheStorageAdapter';
 import { MangaReaderSettingTab } from './settings/MangaReaderSettingTab';
-import { getTranslation } from "./i18n";
-import type { Language, Translation } from "./i18n";
 
 // Только для development
 if (process.env.NODE_ENV !== 'production') {

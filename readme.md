@@ -43,6 +43,14 @@ The reader preloads and caches chapter data for fast navigation and instant reop
 
 Customize reading mode, indexing strategy, reader width, library folders, language, and more in plugin settings.
 
+### License
+
+This plugin is licensed under the PolyForm Noncommercial License 1.0.0.
+
+It is free to use, modify, and distribute for noncommercial purposes.
+Commercial use requires explicit permission from the copyright holder.
+
+See the LICENSE file for the full license terms.
 ---
 
 ## Русский
@@ -83,3 +91,7 @@ Customize reading mode, indexing strategy, reader width, library folders, langua
 ### Настройки
 
 Настраивайте режим чтения, стратегию индексации, ширину ридера, папки библиотеки, язык интерфейса и другие параметры в настройках плагина.
+
+## License
+
+Плагин распространяется по лицензии PolyForm Noncommercial 1.0.0.

@@ -1,10 +1,10 @@
 {
-  "id": "obsidian-manga-reader",
-  "name": "Manga Reader",
-  "version": "1.0.0",
-  "minAppVersion": "0.15.0",
-  "description": "Local manga library manager with cross-platform reader, progress tracking, and customizable viewing modes",
-  "author": "AlexLi",
-  "authorUrl": "https://github.com/4kWarhammer",
-  "isDesktopOnly": false
+    "id": "obsidian-manga-reader",
+    "name": "Manga Reader",
+    "version": "1.0.0",
+    "minAppVersion": "1.12.4",
+    "description": "Local manga library and reader for Obsidian with CBZ/ZIP support, progress tracking, and customizable reading modes",
+    "author": "Alex Li",
+    "authorUrl": "https://github.com/4kWarhammer",
+    "isDesktopOnly": false
 }

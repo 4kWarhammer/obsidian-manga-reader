@@ -1,23 +1,38 @@
 {
-  "name": "obsidian-manga-reader",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
+"name": "obsidian-manga-reader",
+"version": "1.0.0",
+"description": "Local manga library manager and reader for Obsidian",
+"main": "main.js",
+"scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node esbuild.config.mjs production"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
+},
+"author": "Alex Li",
+"license": "PolyForm-Noncommercial-1.0.0",
+"repository": {
+    "type": "git",
+    "url": "git+https://github.com/4kWarhammer/obsidian-manga-reader.git"
+},
+"bugs": {
+    "url": "https://github.com/4kWarhammer/obsidian-manga-reader/issues"
+},
+"homepage": "https://github.com/4kWarhammer/obsidian-manga-reader#readme",
+"keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "manga",
+    "reader",
+    "cbz",
+    "zip"
+],
+"dependencies": {
     "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
     "obsidian": "^1.11.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
-  },
-  "devDependencies": {
+},
+"devDependencies": {
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
@@ -25,8 +40,8 @@
     "esbuild": "^0.27.2",
     "tslib": "^2.8.1",
     "typescript": "^5.9.3"
-  },
-  "allowScripts": {
+},
+"allowScripts": {
     "esbuild@0.27.2": true
-  }
+}
 }

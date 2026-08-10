@@ -50,11 +50,11 @@ export const DEFAULT_DATA: PluginData = {
         readerBackgroundIndexing: false,
         pageGap: 5,
         readerWidthPercent: 100,
-        notesFolder: "MangaReader/Notes",   // Также пока пусть будет
+        notesFolder: "MangaReader/Notes",
         imagesFolder: "MangaReader/Images",
     },
     library: {},
-    defaultLibraryPath: "",
+    defaultLibraryPath: "MangaReader/Library",
     externalSources: []
 };
 

@@ -14,7 +14,8 @@ export const en: TranslationSchema = {
         title: "My Library",
         addVaultFolder: "Select Vault Folder",
         addExternalFolder: "+ External Folder",
-        empty: "Library is empty. Add folders in settings above.",
+        empty: "Library is empty. Add title folders in:",
+        alternate: 'or choose another folder in settings',
         externalLabel: "[External]",
     },
 

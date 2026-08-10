@@ -234,7 +234,8 @@ export const LibraryPage = ({ app, plugin, onSelectTitle }: Props) => {
                 }) 
                 : (
                     <p className="empty-library">
-                        {t.library.empty}
+                        {t.library.empty} {defaultPath} 
+                        {t.library.alternate}
                     </p>
                 )}
             </div>

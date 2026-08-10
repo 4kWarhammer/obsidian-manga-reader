@@ -40,6 +40,7 @@ export default class MangaReaderPlugin extends Plugin {
 
         // Создаем системные папки если их нет
         const systemFolders = [
+            normalizePath(this.data.defaultLibraryPath),
             normalizePath(this.data.settings.notesFolder),
             normalizePath(this.data.settings.imagesFolder),
             normalizePath(`${this.manifest.dir}/cache`), // Создаем папку для кэшей

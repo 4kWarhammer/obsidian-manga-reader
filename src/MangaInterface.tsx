@@ -7,6 +7,7 @@ import { TitlePage } from "./components/TitlePage";
 import type { MangaViewState } from "./MangaView";
 import { I18nProvider } from "./i18n/I18nContext";
 import { usePluginSettings } from "./hooks/usePluginSettings";
+import { ensureProgress } from "./utils/TitleUtils";
 
 // Обновляем описание того, что принимает интерфейс
 interface InterfaceProps {
@@ -41,18 +42,13 @@ export const MangaInterface = ({
         const titlePath = selectedTitle;
         if (!titlePath) return;
 
-        // 1. Создаем запись в библиотеке, если её нет
-        if (!plugin.data.library[titlePath]) {
-            plugin.data.library[titlePath] = {
-                lastChapter: "",
-                lastPage: 1
-            };
-        }
+        // 1. Гарантируем, что запись существует
+        const progress = ensureProgress(plugin, titlePath);
 
         // 2. Обновляем данные в объекте
-        plugin.data.library[titlePath].lastChapter = chapterName;
+        progress.lastChapter = chapterName;
         if (resetPage) {
-            plugin.data.library[titlePath].lastPage = 1;
+            progress.lastPage = 1;
         }
 
         // 3. Сначала сохраняем на диск

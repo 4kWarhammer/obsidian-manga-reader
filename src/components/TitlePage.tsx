@@ -11,7 +11,7 @@ import { ImageSelectModal } from "../modal/ImageSelectModal";
 import { useTitleNote } from "src/hooks/useTitleNote";
 import { MarkdownNote } from "./MarkDownNote";
 import { ReadingProgressBar } from "./ReadingProgressBar";
-import { getTitleDisplayName } from "src/utils/TitleUtils";
+import { getTitleDisplayName, ensureProgress } from "src/utils/TitleUtils";
 import { TitleNameModal } from "../modal/TitleNameModal";
 import { TitleRatingWidget } from "./TitleRatingWidget";
 import * as Lucide from "lucide-react";
@@ -131,10 +131,10 @@ export const TitlePage = ({
     // const isMobile = Platform.isMobile;
     const isMobile = Platform.isMobile;
 
-    const progress = plugin.data.library[path];
+    const progress = ensureProgress(plugin, path);
 
     const [titleName, setTitleName] = React.useState(
-    plugin.data.library[path]?.titleName || getTitleDisplayName(path, progress)
+    progress.titleName || getTitleDisplayName(path, progress)
 );
     // const titleName = getTitleDisplayName(path, progress)
 
@@ -157,10 +157,7 @@ export const TitlePage = ({
         plugin.data.settings.notesFolder, 
         progress.noteFileName,
         (newName) => {
-            if (!plugin.data.library[path]) {
-                plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
-            }
-            plugin.data.library[path].noteFileName = newName;
+            ensureProgress(plugin, path).noteFileName = newName;
             plugin.saveProgress();
         }
     );
@@ -186,10 +183,7 @@ export const TitlePage = ({
                 const trimmed = newName.trim();
                 if (!trimmed) return;
 
-                if (!plugin.data.library[path]) {
-                    plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
-                }
-                plugin.data.library[path].titleName = trimmed;
+                ensureProgress(plugin, path).titleName = trimmed;
                 plugin.saveProgress();
                 setTitleName(trimmed);
             },
@@ -201,10 +195,7 @@ export const TitlePage = ({
     // Спорный момент
     React.useEffect(() => {
         if (chapters.length > 0) {
-            if (!plugin.data.library[path]) {
-                plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
-            }
-            plugin.data.library[path].totalChapters = chapters.length;
+            ensureProgress(plugin, path).totalChapters = chapters.length;
             plugin.saveProgress();
         }
     }, [chapters.length, path, plugin]);
@@ -225,10 +216,7 @@ export const TitlePage = ({
     const handleChoosePosterImages = () => {
         const onSave = (selected: string[]) => {
             setPosterImages(selected);
-            if (!plugin.data.library[path]) {
-                plugin.data.library[path] = { lastChapter: "", lastPage: 1 };
-            }
-            plugin.data.library[path].posterImages = selected;
+            ensureProgress(plugin, path).posterImages = selected;
             plugin.saveProgress();
         };
 
@@ -463,7 +451,14 @@ export const TitlePage = ({
                         <button
                             className="start-button"
                             title={`${t.title.continueReading}: ${progress.lastChapter}, ${progress.lastPage}`}
-                            onClick={() => onContinue(progress.lastChapter, false)}
+                            onClick={() => {
+                                // Если lastChapter пустой — берём первую главу из списка
+                                const chapterToOpen = progress.lastChapter || chapters[0];
+                                if (chapterToOpen) {
+                                    // Если это первый запуск — сбрасываем на страницу 1
+                                    onContinue(chapterToOpen, !progress.lastChapter);
+                                }
+                            }}
                         >
                             <MarqueeText text={progress?.lastChapter 
                                 ? t.title.continueReading

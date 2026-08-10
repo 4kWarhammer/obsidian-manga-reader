@@ -1,4 +1,21 @@
+import MangaReaderPlugin from "../main";
 import { MangaProgress } from "../types";
+
+/**
+ * Возвращает или создает запись прогресса для тайтла
+ */
+export function ensureProgress(
+    plugin: MangaReaderPlugin, 
+    path: string
+): MangaProgress {
+    if (!plugin.data.library[path]) {
+        plugin.data.library[path] = {
+            lastChapter: "",
+            lastPage: 1
+        };
+    }
+    return plugin.data.library[path];
+}
 
 /** Функция берет имя из library.titleName, с fallback - имя из названия папки */
 export function getTitleDisplayName(path: string, progress?: MangaProgress): string {

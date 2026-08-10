@@ -23,14 +23,6 @@ export class ChapterIndexManager {
     private indexer: ChapterIndexer;
 
     /**
-     * Защита от запуска ChapterIndexManager без ChapterIndexCache
-     * 
-     * Базово, лучше делать это извне, для более явного lifeCycle
-     * Но сделаю возможность "глупого запуска"
-     */
-    private cacheLoadPromise: Promise<void> | null = null;
-
-    /**
      * Очередь задач на индексацию.
      *
      * В очередь попадают только cache miss задачи.
@@ -100,8 +92,6 @@ export class ChapterIndexManager {
         priority: IndexPriority = 3,
         onProgress?: (progress: ChapterIndexerProgress) => void
     ): Promise<CachedChapterIndex> {
-        // Убеждаемся, что ChapterImageCache загружен
-        await this.ensureCacheLoaded();
         // Проверяем есть ли глава в promise запущеный задач
         const existing = this.inFlight.get(opts.chapterKey);
 
@@ -121,8 +111,8 @@ export class ChapterIndexManager {
         const signature = await this.indexer.computeSignature(opts);
 
         // Сверяем сигнатуру с кэшем
-        if (this.cache.hasValidChapter(opts.chapterKey, signature)) {
-            const cached = this.cache.getChapter(opts.chapterKey);
+        if (await this.cache.hasValidChapter(opts.chapterKey, signature)) {
+            const cached = await this.cache.getChapter(opts.chapterKey);
 
             if (cached) {
                 logger.lazyLoader(
@@ -341,14 +331,6 @@ export class ChapterIndexManager {
 
     getCache(): ChapterIndexCache {
         return this.cache;
-    }
-
-    private ensureCacheLoaded(): Promise<void> {
-        if (!this.cacheLoadPromise) {
-            this.cacheLoadPromise = this.cache.load();
-        }
-
-        return this.cacheLoadPromise;
     }
 
     /**

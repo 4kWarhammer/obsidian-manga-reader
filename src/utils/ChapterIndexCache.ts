@@ -29,6 +29,9 @@ export class ChapterIndexCache {
     // titleKey -> TitleCache
     private loadedTitles = new Map<string, TitleCache>();
 
+    // Map промисов загрузки для предотвращения дублирования
+    private loadingPromises = new Map<string, Promise<TitleCache>>();
+
     // Адаптер для работы с файловой системой
     private adapter: CacheStorageAdapter;
 
@@ -42,15 +45,10 @@ export class ChapterIndexCache {
     // ============================================================
 
     /**
-     * Загрузка больше не нужна при старте — используется lazy loading
+     * Метод load() больше не нужен с архитектурой lazy loading.
+     * Каждый тайтл загружается автоматически при первом обращении.
+     * Метод удален.
      */
-    async load(signal?: AbortSignal): Promise<void> {
-        // Оставляем метод для совместимости с ChapterIndexManager
-        // Фактически ничего не делаем — загрузка произойдет при первом обращении
-        if (signal?.aborted) {
-            throw new Error('ChapterIndexCache: load aborted');
-        }
-    }
 
     /**
      * Сохраняет все измененные (dirty) тайтлы на диск
@@ -93,11 +91,11 @@ export class ChapterIndexCache {
     // ============================================================
 
     /**
-     * Получить закэшированный индекс главы
+     * Получить закэшированный индекс главы (асинхронно)
      */
-    getChapter(chapterKey: string): CachedChapterIndex | undefined {
+    async getChapter(chapterKey: string): Promise<CachedChapterIndex | undefined> {
         const titleKey = this.extractTitleKeyFromChapterKey(chapterKey);
-        const titleCache = this.ensureTitleLoaded(titleKey);
+        const titleCache = await this.ensureTitleLoaded(titleKey);
         
         return titleCache.data.chapters[chapterKey];
     }
@@ -105,9 +103,9 @@ export class ChapterIndexCache {
     /**
      * Сохранить индекс главы в кэш
      */
-    setChapter(index: CachedChapterIndex): void {
+    async setChapter(index: CachedChapterIndex): Promise<void> {
         const titleKey = index.titleKey;
-        const titleCache = this.ensureTitleLoaded(titleKey);
+        const titleCache = await this.ensureTitleLoaded(titleKey);
         
         titleCache.data.chapters[index.chapterKey] = index;
         titleCache.dirty = true;
@@ -116,16 +114,56 @@ export class ChapterIndexCache {
     /**
      * Инвалидировать (удалить) индекс главы из кэша
      */
-    invalidateChapter(chapterKey: string): void {
+    async invalidateChapter(chapterKey: string): Promise<void> {
         const titleKey = this.extractTitleKeyFromChapterKey(chapterKey);
         
-        if (!this.loadedTitles.has(titleKey)) {
+        // Проверяем, загружен ли тайтл
+        if (!this.loadedTitles.has(titleKey) && !this.loadingPromises.has(titleKey)) {
             return; // Тайтл даже не загружен — нечего инвалидировать
         }
 
-        const titleCache = this.loadedTitles.get(titleKey)!;
+        const titleCache = await this.ensureTitleLoaded(titleKey);
         delete titleCache.data.chapters[chapterKey];
         titleCache.dirty = true;
+    }
+
+    /**
+     * Проверка валидности кэша главы (асинхронно)
+     */
+    async hasValidChapter(chapterKey: string, signature: ChapterSignature): Promise<boolean> {
+        const entry = await this.getChapter(chapterKey);
+        if (!entry) return false;
+
+        // 1. Проверяем версии
+        if (entry.schemaVersion !== CURRENT_IMAGE_INDEX_SCHEMA_VERSION) {
+            return false;
+        }
+        if (entry.extractorVersion !== CURRENT_IMAGE_INDEX_EXTRACTOR_VERSION) {
+            return false;
+        }
+
+        // 2. Проверяем kind
+        if (entry.signature.kind !== signature.kind) {
+            return false;
+        }
+
+        // 3. Проверяем сигнатуру
+        if (entry.signature.kind === 'archive' && signature.kind === 'archive') {
+            return (
+                entry.signature.path === signature.path &&
+                entry.signature.size === signature.size
+            );
+        }
+
+        if (entry.signature.kind === 'folder' && signature.kind === 'folder') {
+            return (
+                entry.signature.path === signature.path &&
+                entry.signature.fileCount === signature.fileCount &&
+                entry.signature.filesHash === signature.filesHash
+            );
+        }
+
+        return false;
     }
 
     /**
@@ -139,47 +177,6 @@ export class ChapterIndexCache {
         }
         
         return keys;
-    }
-
-    // ============================================================
-    // Валидация
-    // ============================================================
-
-    hasValidChapter(chapterKey: string, signature: ChapterSignature): boolean {
-        const entry = this.getChapter(chapterKey);
-        if (!entry) return false;
-
-        // 1. Проверяем версии
-        if (entry.schemaVersion !== CURRENT_IMAGE_INDEX_SCHEMA_VERSION) {
-            return false;
-        }
-        if (entry.extractorVersion !== CURRENT_IMAGE_INDEX_EXTRACTOR_VERSION) {
-            return false;
-        }
-
-        // 2. Проверяем kind у кого с кем?
-        if (entry.signature.kind !== signature.kind) {
-            return false;
-        }
-
-        // 3. Проверяем сигнатуру
-        if (entry.signature.kind === 'archive' && signature.kind === 'archive') {
-            return (
-                entry.signature.path === signature.path &&
-                entry.signature.size === signature.size
-                // entry.signature.mtime === signature.mtime
-            );
-        }
-
-        if (entry.signature.kind === 'folder' && signature.kind === 'folder') {
-            return (
-                entry.signature.path === signature.path &&
-                entry.signature.fileCount === signature.fileCount &&
-                entry.signature.filesHash === signature.filesHash
-            );
-        }
-
-        return false;
     }
 
     // ============================================================
@@ -206,44 +203,61 @@ export class ChapterIndexCache {
 
     /**
      * Загружает кэш тайтла в память, если он еще не загружен
-     * Синхронный метод — загрузка происходит синхронно при первом обращении
+     * Асинхронный метод — ожидает загрузки с диска при первом обращении
      */
-    private ensureTitleLoaded(titleKey: string): TitleCache {
+    private async ensureTitleLoaded(titleKey: string): Promise<TitleCache> {
+        // Если уже загружен — возвращаем из памяти
         if (this.loadedTitles.has(titleKey)) {
             return this.loadedTitles.get(titleKey)!;
         }
 
-        // Создаем новый пустой кэш для тайтла
-        // Фактическая загрузка с диска будет выполнена асинхронно при первом save/load
+        // Если уже идет загрузка — ждем её завершения
+        const existingPromise = this.loadingPromises.get(titleKey);
+        if (existingPromise) {
+            return await existingPromise;
+        }
+
+        // Создаем промис загрузки
+        const loadPromise = this.loadTitleCacheFromDisk(titleKey);
+        this.loadingPromises.set(titleKey, loadPromise);
+
+        try {
+            const titleCache = await loadPromise;
+            return titleCache;
+        } finally {
+            // Удаляем промис после завершения загрузки
+            this.loadingPromises.delete(titleKey);
+        }
+    }
+
+    /**
+     * Загружает кэш тайтла с диска
+     */
+    private async loadTitleCacheFromDisk(titleKey: string): Promise<TitleCache> {
+        // Создаем структуру заранее
         const titleCache: TitleCache = {
             data: createEmptyCache(),
             dirty: false,
         };
 
-        // Пытаемся загрузить с диска (без await — загрузка в фоне)
-        this.loadTitleCacheAsync(titleKey, titleCache);
-
+        // Сохраняем в Map СРАЗУ, до загрузки с диска
+        // Это предотвращает повторные загрузки одного тайтла
         this.loadedTitles.set(titleKey, titleCache);
-        return titleCache;
-    }
 
-    /**
-     * Асинхронная загрузка кэша тайтла с диска
-     */
-    private async loadTitleCacheAsync(titleKey: string, titleCache: TitleCache): Promise<void> {
         try {
             const filePath = this.getTitleCacheFilePath(titleKey);
             const exists = await this.adapter.exists(filePath);
             
             if (!exists) {
-                return; // Файл не существует — используем пустой кэш
+                // Файл не существует — используем пустой кэш
+                return titleCache;
             }
 
             const content = await this.adapter.read(filePath);
 
             if (!content.trim()) {
                 console.warn(`ChapterIndexCache: empty cache file for title "${titleKey}"`);
-                return;
+                return titleCache;
             }
 
             const parsed = JSON.parse(content) as ImageIndexCacheFile;
@@ -257,16 +271,18 @@ export class ChapterIndexCache {
                 typeof parsed.chapters !== 'object'
             ) {
                 console.warn(`ChapterIndexCache: malformed cache file for title "${titleKey}"`);
-                return;
+                return titleCache;
             }
 
-            // Обновляем данные в уже созданном объекте
+            // Загружаем данные из файла В УЖЕ СОХРАНЕННЫЙ объект
             titleCache.data = parsed;
             titleCache.dirty = false;
         } catch (err) {
             console.warn(`ChapterIndexCache: failed to load cache for title "${titleKey}"`, err);
             // Используем пустой кэш при ошибке
         }
+
+        return titleCache;
     }
 
     /**

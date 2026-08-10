@@ -1,8 +1,10 @@
 {
   "id": "obsidian-manga-reader",
-  "name": "Alpha dev manga reader",
+  "name": "Manga Reader",
   "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Local manga library manager with cross-platform reader, progress tracking, and customizable viewing modes",
   "author": "AlexLi",
-  "description": "Читался для Obsidian локальных библиотек манги",
+  "authorUrl": "https://github.com/4kWarhammer",
   "isDesktopOnly": false
 }

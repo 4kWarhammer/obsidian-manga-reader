@@ -66,6 +66,8 @@ export const ReaderPage = ({
 
 
     const viewportSize = useElementSize(containerRef);
+    // ВЫбираем 
+    const MAX_WIDTH = Math.min(viewportSize.width, 1200);
 
     const readerInitialPage = useReaderInitialPage(
         plugin,
